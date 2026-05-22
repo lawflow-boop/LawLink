@@ -1,28 +1,42 @@
 services:
   db:
     image: postgres:16-alpine
+    container_name: lawlink-db
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: lawlink
-      POSTGRES_USER: lawlink
-      POSTGRES_PASSWORD: lawlink
+      POSTGRES_DB: ${POSTGRES_DB:-lawlink}
+      POSTGRES_USER: ${POSTGRES_USER:-lawlink}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lawlink}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lawlink}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
+  # 仅在 docker compose up app 时启动；本地开发用 npm run dev 就跳过 app
   app:
     build: .
+    container_name: lawlink-app
+    restart: unless-stopped
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://lawlink:lawlink@db:5432/lawlink?schema=public
-      NEXTAUTH_SECRET: replace-with-a-long-random-secret
-      NEXTAUTH_URL: http://localhost:3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lawlink}:${POSTGRES_PASSWORD:-lawlink}@db:5432/${POSTGRES_DB:-lawlink}?schema=public
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      STORAGE_ENCRYPTION_KEY: ${STORAGE_ENCRYPTION_KEY}
       APP_STORAGE_DIR: /app/storage
     ports:
       - "3000:3000"
     volumes:
       - app_storage:/app/storage
+    profiles:
+      - full
 
 volumes:
   postgres_data:

@@ -63,6 +63,10 @@
     "postcss": "^8.4.49",
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.15",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

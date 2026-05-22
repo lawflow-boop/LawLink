@@ -1,3 +1,7 @@
+// LawLink 数据 schema
+// 对应 docs/DATA-MODEL.md v0.3
+// 修改前先改文档，再改 schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,6 +11,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================================
+// 枚举
+// ============================================================
+
 enum UserRole {
   ADMIN
   PRINCIPAL_LAWYER
@@ -15,27 +23,118 @@ enum UserRole {
   FINANCE
 }
 
-enum MatterStatus {
-  INTAKE
-  PENDING_CONFIRMATION
-  IN_PROGRESS
-  CLOSED
-  ARCHIVED
-}
-
-enum MatterType {
-  LITIGATION
+enum MatterCategory {
+  CIVIL_COMMERCIAL
+  CRIMINAL
+  ADMINISTRATIVE
   NON_LITIGATION
   LEGAL_COUNSEL
   SPECIAL_PROJECT
 }
 
+enum MatterStatus {
+  PENDING_ACCEPTANCE
+  IN_PROGRESS
+  ON_HOLD
+  CLOSED
+  ARCHIVED
+}
+
+enum MatterMemberRole {
+  LEAD
+  CO_LEAD
+  ASSISTANT
+}
+
+enum IntakeStatus {
+  INTAKE
+  PENDING_CONFIRMATION
+  CONVERTED
+  DECLINED
+}
+
+enum LitigationStanding {
+  PLAINTIFF
+  DEFENDANT
+  THIRD_PARTY
+  CRIMINAL_DEFENDANT
+  CRIMINAL_VICTIM
+  PRIVATE_PROSECUTOR
+  CRIMINAL_INCIDENTAL_PLAINTIFF
+  ARBITRATION_CLAIMANT
+  ARBITRATION_RESPONDENT
+  NON_LITIGATION_PARTY
+}
+
+enum ProcedureType {
+  // 审判通用
+  FIRST_INSTANCE
+  SECOND_INSTANCE
+  RETRIAL_REVIEW
+  RETRIAL
+  REMAND_FIRST
+  REMAND_SECOND
+  PROSECUTORIAL_SUPERVISION
+  // 仲裁
+  COMMERCIAL_ARBITRATION
+  LABOR_ARBITRATION
+  ARBITRATION_SET_ASIDE
+  ARBITRATION_ENFORCEMENT_REVIEW
+  // 执行
+  ENFORCEMENT
+  ENFORCEMENT_OBJECTION
+  // 刑事
+  INVESTIGATION
+  PROSECUTION_REVIEW
+  DEATH_PENALTY_REVIEW
+  CRIMINAL_ENFORCEMENT
+  COMMUTATION_PAROLE_REVIEW
+  // 行政
+  ADMIN_RECONSIDERATION
+  ADMIN_NON_LITIGATION_ENFORCEMENT
+  // 非诉
+  NON_LITIGATION_PHASE
+  // 兜底
+  CUSTOM
+}
+
+enum ProcedureStatus {
+  PENDING
+  IN_PROGRESS
+  CONCLUDED
+}
+
+enum ProcedureEngagement {
+  ENGAGED
+  INFORMATIONAL
+}
+
+enum ProcedureOutcome {
+  WON
+  PARTIAL_WON
+  LOST
+  MEDIATED
+  WITHDRAWN
+  DISMISSED
+  COMPLETED
+  TRANSFERRED
+  OTHER
+}
+
 enum PartyRole {
-  CLIENT
+  CLIENT_PARTY
   OPPOSING_PARTY
   THIRD_PARTY
-  RELATED_ENTITY
-  CONTACT
+  CO_LITIGANT
+  AGENT
+  WITNESS
+  OTHER
+}
+
+enum ClientType {
+  INDIVIDUAL
+  COMPANY
+  ORGANIZATION
 }
 
 enum ConflictSeverity {
@@ -45,8 +144,49 @@ enum ConflictSeverity {
   BLOCKING
 }
 
-enum FeeType {
+enum ConflictConclusion {
+  PENDING
+  SAME_SUBJECT
+  DIFFERENT
+  NEED_INFO
+}
+
+enum DeadlineCategory {
+  LIMITATION
+  EVIDENCE
+  APPEAL
+  PERFORMANCE
+  RESPONSE
+  ENFORCEMENT
+  ARBITRATION_SET_ASIDE
+  CUSTOM
+}
+
+enum NoteChannel {
+  PHONE
+  WECHAT
+  EMAIL
+  MEETING
+  COURT
+  OTHER
+}
+
+enum DocumentCategory {
+  EVIDENCE
+  PLEADING
+  PROCEDURE
+  JUDGMENT
   CONTRACT
+  OTHER
+}
+
+enum BillingStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum FeeEntryType {
   RECEIVABLE
   RECEIVED
   REFUND
@@ -54,284 +194,606 @@ enum FeeType {
   COMMISSION
 }
 
-model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  users     User[]
-  clients   Client[]
-  matters   Matter[]
-  intakes   Intake[]
-}
+// ============================================================
+// 用户与权限
+// ============================================================
 
 model User {
-  id             String       @id @default(cuid())
-  name           String
-  email          String       @unique
-  role           UserRole     @default(LAWYER)
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  matters        Matter[]     @relation("MatterMembers")
-  ownedMatters   Matter[]     @relation("MatterOwner")
-  auditLogs      AuditLog[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         UserRole  @default(LAWYER)
+  phone        String?
+  avatar       String?
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+
+  ownedMatters          Matter[]        @relation("MatterOwner")
+  memberships           MatterMember[]
+  commissionPlans       CommissionPlan[]
+  feeEntriesBeneficiary FeeEntry[]      @relation("FeeBeneficiary")
+  feeEntriesRecorded    FeeEntry[]      @relation("FeeRecorder")
+  authoredNotes         Note[]          @relation("NoteAuthor")
+  uploadedDocuments     Document[]      @relation("DocumentUploader")
+  auditLogs             AuditLog[]
+  conflictDecisions     ConflictCheck[] @relation("ConflictDecidedBy")
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
 }
+
+// ============================================================
+// 客户与联系人
+// ============================================================
 
 model Client {
-  id             String       @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  name           String
-  type           String
-  phone          String?
-  email          String?
-  idNumber       String?
-  creditCode     String?
-  address        String?
-  notes          String?
-  intakes        Intake[]
-  matters        Matter[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  id          String         @id @default(cuid())
+  name        String
+  type        ClientType
+  idNumber    String?
+  address     String?
+  phone       String?
+  email       String?
+  source      String?
+  tags        String[]
+  notes       String?
+  contacts    Contact[]
+  intakes     Intake[]
+  matterLinks MatterClient[]
+  matters     Matter[]
+  deletedAt   DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([name])
+  @@index([idNumber])
 }
 
+model Contact {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  name      String
+  title     String?
+  phone     String?
+  email     String?
+  wechat    String?
+  isPrimary Boolean  @default(false)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+}
+
+// ============================================================
+// 案由规范库
+// ============================================================
+
+model CauseOfAction {
+  id         String          @id @default(cuid())
+  category   MatterCategory
+  code       String?
+  name       String
+  shortName  String?
+  level      Int
+  parentId   String?
+  parent     CauseOfAction?  @relation("CauseHierarchy", fields: [parentId], references: [id])
+  children   CauseOfAction[] @relation("CauseHierarchy")
+  active     Boolean         @default(true)
+  pinyin     String?
+  keywords   String[]
+  matters    Matter[]
+  intakes    Intake[]
+  sourceNote String?
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  @@unique([category, code])
+  @@index([category, level])
+  @@index([category, active, level])
+  @@index([name])
+  @@index([parentId])
+}
+
+// ============================================================
+// 收案
+// ============================================================
+
 model Intake {
-  id             String       @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  clientId       String?
-  client         Client?      @relation(fields: [clientId], references: [id])
+  id             String          @id @default(cuid())
   title          String
-  matterType     MatterType   @default(LITIGATION)
-  causeOfAction  String?
+  category       MatterCategory  @default(CIVIL_COMMERCIAL)
+  causeId        String?
+  cause          CauseOfAction?  @relation(fields: [causeId], references: [id])
+  causeFreeText  String?
   description    String?
-  status         MatterStatus @default(INTAKE)
   source         String?
-  receivedAt     DateTime     @default(now())
+  status         IntakeStatus    @default(INTAKE)
+  receivedAt     DateTime        @default(now())
+  declinedReason String?
+
+  clientId       String?
+  client         Client?         @relation(fields: [clientId], references: [id])
   parties        Party[]
   conflictChecks ConflictCheck[]
   matter         Matter?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+
+  createdById    String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([status, receivedAt])
+  @@index([causeId])
 }
+
+// ============================================================
+// 案件 (Matter) + 团队成员 + 多客户
+// ============================================================
 
 model Matter {
-  id             String       @id @default(cuid())
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  intakeId       String?      @unique
-  intake         Intake?      @relation(fields: [intakeId], references: [id])
-  clientId       String?
-  client         Client?      @relation(fields: [clientId], references: [id])
-  ownerId        String
-  owner          User         @relation("MatterOwner", fields: [ownerId], references: [id])
-  members        User[]       @relation("MatterMembers")
-  caseNumber     String?      @unique
-  title          String
-  matterType     MatterType   @default(LITIGATION)
-  status         MatterStatus @default(IN_PROGRESS)
-  causeOfAction  String?
-  claimAmount    Decimal?
-  court          String?
-  procedure      String?
+  id                      String              @id @default(cuid())
+  internalCode            String              @unique
+  title                   String
+  category                MatterCategory      @default(CIVIL_COMMERCIAL)
+  status                  MatterStatus        @default(IN_PROGRESS)
+
+  causeId                 String?
+  cause                   CauseOfAction?      @relation(fields: [causeId], references: [id])
+  causeFreeText           String?
+
+  claimAmount             Decimal?            @db.Decimal(14, 2)
+
+  ourStanding             LitigationStanding?
+  counterclaimAsPlaintiff Boolean             @default(false)
+  counterclaimAsDefendant Boolean             @default(false)
+
+  intakeDate              DateTime?
+
+  primaryClientId         String?
+  primaryClient           Client?             @relation(fields: [primaryClientId], references: [id])
+  clientLinks             MatterClient[]
+
+  ownerId                 String
+  owner                   User                @relation("MatterOwner", fields: [ownerId], references: [id])
+  members                 MatterMember[]
+
+  intakeId                String?             @unique
+  intake                  Intake?             @relation(fields: [intakeId], references: [id])
+
+  firstAcceptedAt         DateTime?
+  closedAt                DateTime?
+  archivedAt              DateTime?
+
+  procedures              MatterProcedure[]
+  parties                 Party[]
+  relatedEntities         RelatedEntity[]
+  notes                   Note[]
+  tasks                   Task[]
+  documents               Document[]
+  timelineEvents          TimelineEvent[]
+  billings                Billing[]
+  feeEntries              FeeEntry[]
+  commissionPlans         CommissionPlan[]
+  archiveRecords          ArchiveRecord[]
+
+  deletedAt               DateTime?
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  @@index([status, updatedAt])
+  @@index([ownerId])
+  @@index([primaryClientId])
+  @@index([category, status])
+  @@index([causeId])
+}
+
+model MatterMember {
+  matterId String
+  matter   Matter           @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User             @relation(fields: [userId], references: [id])
+  role     MatterMemberRole @default(ASSISTANT)
+  joinedAt DateTime         @default(now())
+
+  @@id([matterId, userId])
+  @@index([userId])
+}
+
+model MatterClient {
+  matterId  String
+  matter    Matter   @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id])
+  label     String?
+  isPrimary Boolean  @default(false)
+  addedAt   DateTime @default(now())
+
+  @@id([matterId, clientId])
+  @@index([clientId])
+}
+
+// ============================================================
+// 程序阶段
+// ============================================================
+
+model MatterProcedure {
+  id             String              @id @default(cuid())
+  matterId       String
+  matter         Matter              @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  type           ProcedureType
+  customLabel    String?
+  engagement     ProcedureEngagement @default(ENGAGED)
+  order          Int
+
+  caseNumber     String?
+  handlingAgency String?
+  panel          String?
+  handler        String?
+
   acceptedAt     DateTime?
-  closedAt       DateTime?
-  archivedAt     DateTime?
-  parties        Party[]
-  relatedEntities RelatedEntity[]
+  concludedAt    DateTime?
+
+  status         ProcedureStatus     @default(PENDING)
+  outcome        ProcedureOutcome?
+  outcomeNote    String?
+
   stages         MatterStage[]
-  tasks          Task[]
   hearings       Hearing[]
   deadlines      Deadline[]
-  timelineEvents TimelineEvent[]
   documents      Document[]
-  feeRecords     FeeRecord[]
-  archiveRecords ArchiveRecord[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-}
 
-model Party {
-  id        String    @id @default(cuid())
-  intakeId  String?
-  intake    Intake?   @relation(fields: [intakeId], references: [id])
-  matterId  String?
-  matter    Matter?   @relation(fields: [matterId], references: [id])
-  role      PartyRole
-  name      String
-  idNumber  String?
-  phone     String?
-  address   String?
-  notes     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-}
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
-model RelatedEntity {
-  id           String    @id @default(cuid())
-  matterId     String
-  matter       Matter    @relation(fields: [matterId], references: [id])
-  name         String
-  relationship String
-  role         PartyRole @default(RELATED_ENTITY)
-  notes        String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-}
-
-model ConflictRule {
-  id          String           @id @default(cuid())
-  name        String
-  description String?
-  severity    ConflictSeverity @default(MEDIUM)
-  enabled     Boolean          @default(true)
-  ruleType    String
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  checks      ConflictCheck[]
-}
-
-model ConflictCheck {
-  id        String           @id @default(cuid())
-  intakeId  String?
-  intake    Intake?          @relation(fields: [intakeId], references: [id])
-  ruleId    String?
-  rule      ConflictRule?    @relation(fields: [ruleId], references: [id])
-  query     String
-  matched   Boolean          @default(false)
-  severity  ConflictSeverity @default(LOW)
-  basis     String?
-  checkedAt DateTime         @default(now())
+  @@unique([matterId, order])
+  @@index([matterId, order])
+  @@index([status])
 }
 
 model MatterStage {
-  id          String    @id @default(cuid())
-  matterId    String
-  matter      Matter    @relation(fields: [matterId], references: [id])
+  id          String          @id @default(cuid())
+  procedureId String
+  procedure   MatterProcedure @relation(fields: [procedureId], references: [id], onDelete: Cascade)
   name        String
   description String?
   order       Int
   startedAt   DateTime?
   completedAt DateTime?
   tasks       Task[]
-  documents   Document[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([procedureId, order])
 }
 
+// ============================================================
+// 任务 / 开庭 / 期限
+// ============================================================
+
 model Task {
-  id        String       @id @default(cuid())
-  matterId  String
-  matter    Matter       @relation(fields: [matterId], references: [id])
-  stageId   String?
-  stage     MatterStage? @relation(fields: [stageId], references: [id])
-  title     String
-  dueAt     DateTime?
-  completed Boolean      @default(false)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id          String       @id @default(cuid())
+  matterId    String
+  matter      Matter       @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  stageId     String?
+  stage       MatterStage? @relation(fields: [stageId], references: [id])
+  title       String
+  description String?
+  assigneeId  String?
+  dueAt       DateTime?
+  completed   Boolean      @default(false)
+  completedAt DateTime?
+  priority    Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([matterId, completed, dueAt])
+  @@index([assigneeId, completed])
 }
 
 model Hearing {
-  id        String   @id @default(cuid())
-  matterId  String
-  matter    Matter   @relation(fields: [matterId], references: [id])
-  title     String
-  court     String?
-  room      String?
-  startsAt  DateTime
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String          @id @default(cuid())
+  procedureId String
+  procedure   MatterProcedure @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+  title       String
+  room        String?
+  judge       String?
+  startsAt    DateTime
+  endsAt      DateTime?
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([procedureId, startsAt])
+  @@index([startsAt])
 }
 
 model Deadline {
-  id        String   @id @default(cuid())
-  matterId  String
-  matter    Matter   @relation(fields: [matterId], references: [id])
-  title     String
-  dueAt     DateTime
-  source    String?
-  completed Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String           @id @default(cuid())
+  procedureId String
+  procedure   MatterProcedure  @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+  title       String
+  category    DeadlineCategory @default(CUSTOM)
+  dueAt       DateTime
+  basis       String?
+  remindDays  Int              @default(3)
+  completed   Boolean          @default(false)
+  completedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([procedureId, dueAt, completed])
+  @@index([dueAt, completed])
 }
 
-model TimelineEvent {
-  id        String   @id @default(cuid())
-  matterId  String
-  matter    Matter   @relation(fields: [matterId], references: [id])
-  title     String
-  content   String?
-  occurredAt DateTime
-  createdAt DateTime @default(now())
+// ============================================================
+// 当事人 / 关联实体
+// ============================================================
+
+model Party {
+  id        String    @id @default(cuid())
+  intakeId  String?
+  intake    Intake?   @relation(fields: [intakeId], references: [id], onDelete: Cascade)
+  matterId  String?
+  matter    Matter?   @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  role      PartyRole
+  ordinal   Int       @default(1)
+  name      String
+  idNumber  String?
+  phone     String?
+  address   String?
+  legalRep  String?
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([matterId, role, ordinal])
+  @@index([name])
+  @@index([idNumber])
 }
+
+model RelatedEntity {
+  id           String   @id @default(cuid())
+  matterId     String
+  matter       Matter   @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  name         String
+  relationship String
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([name])
+}
+
+// ============================================================
+// 冲突检索
+// ============================================================
+
+model ConflictCheck {
+  id           String             @id @default(cuid())
+  intakeId     String?
+  intake       Intake?            @relation(fields: [intakeId], references: [id])
+  queryPayload Json
+  hits         ConflictHit[]
+  conclusion   ConflictConclusion @default(PENDING)
+  decidedById  String?
+  decidedBy    User?              @relation("ConflictDecidedBy", fields: [decidedById], references: [id])
+  decidedAt    DateTime?
+  note         String?
+  checkedAt    DateTime           @default(now())
+}
+
+model ConflictHit {
+  id           String           @id @default(cuid())
+  checkId      String
+  check        ConflictCheck    @relation(fields: [checkId], references: [id], onDelete: Cascade)
+  hitType      String
+  targetType   String
+  targetId     String
+  matchedName  String
+  matchedField String
+  matchedValue String
+  matchedRatio Float?
+  severity     ConflictSeverity
+  reason       String
+}
+
+// ============================================================
+// 沟通记录
+// ============================================================
+
+model Note {
+  id          String      @id @default(cuid())
+  matterId    String
+  matter      Matter      @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User        @relation("NoteAuthor", fields: [authorId], references: [id])
+  channel     NoteChannel @default(OTHER)
+  withWhom    String?
+  occurredAt  DateTime    @default(now())
+  content     String
+  tags        String[]
+  attachments String[]
+  deletedAt   DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([matterId, occurredAt])
+}
+
+// ============================================================
+// 材料（含加密支持）
+// ============================================================
 
 model Document {
-  id        String       @id @default(cuid())
-  matterId  String
-  matter    Matter       @relation(fields: [matterId], references: [id])
-  stageId   String?
-  stage     MatterStage? @relation(fields: [stageId], references: [id])
-  name      String
-  category  String
-  version   Int          @default(1)
-  path      String
-  mimeType  String?
-  size      Int?
-  tags      String[]
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id           String           @id @default(cuid())
+  matterId     String
+  matter       Matter           @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  procedureId  String?
+  procedure    MatterProcedure? @relation(fields: [procedureId], references: [id])
+  name         String
+  category     DocumentCategory @default(OTHER)
+  version      Int              @default(1)
+  isLatest     Boolean          @default(true)
+  familyId     String?
+
+  path         String
+  mimeType     String?
+  size         Int?
+  sha256       String?
+
+  encrypted    Boolean          @default(false)
+  algorithm    String?
+  iv           String?
+  authTag      String?
+
+  tags         String[]
+  uploadedById String
+  uploadedBy   User             @relation("DocumentUploader", fields: [uploadedById], references: [id])
+  deletedAt    DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([matterId, category])
+  @@index([procedureId])
+  @@index([familyId])
 }
 
-model FeeRecord {
+// ============================================================
+// 财务：合同 / 收付 / 分成
+// ============================================================
+
+model Billing {
+  id             String        @id @default(cuid())
+  matterId       String
+  matter         Matter        @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  title          String
+  contractAmount Decimal       @db.Decimal(14, 2)
+  schedule       String?
+  status         BillingStatus @default(DRAFT)
+  signedAt       DateTime?
+  feeEntries     FeeEntry[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([matterId, status])
+}
+
+model FeeEntry {
+  id                 String       @id @default(cuid())
+  matterId           String
+  matter             Matter       @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  billingId          String?
+  billing            Billing?     @relation(fields: [billingId], references: [id])
+  type               FeeEntryType
+  amount             Decimal      @db.Decimal(14, 2)
+  occurredAt         DateTime     @default(now())
+  invoiceNo          String?
+  invoiceFile        String?
+  payerOrPayee       String?
+  method             String?
+  note               String?
+
+  parentFeeEntryId   String?
+  parentFeeEntry     FeeEntry?    @relation("CommissionParent", fields: [parentFeeEntryId], references: [id])
+  commissionChildren FeeEntry[]   @relation("CommissionParent")
+
+  beneficiaryUserId  String?
+  beneficiaryUser    User?        @relation("FeeBeneficiary", fields: [beneficiaryUserId], references: [id])
+
+  recordedById       String
+  recordedBy         User         @relation("FeeRecorder", fields: [recordedById], references: [id])
+
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([matterId, type, occurredAt])
+  @@index([type, occurredAt])
+  @@index([beneficiaryUserId, occurredAt])
+}
+
+model CommissionPlan {
   id        String   @id @default(cuid())
   matterId  String
-  matter    Matter   @relation(fields: [matterId], references: [id])
-  type      FeeType
-  amount    Decimal
-  occurredAt DateTime @default(now())
-  note      String?
+  matter    Matter   @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  percent   Decimal  @db.Decimal(5, 2)
+  label     String?
+  active    Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([matterId, userId])
+  @@index([matterId])
+  @@index([userId])
 }
 
-model InvoiceRecord {
-  id        String   @id @default(cuid())
-  title     String
-  amount    Decimal
-  issuedAt  DateTime?
-  note      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
+// ============================================================
+// 时间线 / 归档 / 审计
+// ============================================================
 
-model CostRecord {
-  id        String   @id @default(cuid())
-  title     String
-  amount    Decimal
-  paidAt    DateTime?
-  note      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model TimelineEvent {
+  id         String   @id @default(cuid())
+  matterId   String
+  matter     Matter   @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  eventType  String
+  title      String
+  content    String?
+  occurredAt DateTime
+  refType    String?
+  refId      String?
+  createdAt  DateTime @default(now())
+
+  @@index([matterId, occurredAt])
 }
 
 model ArchiveRecord {
-  id        String   @id @default(cuid())
-  matterId  String
-  matter    Matter   @relation(fields: [matterId], references: [id])
-  summary   String
-  exported  Boolean  @default(false)
+  id         String   @id @default(cuid())
+  matterId   String
+  matter     Matter   @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  summary    String
+  archivedBy String
   archivedAt DateTime @default(now())
+  exportPath String?
+  checksum   String?
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  user      User?    @relation(fields: [userId], references: [id])
-  action    String
-  target    String
-  targetId  String?
-  detail    String?
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  targetType String?
+  targetId   String?
+  detail     Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
+
+// ============================================================
+// 系统配置
+// ============================================================
+
+model StageTemplate {
+  id            String        @id @default(cuid())
+  procedureType ProcedureType
+  isDefault     Boolean       @default(true)
+  name          String
+  steps         Json
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([procedureType])
+}
+
+model SystemSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
 }
