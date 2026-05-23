@@ -552,6 +552,180 @@ async function buildT8(): Promise<Buffer> {
 }
 
 // ============================================================
+// 模板 9: 卷宗封皮（v0.9.4 归档）
+// ============================================================
+const T9_VARS = [
+  "firm.name",
+  "matter.code",
+  "matter.title",
+  "matter.causeText",
+  "matter.category",
+  "client.name",
+  "opposing.name",
+  "lawyer.name",
+  "archive.archiveNo",
+  "archive.closedReasonCN",
+  "archive.completedAtCN",
+  "archive.archivedAtCN"
+];
+
+async function buildT9(): Promise<Buffer> {
+  return pack([
+    blank(),
+    body("{{firm.name}}", { align: AlignmentType.CENTER, bold: true }),
+    blank(),
+    blank(),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 240, after: 240 },
+      children: [
+        new TextRun({ text: "卷    宗", font: FONT_TITLE, size: 72, bold: true })
+      ]
+    }),
+    blank(),
+    blank(),
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { before: 120, after: 120 },
+      children: [
+        new TextRun({ text: "{{matter.title}}", font: FONT_TITLE, size: 36, bold: true })
+      ]
+    }),
+    blank(),
+    body("{{client.name}} 诉 {{opposing.name}}", { align: AlignmentType.CENTER }),
+    blank(),
+    blank(),
+    blank(),
+    kvTable([
+      ["归档编号", "{{archive.archiveNo}}"],
+      ["案件编号", "{{matter.code}}"],
+      ["案件类别", "{{matter.category}}"],
+      ["案由", "{{matter.causeText}}"],
+      ["结案方式", "{{archive.closedReasonCN}}"],
+      ["结案日期", "{{archive.completedAtCN}}"],
+      ["归档日期", "{{archive.archivedAtCN}}"],
+      ["承办律师", "{{lawyer.name}}"]
+    ]),
+    blank(),
+    blank(),
+    body("本卷宗自归档日起按律所规定保存，未经许可不得借阅、复制或转交。", { align: AlignmentType.CENTER })
+  ]);
+}
+
+// ============================================================
+// 模板 10: 卷宗目录（v0.9.4 归档）
+// ============================================================
+const T10_VARS = [
+  "firm.name",
+  "matter.code",
+  "matter.title",
+  "archive.archiveNo",
+  "archive.archivedAtCN",
+  "lawyer.name"
+  // documents[] 通过运行时 inject，不在 detectMissing 范围
+];
+
+function docCatalogHeaderRow(): TableRow {
+  const headers = ["序号", "材料名称", "类别", "上传日期", "页数", "备注"];
+  return new TableRow({
+    tableHeader: true,
+    children: headers.map((h, idx) => new TableCell({
+      width: { size: [8, 38, 14, 16, 10, 14][idx], type: WidthType.PERCENTAGE },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: h, font: FONT_BODY, size: 22, bold: true })]
+        })
+      ]
+    }))
+  });
+}
+
+function docCatalogLoopRow(): TableRow {
+  // docxtemplater 在表格循环：单元格内分别用 {{#documents}}...{{/documents}} 包裹会失效；
+  // 标准做法是把 loop 标签放在整行外层，行 cell 内只放纯 {{var}}。这里用注释占位行 + 文档生成时手工插入循环标签。
+  // 为简化，直接 build 一行 placeholders，loop 包裹通过 docxtemplater 的 row loop 自动识别（同一行第一个 cell 含 {{#documents}}）。
+  const cells: TableCell[] = [
+    new TableCell({
+      width: { size: 8, type: WidthType.PERCENTAGE },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: "{{#documents}}{{seq}}", font: FONT_BODY, size: 22 })]
+        })
+      ]
+    }),
+    new TableCell({
+      width: { size: 38, type: WidthType.PERCENTAGE },
+      children: [
+        new Paragraph({ children: [new TextRun({ text: "{{name}}", font: FONT_BODY, size: 22 })] })
+      ]
+    }),
+    new TableCell({
+      width: { size: 14, type: WidthType.PERCENTAGE },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: "{{categoryCN}}", font: FONT_BODY, size: 22 })]
+        })
+      ]
+    }),
+    new TableCell({
+      width: { size: 16, type: WidthType.PERCENTAGE },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: "{{uploadDate}}", font: FONT_BODY, size: 22 })]
+        })
+      ]
+    }),
+    new TableCell({
+      width: { size: 10, type: WidthType.PERCENTAGE },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [new TextRun({ text: "{{pages}}", font: FONT_BODY, size: 22 })]
+        })
+      ]
+    }),
+    new TableCell({
+      width: { size: 14, type: WidthType.PERCENTAGE },
+      children: [
+        new Paragraph({ children: [new TextRun({ text: "{{remark}}{{/documents}}", font: FONT_BODY, size: 22 })] })
+      ]
+    })
+  ];
+  return new TableRow({ children: cells });
+}
+
+async function buildT10(): Promise<Buffer> {
+  const table = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: {
+      top: { style: BorderStyle.SINGLE, size: 4, color: "555555" },
+      bottom: { style: BorderStyle.SINGLE, size: 4, color: "555555" },
+      left: { style: BorderStyle.SINGLE, size: 4, color: "555555" },
+      right: { style: BorderStyle.SINGLE, size: 4, color: "555555" },
+      insideHorizontal: { style: BorderStyle.SINGLE, size: 2, color: "AAAAAA" },
+      insideVertical: { style: BorderStyle.SINGLE, size: 2, color: "AAAAAA" }
+    },
+    rows: [docCatalogHeaderRow(), docCatalogLoopRow()]
+  });
+
+  return pack([
+    body("{{firm.name}}", { align: AlignmentType.CENTER, bold: true }),
+    title("卷 宗 目 录"),
+    body("归档编号：{{archive.archiveNo}}    案件编号：{{matter.code}}", { align: AlignmentType.RIGHT }),
+    body("案件：{{matter.title}}", { align: AlignmentType.RIGHT }),
+    blank(),
+    table,
+    blank(),
+    body("承办律师：{{lawyer.name}}", { align: AlignmentType.RIGHT }),
+    body("归档日期：{{archive.archivedAtCN}}", { align: AlignmentType.RIGHT })
+  ]);
+}
+
+// ============================================================
 // 注册表
 // ============================================================
 export const BUILTIN_TEMPLATES: BuiltInTemplate[] = [
@@ -626,5 +800,23 @@ export const BUILTIN_TEMPLATES: BuiltInTemplate[] = [
     applicableCategories: ["CIVIL_COMMERCIAL"],
     variables: T8_VARS,
     buildBuffer: buildT8
+  },
+  {
+    key: "archive_cover",
+    name: "卷宗封皮",
+    category: "ARCHIVE",
+    description: "归档时自动生成。律所标识 + 案件标题 + 归档编号 + 结案信息。律师勿手动渲染。",
+    applicableCategories: [],
+    variables: T9_VARS,
+    buildBuffer: buildT9
+  },
+  {
+    key: "archive_catalog",
+    name: "卷宗目录",
+    category: "ARCHIVE",
+    description: "归档时自动生成。列出本案全部材料（按上传时间排序）。律师勿手动渲染。",
+    applicableCategories: [],
+    variables: T10_VARS,
+    buildBuffer: buildT10
   }
 ];
