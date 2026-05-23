@@ -6,7 +6,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
-import { parseSms, splitSmsBatch, toDate, enrichWithAi, type ParsedSms } from "@/lib/sms-parser";
+import { parseSms, splitSmsBatch, toDate, type ParsedSms } from "@/lib/sms-parser";
+import { enrichWithAi } from "@/lib/sms-parser-ai";
 import {
   smsParseAndSaveSchema,
   smsListFilterSchema,
