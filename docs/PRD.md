@@ -1,8 +1,12 @@
 # LawLink 产品需求文档（PRD）
 
-> 版本：v0.3（参考 SAAS 截图后的修订）
-> 最后更新：2026-05-22
+> 版本：v0.5（程序优先收案 + 案件详情按程序为本位 + 发票工作流）
+> 最后更新：2026-05-23
 > 状态：已与叶森确认
+>
+> v0.5 变化：① 收案表单按"类别→程序→诉讼地位"联动，新增委托方性质/联系人/争议解决机构/标的额/律师费(5 种收费模式)/主办+共同律师 字段；删除"案源"字段。② 案件详情 tab 重构：基本信息（卡片墙，含合同+团队+近期日程）/ 案件资料（任务+沟通+材料+财务）/ 每个 ENGAGED 程序一个 tab / 时间线。③ 团队事后可编辑（主办+协办+助理）。④ 新增发票申请工作流（律师申请→财务批准→上传扫描件合同+电子发票）。⑤ Sidebar logo 链首页；Bell 占位 toast；UI 视觉打磨（卡片墙、tab indicator、玻璃光晕）。⑥ LitigationStanding 枚举扩展，加上诉人/被上诉人/再审申请人/被申请人/申请执行人/被执行人 等。
+>
+> v0.4 变化：收案合并入"案件管理"按状态分 tab；利益冲突改为顶栏/首页工具按钮，不再占一级菜单；材料库不再单独菜单，材料随案件；收案表单委托方支持自由输入并自动建档；标题非必填可自动生成；收案支持合同上传 + 管理员/主任律师审批工作流；新增亮色主题切换。
 >
 > v0.3 变化：案件类型按民商事/刑事/行政三大体系区分；案由从规范案由库选择；新建案件抽屉字段按类型联动。
 
@@ -241,3 +245,471 @@
 | 16 | 诉讼地位独立建模：原告 / 被告 / 第三人 / 反诉原告 / 反诉被告 / 刑事被告人 / 被害人 / 自诉人 / 仲裁申请人 等 | DATA-MODEL §4.4 `ourStanding` |
 | 17 | **案由从规范库选**（最高法民事案由规定 + 刑法罪名 + 行政案由规定 seed）；不允许随手填字符串 | DATA-MODEL §4.14 `CauseOfAction` |
 | 18 | `intakeDate`（律师收案日）与 `firstAcceptedAt`（首次立案日）拆开 | DATA-MODEL §4.4 |
+| 19 | **导航重构（v0.4）**：一级菜单仅留 仪表盘 / 案件 / 客户 / 财务 / 日程 / 设置；收案合并入"案件"下的"待审批" tab，材料不再独立菜单（只在案件详情），利益冲突改为顶栏/首页工具按钮 | nav-config.ts / 本文 §九 |
+| 20 | **收案表单（v0.4）**：① 委托方 Combobox 支持自由输入，无匹配则自动建 Client；② 标题非必填，留空按"{委托方} 与 {对方} {案由}纠纷"规则自动生成；③ 表单底部支持上传委托合同（多文件，加密存储）；④ 提交后状态 = `PENDING_CONFIRMATION` 进入审批流 | 本文 §九 |
+| 21 | **审批工作流（v0.4）**：ADMIN + PRINCIPAL_LAWYER 可批准/拒绝 Intake；其他角色仅可提交。批准 → 自动转 Matter；拒绝 → 写 declinedReason；server action 必须做权限校验，不只是 UI 隐藏 | 本文 §九 |
+| 22 | **利益冲突检索（v0.4）**：① 改名"利益冲突"；② 表单去掉角色字段，仅姓名/证件号至少一项；③ `/conflicts` 页保留可访问但不挂导航，主入口改为顶栏按钮 + Dialog | 本文 §九 |
+| 23 | **亮色主题（v0.4）**：引入 next-themes，`:root` 为浅色变量，`.dark` 为深色变量；默认 dark；顶栏 Sun/Moon 切换 | UI-DESIGN §二 / globals.css |
+| 24 | **收案字段补齐（v0.5）**：程序优先→诉讼地位联动；新增 委托方性质/联系人姓名+电话/争议解决机构/标的额/标的描述/律师费(5 种收费模式)/主办+共同律师/收案时间(默认今天)；删除"案源" | 本文 §十 |
+| 25 | **LitigationStanding 扩展（v0.5）**：新增 APPELLANT / APPELLEE / RETRIAL_APPLICANT / RETRIAL_RESPONDENT / ENFORCEMENT_APPLICANT / EXECUTED_PERSON / COUNTERCLAIM_PLAINTIFF / COUNTERCLAIM_DEFENDANT / ADMIN_PLAINTIFF / ADMIN_DEFENDANT / ADMIN_RECONSIDERATION_APPLICANT / ADMIN_RECONSIDERATION_RESPONDENT。由 `procedureToStandingOptions(proc, side)` 决定可选项 | lib/enums.ts |
+| 26 | **FeeType 枚举（v0.5）**：LUMP_SUM / INSTALLMENT / CONTINGENCY_FULL / CONTINGENCY_PARTIAL / HOURLY | Prisma + 本文 §十 |
+| 27 | **案件详情 tab 重构（v0.5）**：① 基本信息（卡片墙：元信息 + 团队 + 当事人 + 近期期限/开庭 + 委托合同）② 案件资料（任务/沟通/材料/财务 子区，跨程序共享，可标筛选）③ 每个 ENGAGED 程序一个 tab（程序信息+期限+开庭）④ 时间线 | 本文 §十 |
+| 28 | **团队可编辑（v0.5）**：基本信息 tab 的团队卡片可弹 Dialog 改主办+协办+助理。权限：ADMIN / PRINCIPAL_LAWYER / 当前 LEAD | server/matters/actions.ts updateMatterTeam |
+| 29 | **发票工作流（v0.5）**：① 律师在案件资料·财务区点"申请开票"录入金额+抬头+备注 → InvoiceRequest(PENDING)；② 财务/管理员/主任律师在 /finance 的"开票管理" tab 处理，可驳回（写原因）或批准（FormData 上传扫描件合同 + 电子发票 → 状态 ISSUED）；③ 财务 KPI 加"本月已开票"+ 待处理数量徽章 | server/invoices + 本文 §十 |
+| 30 | **InvoiceRequest 模型（v0.5）**：matterId / amount / status / requestedBy / processedBy / contractScanId(Document) / invoiceFileId(Document) / requestNote / processNote | DATA-MODEL §4.15 |
+
+---
+
+## 九、v0.4 修订详述
+
+### 9.1 导航结构（变更）
+
+**v0.3 → v0.4 一级菜单**
+
+| v0.3 | v0.4 | 去向 |
+|---|---|---|
+| 仪表盘 | 仪表盘 | 保留 |
+| 收案 | — | 合并到"案件 / 待审批 tab" |
+| 冲突检索 | — | 改顶栏按钮 + Dialog；`/conflicts` 详情页保留 |
+| 案件 | **案件** | 顶部加 3 个 tab：`待审批` / `进行中` / `已结案归档` |
+| 客户 | 客户 | 保留 |
+| 财务 | 财务 | 保留，header 加文案说明流水来源 |
+| 日程 | 日程 | 保留 |
+| 材料 | — | 完全删除，材料只在案件详情 tab |
+| 设置 | 设置 | 保留 |
+
+**理由**：v0.3 把 8 个一级菜单按数据模型切，律师心智上其实只有"做案子 / 看客户 / 看钱"三件事。收案是案件的一个状态；冲突是个工具；材料天然属于案件。
+
+### 9.2 案件管理 `/matters` 三 tab
+
+| tab | URL | 数据来源 | 用户视角 |
+|---|---|---|---|
+| 待审批 | `/matters?tab=intake` | `Intake` 表 status ∈ {INTAKE, PENDING_CONFIRMATION} | 等管理员批准的案子 |
+| 进行中 | `/matters?tab=active`（默认） | `Matter` 表 status ∈ {PENDING_ACCEPTANCE, IN_PROGRESS, ON_HOLD} | 当前手上的案子 |
+| 已结案归档 | `/matters?tab=closed` | `Matter` 表 status ∈ {CLOSED, ARCHIVED} | 历史档案 |
+
+**新建收案按钮**：放在 `/matters` 右上角，复用 `IntakeSheet` 抽屉。`/intakes` 列表页保留可访问（兼容旧链接）但不挂导航；`/intakes/[id]` 详情页继续作为审批操作页。
+
+### 9.3 收案表单字段变更
+
+| 字段 | v0.3 | v0.4 |
+|---|---|---|
+| title | 必填 | **可选**；留空按 `{client.name} 与 {opposing[0].name}{[、对方2..]} {cause.name}纠纷` 生成 |
+| clientId | select 现有客户 | **Combobox**：搜索现有 + 自由输入名字 |
+| clientName（新增） | — | 自由输入时使用，无匹配则触发自动建档 |
+| clientTypeHint（新增） | — | 自动建档时的类型推断/选择：`INDIVIDUAL` / `ORGANIZATION` |
+| contracts（新增） | — | 多文件上传，存为 `Document.category=CONTRACT` 并 `intakeId=本 Intake` |
+
+**自动建档规则**（提交时执行）：
+1. 若用户从下拉选了已有客户 → 用 `clientId`
+2. 若自由输入了 `clientName`：
+   - 若任一 party 的 `idNumber` 是 18 位纯数字 → 自动判 `INDIVIDUAL`
+   - 若 18 位含字母（统一社会信用代码格式）→ `ORGANIZATION`
+   - 否则前端弹"个人 / 组织"选择 Dialog 让用户选
+3. server action 创建 Client（仅 name + type，其他字段空，后续到客户详情完善），并把 `clientId` 关联到本次 Intake
+
+### 9.4 审批工作流
+
+```
+[任何角色] 提交收案
+  ↓ status = PENDING_CONFIRMATION
+[ADMIN / PRINCIPAL_LAWYER 可见操作]
+  ├─ 转为正式案件 → 创建 Matter（迁移合同 Document）+ Intake.status = CONVERTED
+  └─ 不接案 → Intake.status = DECLINED + 写 declinedReason
+```
+
+- 权限校验必须在 server action 层（`convertIntakeToMatter` / `declineIntake`），不只是 UI 隐藏
+- 其他角色看 Intake 详情页时显示"等待审批"提示，不显示操作按钮
+- 合同迁移：Intake 关联的 Document 在 convert 时把 `matterId` 设为新 Matter，`intakeId` 保留（双向溯源）
+
+### 9.5 利益冲突检索
+
+- **入口**：顶栏按钮 `利益冲突`（图标 ShieldCheck）→ 弹 Dialog；首页 hero "发起利益冲突检索"按钮 → 同一 Dialog
+- **表单**：删除"角色"字段；仅 姓名/名称 + 身份证/统一社会信用代码（至少填一项即可检索）
+- **详情页 `/conflicts`**：保留，作为 Dialog 的"展开版"入口（Dialog 右上角"查看完整记录"链接过去）
+- **底层 server action**：`runCheckAndSave` 的 `role` 参数改 optional，默认 `OPPOSING_PARTY`
+
+### 9.6 首页 hero 按钮
+
+| v0.3 | v0.4 |
+|---|---|
+| 新建收案（无效） | 新建收案 → `/matters?tab=intake&new=1` 自动打开抽屉 |
+| 发起冲突检索（无效） | 发起利益冲突检索 → 同顶栏 Dialog |
+| 录入开庭笔录（无效） | **删除** |
+
+### 9.7 主题切换
+
+- 引入 `next-themes`（attribute="class" / defaultTheme="dark" / enableSystem=true）
+- `globals.css` 拆分：
+  - `:root` → 浅色变量（背景 `#F8FAFC` / 卡 `#FFFFFF` / 前景 `#0F172A` / 主色保持法理蓝 `#5B8DEF`）
+  - `.dark` → 现有深色变量
+- 顶栏加 `ThemeToggle`（Sun/Moon），切换平滑过渡
+- 关键组件（玻璃卡 `ll-glass` / 严重度色 `ll-sev-*`）在两套主题下都需可读
+
+---
+
+## 十、v0.5 修订详述
+
+### 10.1 收案表单（重大重做）
+
+**字段顺序（决定其他字段联动）**：① 案件类别 → ② 程序 + 我方诉讼地位 + 争议解决机构 → ③ 委托方性质 + 委托方（Combobox） + 联系人姓名/电话 → ④ 案由 + 标的额/描述 + 收案时间 → ⑤ 律师费(5 种模式) → ⑥ 主办 + 共同律师 → ⑦ 对方/第三人(各自诉讼地位) → ⑧ 标题(可空) + 描述 → ⑨ 合同上传。
+
+**联动规则**：
+- 程序变更后，"我方诉讼地位"和对方/第三人的"诉讼地位"可选项动态切换：
+  - 一审 / 重审一审：原告 / 被告 / 第三人 / 反诉原告 / 反诉被告
+  - 二审 / 重审二审：上诉人 / 被上诉人 / 第三人
+  - 再审审查 / 再审：再审申请人 / 再审被申请人 / 第三人
+  - 仲裁：仲裁申请人 / 仲裁被申请人 / 第三人
+  - 执行：申请执行人 / 被执行人 / 第三人
+  - 刑事各程序：被告人 / 被害人 / 自诉人 / 附带民事原告
+  - 复议：复议申请人 / 复议被申请人 / 第三人
+  - 非诉 / 顾问 / 专项：项目当事人
+- 选定程序后自动填充建议"争议解决机构"（一审→法院 / 仲裁→仲裁委 / 复议→复议机关 / 执行→法院执行局 等）
+
+**律师费 5 种模式**：一次性 / 分期支付 / 风险代理(纯后付) / 风险代理(部分后付) / 按小时计费。金额 + 付款节点(自由文本) + 备注。
+
+**主办 + 共同**：主办默认当前用户，可改；共同可勾选多个；转化为 Matter 时主办成为 LEAD，共同成为 CO_LEAD。
+
+### 10.2 案件详情 tab 结构
+
+**一级 tab**：
+1. **基本信息** — 卡片墙：
+   - 顶部：案件元信息卡（编号 + 标题 + 类别 + 状态 + 我方诉讼地位 + 案由 + 标的 + 收案/立案日）+ 团队卡片（主办+协办+助理，可点编辑改）
+   - 中部：当事人三列（委托方/对方/第三人，含诉讼地位标签）
+   - 下部：近期期限（跨全部程序聚合）+ 近期开庭 + 委托合同（来自收案的 Document）
+2. **案件资料** — 4 个子 tab：任务 / 沟通 / 材料 / 财务（财务区底部含发票申请）
+3. **程序 tab × N** — 每个 ENGAGED 程序一个 tab，含：程序信息 + 期限 + 开庭。INFORMATIONAL 程序仍存数据但不显示为顶级 tab
+4. **时间线** — 全案事件
+
+**视觉**：tab indicator（激活态主色背景 + glow）、玻璃卡片墙、留白。
+
+### 10.3 发票工作流
+
+```
+[案件 LEAD/CO_LEAD/ADMIN] 在 /matters/[id] 案件资料·财务区点"申请开票"
+  ↓ 录入金额 + 抬头(可选) + 备注
+  ↓ InvoiceRequest(status=PENDING)
+
+[FINANCE / ADMIN / PRINCIPAL_LAWYER] 在 /finance "开票管理" tab 看到
+  ├─ 驳回 → 写原因 → status=REJECTED
+  └─ 处理 → FormData 上传 扫描件合同(必传或补) + 电子发票(可选)
+     ├─ 只传合同 → status=APPROVED（等补传发票）
+     └─ 一起传 → status=ISSUED（完成）
+
+扫描件合同 + 电子发票 均以 Document(encrypted=true) 入库；
+InvoiceRequest.contractScanId / invoiceFileId 关联。
+```
+
+### 10.4 团队编辑
+
+`InfoPanel` 团队卡片右上角"编辑"按钮 → Dialog：
+- 主办律师 Select（活跃 User 列表）
+- 协办律师 Checkbox（多选）
+- 助理 Checkbox（多选）
+- 提交 → `updateMatterTeam` 覆盖式重建 MatterMember
+- 权限：ADMIN / PRINCIPAL_LAWYER / 当前 LEAD
+
+### 10.5 视觉打磨
+
+- Sidebar logo 点击回首页（`<Link href="/">`）
+- Topbar Bell 点击 toast 占位（V1.5 上线消息中心）
+- 案件详情 tab 条：激活态背景主色 + glow，cluster 分隔线（基本信息/资料 | 程序 | 时间线）
+- 基本信息卡片墙：`ll-glass` 玻璃质感 + 案件类别色光晕（右上角 blur 圆斑）
+- 当事人列表：诉讼地位作为副标题展示在姓名下
+- 委托合同：图标 + 文件名 + 大小 + 上传日期 + 下载按钮，下载经鉴权
+
+---
+
+## 十一、v0.8 规划：卷宗 + 文档模板系统（草案，待确认）
+
+> v0.6 / v0.7 为视觉/主题层迭代（金米色第三套主题、editorial UI 重做、全局间距收紧），未引入新业务模块，详见 [UI-DESIGN.md](./UI-DESIGN.md)。
+>
+> 本节为 v0.8 功能规划，**尚未实施**，需要叶森确认后才进入已锁定决策表。
+
+### 11.1 设计目标
+
+把律所最常用的工作文书做成**模板**，律师在案件详情里选模板 → 自动填充案件字段（当事人/案号/法院/律师等）→ 生成 docx 下载，同时落到该案件的"卷宗"里归档管理。
+
+**核心价值**：律师当前 80% 的文档准备时间花在重复填写当事人信息和文书抬头上，模板化后压到 5%。
+
+**与现有模块的关系**：
+- 卷宗 tab 是 Matter 详情页的**新一级 tab**（v0.5 的四 tab 扩为五 tab：基本信息 / 案件资料 / 卷宗 / 程序 tab × N / 时间线）
+- 文档模板**独立于** v0.5 的"委托合同上传"和 v0.5 的"发票工作流上传"——后两者是**用户上传**已签字扫描件，前者是**系统生成**待签字稿
+- 模板与 v1.5 路线图的"AI 摘要"互补，不冲突
+
+### 11.2 数据模型新增
+
+**新表 `DocumentTemplate`**（系统/律所级，不属于具体 Matter）：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | String | cuid |
+| `name` | String | 模板名（如"民事案件收案登记表"）|
+| `category` | TemplateCategory | 见 §11.3 七大类 |
+| `applicableMatterCategories` | MatterCategory[] | 适用案件类别（空数组=全适用）|
+| `docxBlob` | Document FK | 模板 docx 文件（加密存储，复用 Document 模型）|
+| `variables` | Json | 该模板用到的变量清单（用于缺失提示），如 `["client.name","matter.caseNumber","court.name"]` |
+| `isBuiltIn` | Boolean | 系统内置（不可删）vs 律所自定义 |
+| `enabled` | Boolean | 是否在选模板列表中展示 |
+| `createdBy` / `createdAt` / `updatedAt` | — | 审计字段 |
+
+**新表 `DocumentFolder`**（每个 Matter 的卷宗目录）：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` | String | cuid |
+| `matterId` | String FK | 归属案件 |
+| `name` | String | 卷宗名（如"立案卷"）|
+| `orderIndex` | Int | 排序权重 |
+| `isDefault` | Boolean | 是否系统预置（不可删）|
+
+**`Document` 加字段**：
+- `folderId`：String? FK → DocumentFolder（归属哪个卷宗，可空 = 散件）
+- `templateId`：String? FK → DocumentTemplate（生成自哪个模板，可空 = 用户上传）
+- `templateContextSnapshot`：Json?（生成时的变量快照，便于复核/重生成）
+
+**新枚举 `TemplateCategory`**：`INTAKE` / `RETAINER` / `LITIGATION` / `HEARING` / `WORK_PRODUCT` / `ARCHIVE` / `CLOSING` / `BLANK`
+
+### 11.3 模板分类与建议预置清单
+
+| 大类 | 模板示例（首批预置 ★） |
+|---|---|
+| `INTAKE` 收案文书 | ★ 民事案件收案登记表 / ★ 刑事案件收案登记表 / ★ 法律服务风险告知书 / 质量反馈卡 |
+| `RETAINER` 委托文书 | ★ 委托代理合同(个人) / ★ 委托代理合同(单位) / ★ 授权委托书(个人) / 授权委托书(法人) / 解除委托声明 |
+| `LITIGATION` 诉讼文书 | ★ 民事起诉状 / ★ 民事答辩状 / 行政起诉状 / 上诉状 / 反诉状 / 仲裁申请书 / 行政复议申请书 |
+| `HEARING` 庭审文书 | ★ 谈话笔录 / 庭审笔录 / 阅卷笔录 / 询问笔录(刑事) / 会见笔录(刑事) |
+| `WORK_PRODUCT` 工作成果 | 办案小结 / 重大复杂疑难案件讨论笔录 / 法律意见书 / 代理意见 / 律师函 / 公函(法院) |
+| `ARCHIVE` 卷宗文书 | 卷宗封皮 / 卷宗目录 / 备考表 / 证据目录及证据材料 |
+| `CLOSING` 结案文书 | 结案登记表 / 结算单 |
+| `BLANK` | 空白文档（套律所抬头）|
+
+**首批预置（v0.8.0 ★ 8 个）**：覆盖收案到立案最高频场景，可让律师立刻用起来。后续每月迭代扩到 20+。
+
+### 11.4 默认卷宗结构（按案件类别）
+
+新建 Matter 时按类别**自动生成**对应的默认卷宗（用户可后续增删）：
+
+| 案件类别 | 默认卷宗 |
+|---|---|
+| 民商事 / 行政 | 收案 / 立案 / 委托手续 / 证据 / 程序文书 / 庭审 / 裁判 / 结案 |
+| 刑事 | 收案 / 委托手续 / 阅卷 / 会见 / 取证 / 庭前 / 庭审 / 判决与上诉 / 结案 |
+| 仲裁 | 收案 / 委托手续 / 仲裁申请 / 证据 / 开庭 / 裁决 / 结案 |
+| 非诉 / 顾问 / 专项 | 立项 / 调研 / 工作底稿 / 出具文件 / 归档 |
+
+每个程序（`MatterProcedure`）增加 `defaultFolderName`：生成自模板的文书按"模板大类 → 程序"自动落到对应卷宗（如二审起诉状落到"二审 / 程序文书"）。
+
+### 11.5 模板渲染机制
+
+**引擎**：`docxtemplater` + `pizzip`（成熟方案，零依赖 LibreOffice，浏览器和 Node 都可用）
+
+**变量语法**：`{{client.name}}` / `{{matter.caseNumber}}` / `{{#parties.plaintiffs}}{{name}}{{/parties.plaintiffs}}`（数组循环）
+
+**变量来源（自动拼装上下文）**：
+```ts
+{
+  firm: { name, address, phone },           // 律所抬头，从 Settings 读
+  matter: { caseNumber, title, category, intakeDate, cause, amount, ... },
+  client: { name, idNumber, address, ... }, // 委托方
+  parties: { plaintiffs[], defendants[], thirds[] },
+  proceeding: { caseNo, court, judge, hearingDate, ... }, // 当前 active proceeding
+  team: { lead, coLeads[], assistants[] },
+  today: '2026-05-23',
+  lawyer: { name, certNo, ... },            // 主办律师
+}
+```
+
+**缺失变量处理**：渲染前预扫，缺失的字段在 Dialog 列出（标红），用户可立即补全（保存回各源表）或选择"留空生成"。
+
+**输出**：
+1. 浏览器直接下载 docx
+2. **同时**保存一份到该 Matter 的 Document 表（`templateId` + `templateContextSnapshot` 标识），自动归到对应卷宗
+
+### 11.6 UI 设计
+
+**卷宗 tab（Matter 详情页新增）**：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  ▸ 收案 (3)            │  ┌──────┐ ┌──────┐ ┌──────┐         │
+│  ▸ 立案 (2)            │  │收案登 │ │风险告 │ │委托代 │         │
+│  ▸ 委托手续 (4)        │  │记表  │ │知书  │ │理合同 │         │
+│  ▸ 证据 (12)           │  │.docx │ │.docx │ │.docx │         │
+│  ▸ 程序文书 (5)        │  └──────┘ └──────┘ └──────┘         │
+│  ▸ 庭审 (2)            │                                      │
+│  ▸ 裁判 (1)            │  + 从模板新建    + 上传文件          │
+│  ▸ 结案 (0)            │                                      │
+│  + 新建卷宗            │                                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+- 左侧：卷宗树（默认结构 + 用户自定义），数字为文档数；右键菜单"重命名/删除"（默认卷宗不可删，可改名）
+- 右侧：当前卷宗内的文档卡片墙（沿用 v0.7 hairline + Cormorant），点击预览/下载/编辑元信息
+- 顶部三按钮：**从模板新建**（主按钮，主色）/ **上传文件** / **新建卷宗**
+
+**"从模板新建" Dialog**：
+1. 步骤 1 — 选模板：左侧 8 大类 tab，右侧模板列表（卡片：名称 + 适用类别标签 + 描述）
+2. 步骤 2 — 变量预扫：列出该模板用到的字段，已自动填充的打钩，缺失的标红 + 行内补全
+3. 步骤 3 — 选目标卷宗：默认按模板大类推荐，可改
+4. 提交 → 后台渲染 → 下载 + 入库 + toast "已生成并归档至 [卷宗名]"
+
+**视觉**：延续 v0.7 editorial 风格（hairline 边框、Cormorant Garamond 标题、ll-row hover、紧凑间距），**严禁** 套图 3 的 antd 蓝白配色。
+
+### 11.7 权限
+
+| 操作 | ADMIN | PRINCIPAL_LAWYER | LAWYER | ASSISTANT | FINANCE |
+|---|---|---|---|---|---|
+| 系统模板增删改（`/settings/templates`）| ✅ | ❌ | ❌ | ❌ | ❌ |
+| 案件内使用模板生成 | ✅ | ✅ 全部 | ✅ 自己案件 | ✅ 按授权 | ❌ |
+| 卷宗增删改 | ✅ | ✅ 全部 | ✅ 自己案件 | ❌ | ❌ |
+| 文档归档/移动卷宗 | ✅ | ✅ 全部 | ✅ 自己案件 | ✅ 按授权 | ❌ |
+
+### 11.8 实施分期
+
+| 阶段 | 范围 | 估时 |
+|---|---|---|
+| **v0.8.0** | DocumentTemplate + DocumentFolder schema；默认卷宗自动生成；卷宗 tab UI；从模板新建 Dialog；**首批 8 个系统模板**（★ 标）；docxtemplater 渲染下载入库 | 2-3 天 |
+| **v0.8.1** | 扩到 20+ 模板；缺失变量补全 Dialog；用户自定义卷宗增删；模板按案件类别过滤 | 1-2 天 |
+| **v0.9** | `/settings/templates` 律所自定义模板上传（律所自带 docx）；变量自动识别（解析 `{{...}}`）；模板版本管理 | 2-3 天 |
+
+### 11.9 待确认问题
+
+1. **首批 8 个模板的 docx 文件**叶森自己手写还是参考开源/网络资源？律所文书在国内有相对固定的格式，但**抬头/落款/字体格式**需要叶森确认（建议用 LawLink 抬头通用版，律所部署后可改）
+2. **在线编辑**要不要做？V0.8 暂定不做（用户下载 → Word 改 → 上传新版），合规简单。如果要做需要引入 OnlyOffice 或类似前端 docx 编辑器，工程量翻倍
+3. **变量补全的 UI**：在 Dialog 内行内补全（即写即存到源表）vs 跳转到对应详情页补全？倾向前者，操作链路短
+4. **卷宗与 Document.category 的关系**：当前 Document 有 `category` 字段（CONTRACT/EVIDENCE/...）。新增的 `folderId` 是否完全替代 `category`？建议**保留** `category`（用于跨案件检索分类），`folderId` 是该案件内的"物理归档位"，两者正交。
+5. **模板预览**：选模板后是否展示预览图（缩略图）？工程量大且 docx → 图比较麻烦，建议 v0.8.0 仅文字描述，v0.9 加截图。
+
+---
+
+## 十二、v0.8 规划：用章审批工作流（草案，待确认）
+
+> 与 §十一 卷宗模板并列，是 v0.8 第二个独立模块。
+
+### 12.1 设计目标
+
+律所用章是合规重点：律师对外出具的法律意见书、律师函、所函、合同等都要加盖律所公章/合同专用章。当前线下流程是"律师写完 → 找合伙人/主任签字 → 行政盖章 → 寄出"，留痕分散、责任不清。
+
+LawLink 把用章工作流线上化：**申请 → 审批 → 盖章确认 → 全所留档**。
+
+**与现有审批的区别**：
+
+| | v0.4 收案审批 | v0.5 发票审批 | v0.8 用章审批 |
+|---|---|---|---|
+| 触发 | 提交 Intake | 案件财务区点"申请开票" | 用章中心新建申请 |
+| 关联 Matter | 强制 | 强制 | **可选**（所内行政可能无） |
+| 上传 | 委托合同 | 扫描件合同 + 电子发票 | 待盖章稿（必传）+ 盖章后扫描件（事后补，必传） |
+| 审批人 | ADMIN / PRINCIPAL_LAWYER | FINANCE / ADMIN / PRINCIPAL_LAWYER | **按章种类映射角色** |
+
+### 12.2 章的种类（V1 内置 5 种）
+
+| 编码 | 名称 | 典型用途 | 审批角色 |
+|---|---|---|---|
+| `OFFICIAL_SEAL` | 律师事务所公章 | 法律意见书、所函、律师函、对外正式文件 | 主任律师 (PRINCIPAL_LAWYER) |
+| `CONTRACT_SEAL` | 合同专用章 | 律所对外签订的合同（顾问/转介） | 主任律师 |
+| `FINANCE_SEAL` | 财务专用章 | 发票、收据、对账单 | FINANCE |
+| `LEGAL_REP_SEAL` | 法定代表人章 | 工商/银行类文件 | **法定代表人本人**（Settings 指定 User）|
+| `CONTRACT_REVIEW_SEAL` | 合同审核章 | 顾问单位送审合同盖审核章 | 主任律师 |
+
+后续可在 `/settings/seals` 自定义增加新章种类（v0.9）。
+
+### 12.3 数据模型
+
+**新表 `SealRequest`**：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `id` / `code` | String | `code` = `SEAL-2026-0001` 流水号 |
+| `sealType` | SealType 枚举 | 章种类 |
+| `matterId` | String? FK | 关联案件，可空 |
+| `purpose` | String | 用章事由（如"出具法律意见书寄送 XX 公司"） |
+| `documentTitle` | String | 待盖章文件标题 |
+| `pageCount` | Int | 页数（统计/骑缝判断） |
+| `requireCrossPageSeal` | Boolean | 是否需要骑缝章 |
+| `copies` | Int | 份数（默认 1） |
+| `urgency` | Urgency (NORMAL/URGENT) | 紧急程度 |
+| `draftDocId` | FK → Document | 待盖章稿（必传，加密存储） |
+| `stampedDocId` | FK → Document? | 盖章后扫描件（盖章后必补） |
+| `requestNote` / `approveNote` | String? | 申请/审批备注 |
+| `status` | SealRequestStatus | `PENDING` / `APPROVED` / `STAMPED` / `REJECTED` / `CANCELLED` |
+| `requestedBy` / `approvedBy` / `stampedBy` | FK → User | 角色追踪 |
+| `requestedAt` / `approvedAt` / `stampedAt` / `rejectedAt` | DateTime | 时间戳 |
+
+**新枚举**：`SealType` / `SealRequestStatus` / `Urgency`
+
+### 12.4 工作流
+
+```
+[任何律师] /seals → 新建用章申请
+   章种类 + (可选)关联案件 + 事由 + 文件标题/页数/骑缝/份数/紧急
+   + 上传待盖章稿(必传)
+   ↓ status = PENDING
+
+[对应审批人] /seals · 待我审批
+   ├─ 驳回 → 原因 → REJECTED（申请人可补充再申请，引用旧 ID 形成追溯）
+   └─ 通过 → 意见(可选) → APPROVED → 通知行政
+
+[行政 / 审批人] 完成盖章后回填
+   上传盖章后扫描件 → STAMPED → 申请人可下载完整记录
+
+[申请人] 未审批前可撤销 → CANCELLED
+```
+
+### 12.5 UI 设计
+
+**一级菜单新增 `/seals`**（图标 `Stamp`，位置：日程 之后、设置 之前）
+
+**三 tab**：
+
+| tab | 数据 | 谁能看 |
+|---|---|---|
+| 我的申请 | requestedBy = me | 所有有申请权的角色 |
+| 待我审批 | status=PENDING 且 我是 sealType 对应审批人 | 审批人 |
+| 全所流水 | 全部 | ADMIN / PRINCIPAL_LAWYER；FINANCE 仅看财务章 |
+
+**新建申请抽屉**：右侧 Sheet，字段顺序按 §12.3。关联案件后自动从 Matter 拼"事由"提示。
+
+**审批 Dialog**：左侧申请详情 + 待盖章稿内嵌预览/下载；右侧通过/驳回 + 意见 textarea。
+
+**全所流水**：表格列 流水号 / 章种类 / 申请人 / 案件 / 事由 / 状态 / 时间。顶部 KPI：本月已盖章 / 待审批 / 待盖章。状态色码：PENDING 琥珀 / APPROVED 蓝 / STAMPED 绿 / REJECTED 红 / CANCELLED 灰。
+
+**视觉**：延续 v0.7 editorial（hairline + Cormorant + ll-row），与卷宗 tab 风格统一。
+
+### 12.6 权限矩阵
+
+| 操作 | ADMIN | PRINCIPAL_LAWYER | LAWYER | ASSISTANT | FINANCE |
+|---|---|---|---|---|---|
+| 新建申请 | ✅ | ✅ | ✅ | ❌ | ❌ |
+| 审批公章/合同章/合同审核章 | ✅ | ✅ | ❌ | ❌ | ❌ |
+| 审批财务章 | ✅ | ❌ | ❌ | ❌ | ✅ |
+| 审批法定代表人章 | ❌ | 仅 Settings 标记的法定代表人 | — | — | — |
+| 确认盖章（回填扫描件） | ✅ | ✅ | ❌ | ❌ | 仅财务章 |
+| 看全所流水 | ✅ | ✅ | 仅自己 | ❌ | 仅财务章 |
+| 撤销未审批申请 | ✅ 全部 | ✅ 全部 | ✅ 仅自己 | — | ✅ 仅自己 |
+
+**Settings 新增字段**：`firmLegalRepUserId`（律所法定代表人，唯一）
+
+### 12.7 与卷宗模板的联动（重要）
+
+§十一 模板生成的法律意见书/律师函等文档，可在卷宗页**右键 → "提交用章"** 一键创建 SealRequest，自动带上：
+- `draftDocId` = 该文档
+- `matterId` = 当前 Matter
+- `documentTitle` = 文档名
+
+这是 v0.8 两个模块联动的核心场景：**律师在卷宗内用模板生成文书 → 直接提交用章审批 → 盖章后扫描件回挂到卷宗**。一条流水线打通。
+
+### 12.8 实施分期
+
+| 阶段 | 范围 |
+|---|---|
+| **v0.8.x** | SealRequest schema + 5 种内置章 + 三 tab + 申请/审批/盖章工作流 + 与卷宗模板联动 |
+| **v0.9** | `/settings/seals` 自定义章种类 + 用章月报导出 + 律师用章统计图表 |
+| **v1.5** | 邮件/微信通知审批人和申请人 |
+
+### 12.9 待确认问题
+
+1. **5 种章是否够？** 是否还有"骑缝章"作为独立 type（当前方案是 `requireCrossPageSeal` 勾选项，**倾向勾选项**——骑缝是工艺不是章种类）
+2. **审批角色映射的灵活性**：当前按 `SealType → Role` 硬编码。律所可能有"主任不在让合伙人代审"——建议在 SealType 配置表里加 `approverRoles: Role[]` 多角色 OR 关系，灵活但**仍硬编码角色**而非用户
+3. **盖章后扫描件必传**：建议强制，这是合规关键
+4. **`requireCrossPageSeal`** 这个字段叶森律所实际有没有需求？如果国内常规所只是偶尔骑缝，可以放在备注里，不做独立字段（**待你确认**）
+
+---

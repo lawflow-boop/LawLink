@@ -736,8 +736,12 @@ enum DocumentCategory {
 
 model Document {
   id           String           @id @default(cuid())
-  matterId     String
-  matter       Matter           @relation(fields: [matterId], references: [id])
+  /// v0.4 起 matterId 可空：收案阶段上传的合同先挂 Intake，转化后回填
+  matterId     String?
+  matter       Matter?          @relation(fields: [matterId], references: [id])
+  /// v0.4 新增：收案阶段的合同/材料先挂 Intake，转 Matter 时迁移
+  intakeId     String?
+  intake       Intake?          @relation(fields: [intakeId], references: [id])
   /// 可选关联到某个 Procedure 用于归集（如"二审的证据材料"）
   procedureId  String?
   procedure    MatterProcedure? @relation(fields: [procedureId], references: [id])
@@ -767,10 +771,13 @@ model Document {
   updatedAt    DateTime         @updatedAt
 
   @@index([matterId, category])
+  @@index([intakeId])
   @@index([procedureId])
   @@index([familyId])
 }
 ```
+
+**v0.4 约束**：应用层保证 `matterId` 与 `intakeId` 至少有一个非空（数据库不强制，server action 校验）；Intake 转 Matter 时 `matterId` 回填、`intakeId` 保留作为溯源。
 
 **加密实现**（实施细节，写到 `src/lib/storage/crypto.ts`）：
 - 主密钥从环境变量 `STORAGE_ENCRYPTION_KEY`（base64 32 字节）读取
