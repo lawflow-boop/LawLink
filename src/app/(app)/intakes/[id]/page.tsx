@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Users, FileText, AlertTriangle } from "lucide-react";
 import { getIntakeById } from "@/server/intakes/actions";
+import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -19,7 +20,82 @@ export default async function IntakeDetailPage({ params }: { params: { id: strin
 
   const opposing = intake.parties.filter((p) => p.role === "OPPOSING_PARTY");
   const thirdParty = intake.parties.filter((p) => p.role === "THIRD_PARTY");
-  const latestCheck = intake.conflictChecks[0] ?? null;
+  const latestCheckRaw = intake.conflictChecks[0] ?? null;
+
+  // 拉每条 hit 对应的 Matter 详情（编号 / 名 / 案由 / 主办 / 当事人角色）
+  let latestCheck: Parameters<typeof ConflictSection>[0]["latestCheck"] = null;
+  if (latestCheckRaw) {
+    const matterIds = Array.from(
+      new Set(
+        latestCheckRaw.hits.filter((h) => h.targetType === "Matter").map((h) => h.targetId)
+      )
+    );
+    const matters = matterIds.length
+      ? await prisma.matter.findMany({
+          where: { id: { in: matterIds }, deletedAt: null },
+          select: {
+            id: true,
+            internalCode: true,
+            title: true,
+            cause: { select: { name: true } },
+            causeFreeText: true,
+            owner: { select: { name: true } },
+            parties: { select: { name: true, idNumber: true, role: true, standing: true } }
+          }
+        })
+      : [];
+    const matterById = new Map(matters.map((m) => [m.id, m]));
+
+    const hitsWithMatter = latestCheckRaw.hits.map((h) => {
+      const m = matterById.get(h.targetId);
+      const matchedParty = m?.parties.find(
+        (p) =>
+          (h.matchedField === "name" && p.name === h.matchedValue) ||
+          (h.matchedField === "idNumber" && p.idNumber === h.matchedValue)
+      );
+      return {
+        id: h.id,
+        hitType: h.hitType,
+        targetType: h.targetType,
+        targetId: h.targetId,
+        matchedName: h.matchedName,
+        matchedField: h.matchedField,
+        matchedValue: h.matchedValue,
+        matchedRatio: h.matchedRatio,
+        severity: h.severity,
+        reason: h.reason,
+        matter: m
+          ? {
+              id: m.id,
+              code: m.internalCode,
+              title: m.title,
+              causeText: m.cause?.name ?? m.causeFreeText ?? null,
+              ownerName: m.owner?.name ?? null,
+              partyRole: matchedParty?.role ?? null,
+              partyStanding: matchedParty?.standing ?? null
+            }
+          : null
+      };
+    });
+
+    // 兼容 V1 旧数据：queryPayload 没有 sameNameClients / idMatchedClients
+    const payload = (latestCheckRaw.queryPayload ?? {}) as {
+      sameNameClients?: { clientId: string; name: string }[];
+      idMatchedClients?: { clientId: string; name: string; idNumber: string }[];
+    };
+
+    latestCheck = {
+      id: latestCheckRaw.id,
+      conclusion: latestCheckRaw.conclusion,
+      hits: hitsWithMatter,
+      decidedBy: latestCheckRaw.decidedBy,
+      decidedAt: latestCheckRaw.decidedAt,
+      note: latestCheckRaw.note,
+      checkedAt: latestCheckRaw.checkedAt,
+      sameNameClients: payload.sameNameClients ?? [],
+      idMatchedClients: payload.idMatchedClients ?? []
+    };
+  }
 
   return (
     <div className="space-y-6">

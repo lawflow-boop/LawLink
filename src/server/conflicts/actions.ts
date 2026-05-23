@@ -48,14 +48,18 @@ export async function runCheckAndSave(input: z.infer<typeof runCheckSchema>) {
     idNumber: q.idNumber?.trim() || undefined
   }));
 
-  const draftHits = await runConflictCheck(queries);
+  const result = await runConflictCheck(queries);
 
   const check = await prisma.conflictCheck.create({
     data: {
       intakeId: data.intakeId,
-      queryPayload: { queries } as object,
+      queryPayload: {
+        queries,
+        sameNameClients: result.sameNameClients,
+        idMatchedClients: result.idMatchedClients
+      } as object,
       hits: {
-        create: draftHits.map((h) => ({
+        create: result.hits.map((h) => ({
           hitType: h.hitType,
           targetType: h.targetType,
           targetId: h.targetId,
@@ -76,13 +80,23 @@ export async function runCheckAndSave(input: z.infer<typeof runCheckSchema>) {
     action: "CONFLICT_CHECK_RUN",
     targetType: "ConflictCheck",
     targetId: check.id,
-    detail: { intakeId: data.intakeId, hitCount: draftHits.length }
+    detail: {
+      intakeId: data.intakeId,
+      hitCount: result.hits.length,
+      sameNameClientCount: result.sameNameClients.length
+    }
   });
 
   if (data.intakeId) {
     revalidatePath(`/intakes/${data.intakeId}`);
   }
-  return { ok: true, checkId: check.id, hits: check.hits };
+  return {
+    ok: true,
+    checkId: check.id,
+    hits: check.hits,
+    sameNameClients: result.sameNameClients,
+    idMatchedClients: result.idMatchedClients
+  };
 }
 
 const conclusionSchema = z.object({
