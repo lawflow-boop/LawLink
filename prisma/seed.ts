@@ -187,6 +187,11 @@ async function main() {
   await seedStageTemplates();
   await seedSystemSettings();
 
+  // v0.8: 文档模板 + 用章配置
+  const { seedV08Templates, seedV08SealConfigs } = await import("./seeds/v08-templates-and-seals");
+  await seedV08SealConfigs(prisma);
+  await seedV08Templates(prisma);
+
   console.log("\n✓ Seed 完成");
 }
 

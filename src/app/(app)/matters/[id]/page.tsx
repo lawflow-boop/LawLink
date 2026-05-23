@@ -15,7 +15,7 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
   ]);
   if (!matter) notFound();
 
-  const [finance, userOptions, notes, documents, intakeContracts] = await Promise.all([
+  const [finance, userOptions, notes, documents, intakeContracts, folders, templates] = await Promise.all([
     getMatterFinance(matter.id),
     prisma.user.findMany({
       where: { active: true },
@@ -48,8 +48,44 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
             procedure: { select: { id: true, type: true, customLabel: true } }
           }
         })
-      : Promise.resolve([])
+      : Promise.resolve([]),
+    // v0.8: 卷宗
+    prisma.documentFolder.findMany({
+      where: { matterId: matter.id },
+      orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
+      select: { id: true, name: true, orderIndex: true, isDefault: true }
+    }),
+    // v0.8: 适用本案件类别的模板
+    prisma.documentTemplate.findMany({
+      where: {
+        enabled: true,
+        OR: [
+          { applicableCategories: { isEmpty: true } },
+          { applicableCategories: { has: matter.category } }
+        ]
+      },
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+      select: {
+        id: true,
+        name: true,
+        category: true,
+        description: true,
+        applicableCategories: true,
+        variables: true,
+        isBuiltIn: true
+      }
+    })
   ]);
+
+  // v0.8: 卷宗对应文档（含 templateId 标识）
+  const folderDocuments = documents.map((d) => ({
+    id: d.id,
+    name: d.name,
+    size: d.size,
+    folderId: d.folderId,
+    templateId: d.templateId,
+    createdAt: d.createdAt
+  }));
 
   return (
     <div className="space-y-4">
@@ -77,6 +113,12 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
         notes={notes}
         documents={documents}
         intakeContracts={intakeContracts}
+        folders={folders}
+        folderDocuments={folderDocuments}
+        templates={templates.map((t) => ({
+          ...t,
+          variables: Array.isArray(t.variables) ? (t.variables as string[]) : []
+        }))}
       />
     </div>
   );

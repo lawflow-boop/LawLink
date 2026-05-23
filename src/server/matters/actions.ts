@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { generateInternalCode } from "./code-generator";
+import { seedDefaultFolders } from "@/lib/default-folders";
 import {
   matterCreateSchema,
   matterListQuerySchema,
@@ -194,6 +195,9 @@ export async function createMatter(input: MatterCreateInput) {
         occurredAt: new Date()
       }
     });
+
+    // v0.8: 默认卷宗
+    await seedDefaultFolders(tx, matter.id, data.category);
 
     // 标记 otherClientIds 避免被 lint 误判未用
     void otherClientIds;

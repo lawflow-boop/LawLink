@@ -6,11 +6,10 @@ import type { Prisma } from "@prisma/client";
 import {
   Info,
   FolderArchive,
+  FolderTree,
   Clock,
-  Plus,
-  Layers
+  Plus
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { procedureTypeLabel } from "@/lib/enums";
 import { cn } from "@/lib/utils";
@@ -19,7 +18,9 @@ import { ResourcesPanel } from "./resources-panel";
 import { ProcedureContent } from "./procedure-content";
 import { TimelinePanel } from "./timeline-panel";
 import { AddProcedureSheet } from "./procedure-forms";
+import { FoldersPanel } from "./folders-panel";
 import type { DocumentPayload } from "./documents-panel";
+import type { FolderPayload, FolderDocument, TemplateSummary } from "./folder-types";
 
 type MatterPayload = Prisma.MatterGetPayload<{
   include: {
@@ -99,7 +100,7 @@ export type NotePayload = {
   createdAt: Date;
 };
 
-type TabKey = "info" | "resources" | "timeline" | `proc:${string}`;
+type TabKey = "info" | "resources" | "folders" | "timeline" | `proc:${string}`;
 
 export function MatterDetailTabs({
   matter,
@@ -107,7 +108,10 @@ export function MatterDetailTabs({
   userOptions,
   notes,
   documents,
-  intakeContracts
+  intakeContracts,
+  folders,
+  folderDocuments,
+  templates
 }: {
   matter: MatterPayload;
   finance: FinancePayload;
@@ -115,6 +119,9 @@ export function MatterDetailTabs({
   notes: NotePayload[];
   documents: DocumentPayload[];
   intakeContracts: DocumentPayload[];
+  folders: FolderPayload[];
+  folderDocuments: FolderDocument[];
+  templates: TemplateSummary[];
 }) {
   const [tab, setTab] = useState<TabKey>("info");
   const [addProcOpen, setAddProcOpen] = useState(false);
@@ -148,6 +155,16 @@ export function MatterDetailTabs({
           {matter.tasks.filter((x) => !x.completed).length > 0 && (
             <span className="ml-1 font-mono text-[10px] tabular text-muted-foreground">
               {matter.tasks.filter((x) => !x.completed).length}
+            </span>
+          )}
+        </TabButton>
+
+        <TabButton active={tab === "folders"} onClick={() => setTab("folders")}>
+          <FolderTree className="h-3.5 w-3.5" strokeWidth={1.8} />
+          卷宗
+          {folderDocuments.length > 0 && (
+            <span className="ml-1 font-mono text-[10px] tabular text-muted-foreground">
+              {folderDocuments.length}
             </span>
           )}
         </TabButton>
@@ -203,6 +220,15 @@ export function MatterDetailTabs({
             documents={documents}
             finance={finance}
             userOptions={userOptions}
+          />
+        )}
+        {tab === "folders" && (
+          <FoldersPanel
+            matterId={matter.id}
+            matterCategory={matter.category}
+            folders={folders}
+            documents={folderDocuments}
+            templates={templates}
           />
         )}
         {tab === "timeline" && <TimelinePanel events={matter.timelineEvents} />}

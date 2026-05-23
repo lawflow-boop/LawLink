@@ -13,6 +13,7 @@ import {
   type IntakeListQuery,
   type DeclineIntakeInput
 } from "./schemas";
+import { seedDefaultFolders } from "@/lib/default-folders";
 
 function emptyToNull<T extends Record<string, unknown>>(obj: T): T {
   const out: Record<string, unknown> = {};
@@ -411,6 +412,9 @@ export async function convertIntakeToMatter(intakeId: string) {
         occurredAt: new Date()
       }
     });
+
+    // v0.8: 默认卷宗
+    await seedDefaultFolders(tx, m.id, intake.category);
 
     return m;
   });
