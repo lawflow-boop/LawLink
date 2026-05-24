@@ -8,6 +8,7 @@ import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { assertDocumentWritable } from "@/lib/archive/guard";
 import { writeFile, deleteStoredFile } from "@/lib/storage/local";
+import { validateUploadedFile } from "@/lib/storage/file-validator";
 import { encryptBuffer, sha256 } from "@/lib/storage/crypto";
 
 const documentCategorySchema = z.enum([
@@ -51,10 +52,7 @@ export async function uploadDocument(formData: FormData) {
       ? tagsRaw.split(",").map((t) => t.trim()).filter(Boolean)
       : [];
 
-  if (file.size === 0) throw new Error("文件为空");
-  if (file.size > MAX_FILE_SIZE) {
-    throw new Error(`文件超过 ${MAX_FILE_SIZE / 1024 / 1024}MB 限制`);
-  }
+  validateUploadedFile(file, { purpose: "document", maxBytes: MAX_FILE_SIZE });
 
   const folderId = typeof folderIdRaw === "string" && folderIdRaw ? folderIdRaw : null;
 

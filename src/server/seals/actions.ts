@@ -8,6 +8,7 @@ import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { assertMatterWritable } from "@/lib/archive/guard";
 import { readFile, writeFile } from "@/lib/storage/local";
+import { validateUploadedFile } from "@/lib/storage/file-validator";
 import { decryptBuffer, encryptBuffer, sha256 } from "@/lib/storage/crypto";
 import {
   sealCreateSchema,
@@ -250,9 +251,7 @@ export async function createSealRequest(formData: FormData) {
       authTag: enc.authTag.toString("base64")
     };
   } else if (draftFile instanceof File && draftFile.size > 0) {
-    if (draftFile.size > MAX_FILE_SIZE) {
-      throw new Error("待盖章稿超过 20MB");
-    }
+    validateUploadedFile(draftFile, { purpose: "seal", maxBytes: MAX_FILE_SIZE });
     const buf = Buffer.from(await draftFile.arrayBuffer());
     const enc = encryptBuffer(buf);
     const newPath = await writeFile(
@@ -434,9 +433,7 @@ export async function stampSealRequest(formData: FormData) {
   if (!(stampedFile instanceof File) || stampedFile.size === 0) {
     throw new Error("请上传盖章后扫描件");
   }
-  if (stampedFile.size > MAX_FILE_SIZE) {
-    throw new Error("盖章件超过 20MB");
-  }
+  validateUploadedFile(stampedFile, { purpose: "stamp", maxBytes: MAX_FILE_SIZE });
 
   const buf = Buffer.from(await stampedFile.arrayBuffer());
   const enc = encryptBuffer(buf);

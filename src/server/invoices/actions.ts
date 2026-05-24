@@ -8,6 +8,7 @@ import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { assertMatterWritable } from "@/lib/archive/guard";
 import { writeFile } from "@/lib/storage/local";
+import { validateUploadedFile } from "@/lib/storage/file-validator";
 import { encryptBuffer, sha256 } from "@/lib/storage/crypto";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
@@ -130,9 +131,7 @@ export async function approveInvoiceRequest(formData: FormData) {
 
   // 上传扫描件合同
   if (contractScan instanceof File && contractScan.size > 0) {
-    if (contractScan.size > MAX_FILE_SIZE) {
-      throw new Error("扫描件合同超过 20MB");
-    }
+    validateUploadedFile(contractScan, { purpose: "invoice", maxBytes: MAX_FILE_SIZE });
     const raw = Buffer.from(await contractScan.arrayBuffer());
     const enc = encryptBuffer(raw);
     const path = await writeFile(`m_${existing.matterId}`, enc.ciphertext);
@@ -158,9 +157,7 @@ export async function approveInvoiceRequest(formData: FormData) {
 
   // 上传电子发票
   if (invoiceFile instanceof File && invoiceFile.size > 0) {
-    if (invoiceFile.size > MAX_FILE_SIZE) {
-      throw new Error("电子发票文件超过 20MB");
-    }
+    validateUploadedFile(invoiceFile, { purpose: "invoice", maxBytes: MAX_FILE_SIZE });
     const raw = Buffer.from(await invoiceFile.arrayBuffer());
     const enc = encryptBuffer(raw);
     const path = await writeFile(`m_${existing.matterId}`, enc.ciphertext);
