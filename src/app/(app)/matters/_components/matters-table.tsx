@@ -118,12 +118,11 @@ export function CaseListCard({
         {/* 两列布局：左主信息 + 右编号/主办 */}
         <div className="flex items-stretch gap-4">
           <div className="min-w-0 flex-1">
-            {/* 左上：标题 + 状态 chip */}
+            {/* 左上：标题（独占） */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span className="text-[15px] font-medium text-foreground transition-colors group-hover:text-primary">
                 {title || "（未命名）"}
               </span>
-              <StatusChip label={status.label} dot={status.dot} />
             </div>
 
             {/* 左下：收案时间 / 客户 / 案由 / 标的 — 固定 4 列 */}
@@ -155,9 +154,14 @@ export function CaseListCard({
             </div>
           </div>
 
-          {/* 右侧上下分：上=系统编号；下=主办律师 */}
-          <div className="flex w-44 shrink-0 flex-col items-end justify-between gap-2 text-[12.5px] text-muted-foreground">
-            <span className="font-mono text-[12px]">{internalCode ?? ""}</span>
+          {/* 右侧上下分：上=系统编号 + 状态 chip；下=主办律师 */}
+          <div className="flex w-52 shrink-0 flex-col items-end justify-between gap-2 text-[12.5px] text-muted-foreground">
+            <div className="flex items-center gap-2">
+              {internalCode && (
+                <span className="font-mono text-[12px]">{internalCode}</span>
+              )}
+              <StatusChip label={status.label} dot={status.dot} />
+            </div>
             <div className="flex items-center gap-1.5">
               <span>主办</span>
               {owner ? (
