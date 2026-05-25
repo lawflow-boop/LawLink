@@ -133,6 +133,8 @@ export const matterListQuerySchema = z.object({
   statusNotIn: z.array(matterStatusSchema).optional(),
   ownerId: z.string().cuid().optional(),
   clientId: z.string().cuid().optional(),
+  intakeDateFrom: z.coerce.date().optional(),
+  intakeDateTo: z.coerce.date().optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20)
 });

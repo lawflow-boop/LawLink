@@ -37,6 +37,14 @@ export async function listMatters(input: Partial<MatterListQuery> = {}) {
     ...(query.statusNotIn ? { status: { notIn: query.statusNotIn } } : {}),
     ...(query.ownerId ? { ownerId: query.ownerId } : {}),
     ...(query.clientId ? { primaryClientId: query.clientId } : {}),
+    ...(query.intakeDateFrom || query.intakeDateTo
+      ? {
+          intakeDate: {
+            ...(query.intakeDateFrom ? { gte: query.intakeDateFrom } : {}),
+            ...(query.intakeDateTo ? { lte: query.intakeDateTo } : {})
+          }
+        }
+      : {}),
     ...(query.search
       ? {
           OR: [

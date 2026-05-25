@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   matterCategoryLabel,
@@ -11,6 +11,7 @@ import { formatCurrency, formatDate, cn } from "@/lib/utils";
 import type { MatterPayload, UserOption, FinancePayload } from "./matter-detail-tabs";
 import { TeamEditorDialog } from "./team-editor-dialog";
 import { PartiesPanel } from "./parties-panel";
+import { AddReminderDialog } from "./add-reminder-dialog";
 
 export function InfoPanel({
   matter,
@@ -22,6 +23,7 @@ export function InfoPanel({
   finance: FinancePayload;
 }) {
   const [teamEditorOpen, setTeamEditorOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
 
   const upcomingDeadlines = matter.procedures
     .flatMap((p) =>
@@ -64,6 +66,17 @@ export function InfoPanel({
     .filter((p) => p.role === "THIRD_PARTY")
     .map((p) => p.name);
 
+  // 重要时限及提醒：合并 期限 + 开庭 + 任务（未完成且有 dueAt）
+  const upcomingTasks = matter.tasks
+    .filter((t) => !t.completed && t.dueAt)
+    .map((t) => ({
+      kind: "task" as const,
+      id: t.id,
+      title: t.title,
+      date: new Date(t.dueAt!),
+      procedureLabel: "提醒"
+    }));
+
   const allEvents = [
     ...upcomingDeadlines.map((d) => ({
       kind: "deadline" as const,
@@ -78,7 +91,8 @@ export function InfoPanel({
       title: h.title,
       date: new Date(h.startsAt),
       procedureLabel: h.procedureLabel
-    }))
+    })),
+    ...upcomingTasks
   ].sort((a, b) => a.date.getTime() - b.date.getTime());
 
   return (
@@ -137,17 +151,29 @@ export function InfoPanel({
           </dl>
         </section>
 
-        {/* —— 右：近期事件 mini —— */}
+        {/* —— 右：重要时限及提醒 mini —— */}
         <section className="rounded-lg border border-border bg-card lg:col-span-4">
-          <header className="border-b border-border px-4 py-2 text-[13px] font-medium">
-            近期事件
-            {allEvents.length > 0 && (
-              <span className="ml-1 text-[11px] text-muted-foreground">({allEvents.length})</span>
-            )}
+          <header className="flex items-center justify-between border-b border-border px-4 py-2">
+            <span className="text-[13px] font-medium">
+              重要时限及提醒
+              {allEvents.length > 0 && (
+                <span className="ml-1 text-[11px] text-muted-foreground">({allEvents.length})</span>
+              )}
+            </span>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setReminderOpen(true)}
+              className="h-6 gap-1 px-1.5 text-[11px] text-primary"
+              title="新建重要时限 / 提醒"
+            >
+              <Plus className="h-3 w-3" />
+              新建
+            </Button>
           </header>
           {allEvents.length === 0 ? (
             <p className="py-6 text-center text-[11.5px] text-muted-foreground">
-              暂无开庭 / 期限
+              暂无开庭 / 期限 / 提醒
             </p>
           ) : (
             <ul className="divide-y divide-border">
@@ -165,10 +191,12 @@ export function InfoPanel({
                           "shrink-0 rounded-sm px-1 py-0 text-[9.5px]",
                           e.kind === "hearing"
                             ? "bg-blue-500/10 text-blue-700"
-                            : "bg-amber-500/10 text-amber-700"
+                            : e.kind === "task"
+                              ? "bg-primary/10 text-primary"
+                              : "bg-amber-500/10 text-amber-700"
                         )}
                       >
-                        {e.kind === "hearing" ? "庭" : "限"}
+                        {e.kind === "hearing" ? "庭" : e.kind === "task" ? "提" : "限"}
                       </span>
                       <span
                         className={cn(
@@ -211,6 +239,11 @@ export function InfoPanel({
           name: m.user.name
         }))}
         userOptions={userOptions}
+      />
+      <AddReminderDialog
+        open={reminderOpen}
+        onOpenChange={setReminderOpen}
+        matterId={matter.id}
       />
     </div>
   );

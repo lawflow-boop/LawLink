@@ -3,7 +3,7 @@
 import { useState, useTransition, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Plus, Search, X, Clock, CheckCircle2, Archive, AlertCircle } from "lucide-react";
+import { Plus, Search, X, Clock, CheckCircle2, Archive, AlertCircle, FolderOpen } from "lucide-react";
 import type { MatterCategory, ClientType, UserRole } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { IntakesTable, type IntakeRow } from "./intakes-table";
 export type ClientOption = { id: string; name: string; type: ClientType };
 export type ColleagueOption = { id: string; name: string; role: UserRole };
 
-type Tab = "intake" | "active" | "archived" | "revision";
+type Tab = "intake" | "active" | "archived" | "revision" | "all";
 
 type Props = {
   tab: Tab;
@@ -28,6 +28,9 @@ type Props = {
   initialFilters: {
     search: string;
     category: MatterCategory | "ALL";
+    status?: string; // all tab 下 status 筛选
+    from?: string; // 收案时间起
+    to?: string; // 收案时间止
   };
   autoOpenIntake?: boolean;
 };
@@ -46,7 +49,15 @@ const TABS: { key: Tab; label: string; icon: typeof Clock }[] = [
   { key: "intake", label: "待审批", icon: Clock },
   { key: "active", label: "进行中", icon: CheckCircle2 },
   { key: "revision", label: "待补正", icon: AlertCircle },
-  { key: "archived", label: "已归档", icon: Archive }
+  { key: "archived", label: "已归档", icon: Archive },
+  { key: "all", label: "全部案件", icon: FolderOpen }
+];
+
+const ALL_STATUS_FILTERS: { value: string; label: string }[] = [
+  { value: "ALL", label: "全部" },
+  { value: "active", label: "办理中" },
+  { value: "closed", label: "已结案" },
+  { value: "archived", label: "已归档" }
 ];
 
 export function MattersView({
@@ -62,6 +73,9 @@ export function MattersView({
   const [, startTransition] = useTransition();
   const [search, setSearch] = useState(initialFilters.search);
   const [category, setCategory] = useState<MatterCategory | "ALL">(initialFilters.category);
+  const [statusFilter, setStatusFilter] = useState<string>(initialFilters.status ?? "ALL");
+  const [dateFrom, setDateFrom] = useState<string>(initialFilters.from ?? "");
+  const [dateTo, setDateTo] = useState<string>(initialFilters.to ?? "");
   const [sheetOpen, setSheetOpen] = useState(false);
 
   // ?new=1 自动打开
@@ -81,17 +95,30 @@ export function MattersView({
   }, [autoOpenIntake]);
 
   const buildUrl = useCallback(
-    (override: { tab?: Tab; search?: string; category?: string }) => {
+    (override: {
+      tab?: Tab;
+      search?: string;
+      category?: string;
+      status?: string;
+      from?: string;
+      to?: string;
+    }) => {
       const params = new URLSearchParams();
       const t = override.tab ?? tab;
       const s = override.search ?? search;
       const c = override.category ?? category;
+      const st = override.status ?? statusFilter;
+      const f = override.from ?? dateFrom;
+      const to_ = override.to ?? dateTo;
       if (t !== "active") params.set("tab", t);
       if (s) params.set("search", s);
       if (c && c !== "ALL") params.set("category", c);
+      if (t === "all" && st && st !== "ALL") params.set("status", st);
+      if (t === "all" && f) params.set("from", f);
+      if (t === "all" && to_) params.set("to", to_);
       return `/matters${params.toString() ? `?${params.toString()}` : ""}`;
     },
-    [tab, search, category]
+    [tab, search, category, statusFilter, dateFrom, dateTo]
   );
 
   function switchTab(next: Tab) {
@@ -105,13 +132,20 @@ export function MattersView({
   function clearFilters() {
     setSearch("");
     setCategory("ALL");
+    setStatusFilter("ALL");
+    setDateFrom("");
+    setDateTo("");
     startTransition(() =>
       router.replace(`/matters${tab !== "active" ? `?tab=${tab}` : ""}`)
     );
   }
 
   const isIntakeStyle = tab === "intake" || tab === "revision";
-  const hasFilters = search || category !== "ALL";
+  const isAll = tab === "all";
+  const hasFilters =
+    search ||
+    category !== "ALL" ||
+    (isAll && (statusFilter !== "ALL" || dateFrom || dateTo));
   const total =
     isIntakeStyle ? (intakeData?.total ?? 0) : (matterData?.total ?? 0);
 
@@ -216,6 +250,40 @@ export function MattersView({
               startTransition(() => router.replace(buildUrl({ category: next })));
             }}
           />
+        )}
+
+        {isAll && (
+          <>
+            <RadioChips
+              size="sm"
+              items={ALL_STATUS_FILTERS}
+              value={statusFilter}
+              onChange={(v) => {
+                setStatusFilter(v);
+                startTransition(() => router.replace(buildUrl({ status: v })));
+              }}
+            />
+            <div className="flex items-center gap-1 text-[12px] text-muted-foreground">
+              <span>收案</span>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                onBlur={applyFilters}
+                className="h-8 w-36 px-2"
+                title="收案时间起"
+              />
+              <span>→</span>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                onBlur={applyFilters}
+                className="h-8 w-36 px-2"
+                title="收案时间止"
+              />
+            </div>
+          </>
         )}
 
         {hasFilters && (
