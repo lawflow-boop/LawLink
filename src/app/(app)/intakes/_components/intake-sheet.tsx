@@ -13,7 +13,8 @@ import {
   Paperclip,
   FileText,
   X,
-  CalendarDays
+  CalendarDays,
+  ScanLine
 } from "lucide-react";
 import type {
   MatterCategory,
@@ -61,6 +62,7 @@ import {
 import { intakeCreateSchema, type IntakeCreateInput } from "@/server/intakes/schemas";
 import { createIntake } from "@/server/intakes/actions";
 import { uploadDocument } from "@/server/documents/actions";
+import { parsePleading } from "@/server/ai/parse-pleading";
 import { cn } from "@/lib/utils";
 import { CauseCombobox } from "@/app/(app)/matters/_components/cause-combobox";
 import type { ClientOption } from "@/app/(app)/matters/_components/matters-view";
@@ -78,6 +80,20 @@ const CATEGORIES: MatterCategory[] = [
 const CLIENT_TYPES: ClientType[] = ["INDIVIDUAL", "COMPANY", "ORGANIZATION"];
 
 const FEE_TYPES: FeeType[] = ["FIXED", "CONTINGENCY"];
+
+// 我方为被动方时，可上传起诉状/申请书 OCR 识别对方
+const RECEIVING_STANDINGS = new Set<LitigationStanding>([
+  "DEFENDANT",
+  "THIRD_PARTY",
+  "COUNTERCLAIM_DEFENDANT",
+  "APPELLEE",
+  "RETRIAL_RESPONDENT",
+  "EXECUTED_PERSON",
+  "ARBITRATION_RESPONDENT",
+  "ADMIN_DEFENDANT",
+  "ADMIN_RECONSIDERATION_RESPONDENT",
+  "CRIMINAL_DEFENDANT"
+]);
 
 const defaults: IntakeCreateInput = {
   title: "",
@@ -124,6 +140,8 @@ export function IntakeSheet({
   const [isPending, startTransition] = useTransition();
   const [contracts, setContracts] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const pleadingRef = useRef<HTMLInputElement>(null);
+  const [ocrPending, setOcrPending] = useState(false);
 
   const {
     register,
@@ -234,6 +252,68 @@ export function IntakeSheet({
     if (arr.length < list.length) toast.warning("跳过了超过 20MB 的文件");
     setContracts((prev) => [...prev, ...arr]);
     if (fileRef.current) fileRef.current.value = "";
+  }
+
+  async function handlePleadingFile(file: File) {
+    setOcrPending(true);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      const res = await parsePleading(fd);
+      let added = 0;
+      for (const p of res.plaintiffs) {
+        appendParty({
+          role: "OPPOSING_PARTY",
+          standing: undefined,
+          ordinal: parties.filter((x) => x.role === "OPPOSING_PARTY").length + 1 + added,
+          name: p.name ?? "",
+          idNumber: p.idNumber ?? "",
+          phone: p.phone ?? "",
+          address: p.address ?? "",
+          legalRep: p.legalRep ?? "",
+          notes: ""
+        });
+        added++;
+      }
+      let thirdAdded = 0;
+      for (const tp of res.thirdParties) {
+        appendParty({
+          role: "THIRD_PARTY",
+          standing: undefined,
+          ordinal: parties.filter((x) => x.role === "THIRD_PARTY").length + 1 + thirdAdded,
+          name: tp.name ?? "",
+          idNumber: tp.idNumber ?? "",
+          phone: tp.phone ?? "",
+          address: tp.address ?? "",
+          legalRep: tp.legalRep ?? "",
+          notes: ""
+        });
+        thirdAdded++;
+      }
+      if (res.cause && !watch("causeFreeText")) {
+        setValue("causeFreeText", res.cause, { shouldDirty: true });
+      }
+      if (typeof res.claimAmount === "number" && !watch("claimAmount")) {
+        setValue("claimAmount", res.claimAmount, { shouldDirty: true });
+      }
+      if (res.claimDescription && !watch("claimDescription")) {
+        setValue("claimDescription", res.claimDescription, { shouldDirty: true });
+      }
+      if (res.court && !watch("firstAgency")) {
+        setValue("firstAgency", res.court, { shouldDirty: true });
+      }
+      toast.success(
+        `已识别 ${res.plaintiffs.length} 个起诉方 / ${res.thirdParties.length} 个第三人`,
+        { description: "请人工核对字段是否准确" }
+      );
+    } catch (err) {
+      toast.error("识别失败", {
+        description: err instanceof Error ? err.message : ""
+      });
+    } finally {
+      setOcrPending(false);
+      if (pleadingRef.current) pleadingRef.current.value = "";
+    }
   }
 
   function toggleCo(uid: string) {
@@ -547,6 +627,46 @@ export function IntakeSheet({
 
             {/* 7. 对方 / 第三人 */}
             <Section title="⑦ 对方 / 第三人">
+              {watch("ourStanding") && RECEIVING_STANDINGS.has(watch("ourStanding")!) && (
+                <div className="mb-2 rounded-md border border-dashed border-primary/40 bg-primary/[0.03] p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="text-xs text-muted-foreground">
+                      <div className="font-medium text-foreground">
+                        <ScanLine className="mr-1 inline h-3 w-3 text-primary" />
+                        识别起诉状 / 申请书
+                      </div>
+                      <p className="mt-0.5">
+                        我方为被动方，可上传对方起诉状 / 申请书图片，AI 自动抽取对方主体与诉求（仅 JPG/PNG/WebP，≤ 10MB）
+                      </p>
+                    </div>
+                    <input
+                      ref={pleadingRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handlePleadingFile(f);
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => pleadingRef.current?.click()}
+                      disabled={ocrPending}
+                      className="h-7 shrink-0 gap-1"
+                    >
+                      {ocrPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <ScanLine className="h-3 w-3" />
+                      )}
+                      上传识别
+                    </Button>
+                  </div>
+                </div>
+              )}
               <div className="mb-2 flex justify-end gap-2">
                 <Button
                   type="button"
