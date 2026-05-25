@@ -39,7 +39,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
       </div>
 
       {/* 头部 */}
-      <header className="rounded-xl border border-border bg-card/40 p-6">
+      <header className="rounded-xl border border-border bg-card p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/15 ring-1 ring-primary/40">
@@ -103,7 +103,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         {/* 联系人 */}
-        <section className="rounded-xl border border-border bg-card/40 p-5 lg:col-span-2">
+        <section className="rounded-xl border border-border bg-card p-5 lg:col-span-2">
           <header className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-base font-semibold">
               <User className="h-4 w-4 text-primary" />
@@ -120,7 +120,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
               {client.contacts.map((c) => (
                 <li
                   key={c.id}
-                  className="rounded-lg border border-border bg-background/40 p-3"
+                  className="rounded-lg border border-border bg-background p-3"
                 >
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-2 font-medium">
@@ -160,7 +160,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
         </section>
 
         {/* 关联案件 */}
-        <section className="rounded-xl border border-border bg-card/40 p-5 lg:col-span-3">
+        <section className="rounded-xl border border-border bg-card p-5 lg:col-span-3">
           <header className="mb-4 flex items-center justify-between">
             <h2 className="flex items-center gap-2 text-base font-semibold">
               <Briefcase className="h-4 w-4 text-primary" />
@@ -179,7 +179,7 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
                 <li key={m.id}>
                   <Link
                     href={`/matters/${m.id}`}
-                    className="flex items-center justify-between py-3 transition-colors hover:bg-popover/30"
+                    className="flex items-center justify-between py-3 transition-colors hover:bg-popover"
                   >
                     <div className="flex-1 overflow-hidden">
                       <div className="truncate text-sm font-medium">{m.title}</div>

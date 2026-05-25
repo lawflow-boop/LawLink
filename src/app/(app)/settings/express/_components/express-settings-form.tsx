@@ -64,10 +64,10 @@ export function ExpressSettingsForm({ initial }: { initial: Initial }) {
 
   return (
     <div className="space-y-5">
-      <section className="ll-surface rounded-lg border border-hairline p-5">
+      <section className="ll-surface rounded-lg border border-border p-5">
         <header className="mb-3 flex items-center gap-2">
           <Package className="h-4 w-4 text-primary" />
-          <h2 className="font-display text-lg italic">快递接入</h2>
+          <h2 className="text-lg italic">快递接入</h2>
         </header>
         <p className="mb-4 text-[12px] text-muted-foreground">
           双 provider：优先 <span className="text-foreground/85">快递鸟</span>（500 条/日免费），
@@ -76,7 +76,7 @@ export function ExpressSettingsForm({ initial }: { initial: Initial }) {
         </p>
 
         {/* 快递鸟 */}
-        <div className="mb-5 rounded-md border border-hairline bg-muted/20 p-4">
+        <div className="mb-5 rounded-md border border-border bg-muted/20 p-4">
           <div className="mb-2 flex items-center gap-2">
             <h3 className="text-[13px] font-medium">快递鸟（主，推荐）</h3>
             {initial.kdniao.configured && (
@@ -139,7 +139,7 @@ export function ExpressSettingsForm({ initial }: { initial: Initial }) {
         </div>
 
         {/* 快递100 */}
-        <div className="rounded-md border border-hairline bg-muted/20 p-4">
+        <div className="rounded-md border border-border bg-muted/20 p-4">
           <div className="mb-2 flex items-center gap-2">
             <h3 className="text-[13px] font-medium">快递100（备用）</h3>
             {initial.kuaidi100.configured && (

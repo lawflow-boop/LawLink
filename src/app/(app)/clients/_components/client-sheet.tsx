@@ -139,7 +139,7 @@ export function ClientSheet({ open, onOpenChange, editingClient }: Props) {
         side="right"
         className="flex w-full max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
       >
-        <SheetHeader className="border-b border-border bg-background/60 px-6 py-4 backdrop-blur">
+        <SheetHeader className="border-b border-border bg-background px-6 py-4">
           <SheetTitle className="text-lg">
             {isEdit ? "编辑客户" : "新建客户"}
           </SheetTitle>
@@ -253,7 +253,7 @@ export function ClientSheet({ open, onOpenChange, editingClient }: Props) {
                 {fields.map((field, idx) => (
                   <div
                     key={field.id}
-                    className="rounded-lg border border-border bg-background/40 p-3"
+                    className="rounded-lg border border-border bg-background p-3"
                   >
                     <div className="mb-2 flex items-center justify-between">
                       <span className="text-xs font-medium text-muted-foreground">
@@ -336,7 +336,7 @@ export function ClientSheet({ open, onOpenChange, editingClient }: Props) {
           </div>
 
           {/* 底栏 */}
-          <SheetFooter className="border-t border-border bg-background/60 px-6 py-4 backdrop-blur">
+          <SheetFooter className="border-t border-border bg-background px-6 py-4">
             <Button
               type="button"
               variant="outline"
@@ -348,7 +348,7 @@ export function ClientSheet({ open, onOpenChange, editingClient }: Props) {
             <Button
               type="submit"
               disabled={isPending}
-              className="gap-1.5 shadow-[0_0_24px_-6px_rgba(91,141,239,0.45)]"
+              className="gap-1.5 "
             >
               {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               {isEdit ? "保存" : "创建客户"}

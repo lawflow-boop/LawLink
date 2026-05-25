@@ -31,8 +31,8 @@ function getHighestSeverity(severities: ConflictSeverity[]): ConflictSeverity | 
 export function IntakesTable({ items }: { items: IntakeRow[] }) {
   if (items.length === 0) {
     return (
-      <div className="ll-surface-quiet flex flex-col items-center gap-2 py-20 text-center">
-        <div className="font-display text-base text-muted-foreground">
+      <div className="bg-muted/50 border border-border rounded-md flex flex-col items-center gap-2 py-20 text-center">
+        <div className="text-base text-muted-foreground">
           暂无待审批收案
         </div>
         <div className="text-xs text-muted-subtle">
@@ -48,8 +48,7 @@ export function IntakesTable({ items }: { items: IntakeRow[] }) {
       <table className="w-full text-sm">
         <thead>
           <tr
-            className="border-b text-left font-eyebrow text-[0.6rem] text-muted-foreground/80"
-            style={{ borderColor: "hsl(var(--hairline))" }}
+            className="border-b text-left text-[0.6rem] text-muted-foreground/80"
           >
             <th className="px-5 py-2.5 font-semibold">案件标题</th>
             <th className="px-4 py-2.5 font-semibold">类别</th>
@@ -70,12 +69,12 @@ export function IntakesTable({ items }: { items: IntakeRow[] }) {
                 key={it.id}
                 className="group transition-colors hover:bg-muted/30"
                 style={
-                  idx > 0 ? { borderTop: "1px solid hsl(var(--hairline))" } : undefined
+                  idx > 0 ? { borderTop: "1px solid hsl(var(--border))" } : undefined
                 }
               >
                 <td className="px-5 py-2.5">
                   <Link href={`/intakes/${it.id}`} className="block">
-                    <div className="font-display text-[1.05rem] font-medium leading-snug text-foreground transition-colors group-hover:text-primary">
+                    <div className="text-[1.05rem] font-medium leading-snug text-foreground transition-colors group-hover:text-primary">
                       {it.title}
                     </div>
                     {it.cause && (
@@ -123,8 +122,7 @@ export function IntakesTable({ items }: { items: IntakeRow[] }) {
                 <td className="px-4 py-2.5">
                   <Badge
                     variant="outline"
-                    className="border-hairline bg-muted/30 text-[10px] font-normal"
-                    style={{ borderColor: "hsl(var(--hairline))" }}
+                    className="border-border bg-muted/30 text-[10px] font-normal"
                   >
                     {intakeStatusLabel[it.status]}
                   </Badge>
@@ -151,10 +149,10 @@ function SeverityBadge({ severity }: { severity: ConflictSeverity | null }) {
     );
 
   const meta: Record<ConflictSeverity, { color: string; label: string; Icon: typeof AlertTriangle }> = {
-    BLOCKING: { color: "text-rose-600 dark:text-rose-400", label: "阻塞", Icon: AlertTriangle },
-    HIGH: { color: "text-orange-500 dark:text-orange-400", label: "高", Icon: AlertTriangle },
-    MEDIUM: { color: "text-amber-500 dark:text-amber-400", label: "中", Icon: AlertTriangle },
-    LOW: { color: "text-emerald-600 dark:text-emerald-400", label: "低", Icon: CheckCircle2 }
+    BLOCKING: { color: "text-rose-600", label: "阻塞", Icon: AlertTriangle },
+    HIGH: { color: "text-orange-500", label: "高", Icon: AlertTriangle },
+    MEDIUM: { color: "text-amber-500", label: "中", Icon: AlertTriangle },
+    LOW: { color: "text-emerald-600", label: "低", Icon: CheckCircle2 }
   };
   const { color, label, Icon } = meta[severity];
   return (

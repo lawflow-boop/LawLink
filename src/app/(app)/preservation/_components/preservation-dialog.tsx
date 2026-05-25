@@ -144,7 +144,7 @@ export function PreservationDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[88vh] w-[92vw] max-w-3xl flex-col gap-0 p-0">
-        <DialogHeader className="border-b border-hairline px-6 py-4">
+        <DialogHeader className="border-b border-border px-6 py-4">
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-4 w-4 text-primary" />
             {editing ? "编辑保全" : "新建保全"}
@@ -335,7 +335,7 @@ export function PreservationDialog({
           </div>
         </div>
 
-        <DialogFooter className="border-t border-hairline px-6 py-4">
+        <DialogFooter className="border-t border-border px-6 py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
             取消
           </Button>

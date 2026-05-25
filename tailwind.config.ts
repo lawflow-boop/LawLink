@@ -1,7 +1,6 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
-  darkMode: ["class"],
   content: [
     "./src/app/**/*.{ts,tsx}",
     "./src/components/**/*.{ts,tsx}"
@@ -14,7 +13,6 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // shadcn 标准变量
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
@@ -48,45 +46,20 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))"
         },
-        // LawLink 自定义色板（UI-DESIGN §二）
-        ll: {
-          base: "#0A0E1A",
-          elevated: "#111727",
-          overlay: "#1A2238",
-          accent: "#5B8DEF",
-          "accent-hover": "#7BA5F5",
-          cyan: "#4FD1C5",
-          violet: "#9B7BF7",
-          success: "#4ADE80",
-          warning: "#FBBF24",
-          danger: "#F87171",
-          info: "#60A5FA",
-          "sev-low": "#4ADE80",
-          "sev-medium": "#FBBF24",
-          "sev-high": "#FB923C",
-          "sev-blocking": "#F87171"
-        }
+        sidebar: "hsl(var(--sidebar-bg))",
+        hairline: "hsl(var(--hairline))",
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)"
+        lg: "var(--radius-lg)",
+        md: "var(--radius-md)",
+        sm: "var(--radius-sm)"
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "system-ui", "sans-serif"],
+        sans: ["system-ui", "-apple-system", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", "sans-serif"],
         mono: ["var(--font-mono)", "SF Mono", "Consolas", "monospace"],
-        // 中文 fallback 一律用现代黑体，不落宋体类
-        serif: ["Cormorant Garamond", "PingFang SC", "Hiragino Sans GB", "system-ui", "sans-serif"],
-        display: ["Cormorant Garamond", "PingFang SC", "Hiragino Sans GB", "system-ui", "sans-serif"],
-        eyebrow: ["Cinzel", "PingFang SC", "system-ui", "sans-serif"]
       },
       boxShadow: {
-        "ll-card": "0 0 0 1px hsl(var(--border))",
-        "ll-glow": "0 0 24px -4px rgba(91, 141, 239, 0.35)"
-      },
-      backgroundImage: {
-        "ll-radial":
-          "radial-gradient(circle at 100% 0%, rgba(91, 141, 239, 0.05) 0%, transparent 50%)"
+        "ll-card": "0 1px 2px rgba(0,0,0,0.04)",
       },
       keyframes: {
         "accordion-down": {

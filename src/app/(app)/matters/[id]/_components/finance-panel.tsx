@@ -134,7 +134,7 @@ export function FinancePanel({
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         {/* 合同 */}
-        <section className="rounded-xl border border-border bg-card/40 p-5 lg:col-span-1">
+        <section className="rounded-xl border border-border bg-card p-5 lg:col-span-1">
           <header className="mb-4 flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <Receipt className="h-4 w-4 text-primary" />
@@ -158,7 +158,7 @@ export function FinancePanel({
               {finance.billings.map((b) => (
                 <li
                   key={b.id}
-                  className="group rounded-md border border-border bg-background/40 p-3"
+                  className="group rounded-md border border-border bg-background p-3"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 overflow-hidden">
@@ -193,7 +193,7 @@ export function FinancePanel({
         </section>
 
         {/* 分成方案 */}
-        <section className="rounded-xl border border-border bg-card/40 p-5 lg:col-span-1">
+        <section className="rounded-xl border border-border bg-card p-5 lg:col-span-1">
           <header className="mb-4 flex items-center justify-between">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <Users className="h-4 w-4 text-primary" />
@@ -219,7 +219,7 @@ export function FinancePanel({
               {finance.plans.map((p) => (
                 <li
                   key={p.id}
-                  className="flex items-center justify-between rounded-md border border-border bg-background/40 px-3 py-2"
+                  className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2"
                 >
                   <div>
                     <div className="text-sm font-medium">{p.user.name}</div>
@@ -232,7 +232,7 @@ export function FinancePanel({
                   </div>
                 </li>
               ))}
-              <li className="flex items-center justify-between rounded-md border border-dashed border-border bg-background/20 px-3 py-2">
+              <li className="flex items-center justify-between rounded-md border border-dashed border-border bg-background px-3 py-2">
                 <span className="text-xs text-muted-foreground">律所留存</span>
                 <span className="font-mono text-sm tabular text-muted-foreground">
                   {(
@@ -246,7 +246,7 @@ export function FinancePanel({
         </section>
 
         {/* 快捷动作 */}
-        <section className="rounded-xl border border-border bg-card/40 p-5 lg:col-span-1">
+        <section className="rounded-xl border border-border bg-card p-5 lg:col-span-1">
           <h3 className="mb-4 text-sm font-semibold">快捷录入</h3>
           <div className="space-y-2">
             <Button
@@ -267,7 +267,7 @@ export function FinancePanel({
       </div>
 
       {/* 流水 */}
-      <section className="rounded-xl border border-border bg-card/40">
+      <section className="rounded-xl border border-border bg-card">
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
           <h3 className="flex items-center gap-2 text-sm font-semibold">
             <Wallet className="h-4 w-4 text-primary" />
@@ -287,8 +287,8 @@ export function FinancePanel({
                 <li
                   key={e.id}
                   className={cn(
-                    "group flex items-center gap-3 px-5 py-3 transition-colors hover:bg-popover/40",
-                    isChild && "bg-background/30 pl-12"
+                    "group flex items-center gap-3 px-5 py-3 transition-colors hover:bg-popover",
+                    isChild && "bg-background pl-12"
                   )}
                 >
                   <span
@@ -385,7 +385,7 @@ function StatCard({
 }) {
   return (
     <div
-      className="rounded-xl border bg-card/40 p-4"
+      className="rounded-xl border bg-card p-4"
       style={{ borderColor: `${color}30` }}
     >
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

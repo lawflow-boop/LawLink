@@ -20,14 +20,14 @@ const colorByType: Record<string, string> = {
 export function TimelinePanel({ events }: { events: TimelineEvent[] }) {
   if (events.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border bg-card/20 py-16 text-center">
+      <div className="rounded-xl border border-dashed border-border bg-card py-16 text-center">
         <p className="text-sm text-muted-foreground">还没有时间线事件</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card/40 p-6">
+    <div className="rounded-xl border border-border bg-card p-6">
       <ul className="relative space-y-4">
         <span
           aria-hidden

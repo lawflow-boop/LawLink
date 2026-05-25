@@ -75,7 +75,7 @@ export function FoldersPanel({
     >
       {/* 顶部操作栏 */}
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-display text-lg italic">卷宗</h3>
+        <h3 className="text-lg italic">卷宗</h3>
         <div className="flex gap-2">
           <Button
             size="sm"
@@ -272,7 +272,7 @@ function DocCard({ doc, matterId }: { doc: FolderDocument; matterId: string }) {
   const dateLabel = new Date(doc.createdAt).toLocaleDateString("zh-CN");
 
   return (
-    <div className="ll-surface rounded-lg border border-hairline p-3 transition-shadow hover:shadow-sm">
+    <div className="ll-surface rounded-lg border border-border p-3 transition-shadow hover:shadow-sm">
       <div className="flex items-start gap-2">
         <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={1.6} />
         <div className="min-w-0 flex-1">
@@ -285,7 +285,7 @@ function DocCard({ doc, matterId }: { doc: FolderDocument; matterId: string }) {
           </p>
         </div>
       </div>
-      <div className="mt-2 flex items-center justify-between border-t border-hairline pt-2">
+      <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
         <a
           href={`/api/documents/${doc.id}/download`}
           className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"

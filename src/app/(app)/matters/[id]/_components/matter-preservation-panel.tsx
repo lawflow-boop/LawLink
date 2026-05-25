@@ -53,7 +53,7 @@ export function MatterPreservationPanel({
       transition={{ duration: 0.3 }}
     >
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 font-display text-lg italic">
+        <h3 className="flex items-center gap-2 text-lg italic">
           <Shield className="h-4 w-4 text-primary" />
           财产保全
           {preservations.length > 0 && (
@@ -69,9 +69,9 @@ export function MatterPreservationPanel({
       </div>
 
       {preservations.length === 0 ? (
-        <div className="ll-surface rounded-lg border border-hairline p-10 text-center text-sm text-muted-foreground">
+        <div className="ll-surface rounded-lg border border-border p-10 text-center text-sm text-muted-foreground">
           <Shield className="mx-auto mb-2 h-6 w-6 opacity-40" />
-          该案件暂无保全记录。点上方"新建保全"创建。
+          该案件暂无保全记录。点上方&ldquo;新建保全&rdquo;创建。
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -153,12 +153,12 @@ function Card({
   };
 
   return (
-    <div className="ll-surface flex flex-col gap-2 rounded-lg border border-hairline p-4">
+    <div className="ll-surface flex flex-col gap-2 rounded-lg border border-border p-4">
       <div className="flex flex-wrap items-center gap-2 text-[11px]">
-        <span className="rounded border border-hairline px-1.5 py-0.5 text-muted-foreground">
+        <span className="rounded border border-border px-1.5 py-0.5 text-muted-foreground">
           {PRES_TYPE_CN[p.type]}
         </span>
-        <span className="rounded border border-hairline px-1.5 py-0.5 text-muted-foreground">
+        <span className="rounded border border-border px-1.5 py-0.5 text-muted-foreground">
           {PROPERTY_TYPE_CN[p.propertyType]}
         </span>
         <Badge
@@ -185,7 +185,7 @@ function Card({
       </div>
 
       <div className="flex items-baseline justify-between gap-2">
-        <h4 className="line-clamp-1 font-display text-[1rem] italic">{p.respondent}</h4>
+        <h4 className="line-clamp-1 text-[1rem] italic">{p.respondent}</h4>
         {p.amount && (
           <span className="font-mono text-[13px] text-foreground/85">
             {formatCurrency(Number(p.amount), { compact: true })}

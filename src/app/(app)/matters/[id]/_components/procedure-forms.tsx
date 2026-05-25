@@ -106,7 +106,7 @@ export function AddProcedureSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full max-w-xl flex-col gap-0 p-0">
-        <SheetHeader className="border-b border-border bg-background/60 px-6 py-4 backdrop-blur">
+        <SheetHeader className="border-b border-border bg-background px-6 py-4">
           <SheetTitle>添加程序（第 {nextOrder} 个）</SheetTitle>
           <SheetDescription className="text-xs">
             一审/二审/再审都可串接；如果是别人代理的前序程序，选 <span className="text-foreground">前序参考</span>
@@ -128,7 +128,7 @@ export function AddProcedureSheet({
                       "rounded-md border px-3 py-2 text-left text-sm transition-colors",
                       engagement === e
                         ? "border-primary bg-primary/15 text-primary"
-                        : "border-border bg-background/40 text-muted-foreground hover:border-input"
+                        : "border-border bg-background text-muted-foreground hover:border-input"
                     )}
                   >
                     <div className="font-medium">
@@ -157,7 +157,7 @@ export function AddProcedureSheet({
                       "rounded-md border px-2.5 py-1 text-xs transition-colors",
                       procedureType === p
                         ? "border-primary bg-primary/15 text-primary"
-                        : "border-border bg-background/40 text-muted-foreground hover:border-input"
+                        : "border-border bg-background text-muted-foreground hover:border-input"
                     )}
                   >
                     {procedureTypeLabel[p]}
@@ -198,7 +198,7 @@ export function AddProcedureSheet({
             </div>
           </div>
 
-          <SheetFooter className="border-t border-border bg-background/60 px-6 py-4 backdrop-blur">
+          <SheetFooter className="border-t border-border bg-background px-6 py-4">
             <Button
               type="button"
               variant="outline"
@@ -282,7 +282,7 @@ export function AddDeadlineSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full max-w-md flex-col gap-0 p-0">
-        <SheetHeader className="border-b border-border bg-background/60 px-6 py-4 backdrop-blur">
+        <SheetHeader className="border-b border-border bg-background px-6 py-4">
           <SheetTitle>添加期限</SheetTitle>
         </SheetHeader>
 
@@ -337,7 +337,7 @@ export function AddDeadlineSheet({
             </Field>
           </div>
 
-          <SheetFooter className="border-t border-border bg-background/60 px-6 py-4 backdrop-blur">
+          <SheetFooter className="border-t border-border bg-background px-6 py-4">
             <Button
               type="button"
               variant="outline"
@@ -406,7 +406,7 @@ export function AddHearingSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full max-w-md flex-col gap-0 p-0">
-        <SheetHeader className="border-b border-border bg-background/60 px-6 py-4 backdrop-blur">
+        <SheetHeader className="border-b border-border bg-background px-6 py-4">
           <SheetTitle>添加开庭</SheetTitle>
         </SheetHeader>
 
@@ -443,7 +443,7 @@ export function AddHearingSheet({
             </Field>
           </div>
 
-          <SheetFooter className="border-t border-border bg-background/60 px-6 py-4 backdrop-blur">
+          <SheetFooter className="border-t border-border bg-background px-6 py-4">
             <Button
               type="button"
               variant="outline"

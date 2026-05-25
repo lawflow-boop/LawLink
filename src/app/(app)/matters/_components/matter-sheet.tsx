@@ -173,7 +173,7 @@ export function MatterSheet({
         side="right"
         className="flex w-full max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
       >
-        <SheetHeader className="border-b border-border bg-background/60 px-6 py-4 backdrop-blur">
+        <SheetHeader className="border-b border-border bg-background px-6 py-4">
           <SheetTitle className="text-lg">新建案件</SheetTitle>
           <SheetDescription className="text-xs">
             字段按案件类别动态显示；新建后自动生成案件编号，可在详情页继续完善
@@ -262,7 +262,7 @@ export function MatterSheet({
                               "rounded-md border px-3 py-1.5 text-sm transition-colors",
                               checked
                                 ? "border-primary bg-primary/15 text-primary"
-                                : "border-border bg-background/40 text-muted-foreground hover:border-input"
+                                : "border-border bg-background text-muted-foreground hover:border-input"
                             )}
                           >
                             {c.name}
@@ -381,14 +381,14 @@ export function MatterSheet({
             >
               <div className="col-span-2 space-y-2">
                 {parties.length === 0 ? (
-                  <p className="rounded-md border border-dashed border-border bg-background/40 py-3 text-center text-xs text-muted-foreground">
+                  <p className="rounded-md border border-dashed border-border bg-background py-3 text-center text-xs text-muted-foreground">
                     暂无对方/第三人，点击右上角按钮添加
                   </p>
                 ) : (
                   parties.map((p, idx) => (
                     <div
                       key={p.id}
-                      className="rounded-lg border border-border bg-background/40 p-3"
+                      className="rounded-lg border border-border bg-background p-3"
                     >
                       <div className="mb-2 flex items-center justify-between">
                         <span className="text-xs font-medium text-muted-foreground">
@@ -434,7 +434,7 @@ export function MatterSheet({
                         "rounded-md border px-3 py-1 text-xs transition-colors",
                         procedureType === p
                           ? "border-primary bg-primary/15 text-primary"
-                          : "border-border bg-background/40 text-muted-foreground hover:border-input"
+                          : "border-border bg-background text-muted-foreground hover:border-input"
                       )}
                     >
                       {procedureTypeLabel[p]}
@@ -464,7 +464,7 @@ export function MatterSheet({
             </Section>
           </div>
 
-          <SheetFooter className="border-t border-border bg-background/60 px-6 py-4 backdrop-blur">
+          <SheetFooter className="border-t border-border bg-background px-6 py-4">
             <Button
               type="button"
               variant="outline"
@@ -476,7 +476,7 @@ export function MatterSheet({
             <Button
               type="submit"
               disabled={isPending}
-              className="gap-1.5 shadow-[0_0_24px_-6px_rgba(91,141,239,0.45)]"
+              className="gap-1.5 "
             >
               {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               创建案件
@@ -564,8 +564,8 @@ function ToggleGroup<T extends string>({
           className={cn(
             "flex-1 rounded-md border px-3 py-2 text-sm transition-colors",
             value === o
-              ? "border-primary bg-primary/15 text-primary shadow-[0_0_16px_-4px_rgba(91,141,239,0.4)]"
-              : "border-border bg-background/40 text-muted-foreground hover:border-input"
+              ? "border-primary bg-primary/15 text-primary shadow-sm"
+              : "border-border bg-background text-muted-foreground hover:border-input"
           )}
         >
           {labels[o]}

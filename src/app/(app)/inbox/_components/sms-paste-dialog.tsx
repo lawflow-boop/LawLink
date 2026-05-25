@@ -65,13 +65,13 @@ export function SmsPasteDialog({
       }}
     >
       <DialogContent className="flex max-h-[88vh] w-[92vw] max-w-3xl flex-col gap-0 p-0">
-        <DialogHeader className="border-b border-hairline px-6 py-4">
+        <DialogHeader className="border-b border-border px-6 py-4">
           <DialogTitle className="flex items-center gap-2">
             <Inbox className="h-4 w-4 text-primary" />
             粘贴法院短信
           </DialogTitle>
           <DialogDescription className="text-xs">
-            将 12368 / 法院 / 电子送达短信粘贴进来。多条短信用空行分隔，勾选"批量"逐条解析。
+            将 12368 / 法院 / 电子送达短信粘贴进来。多条短信用空行分隔，勾选&ldquo;批量&rdquo;逐条解析。
           </DialogDescription>
         </DialogHeader>
 
@@ -107,7 +107,7 @@ export function SmsPasteDialog({
           </div>
 
           {preview.length > 0 && (
-            <div className="rounded-md border border-hairline bg-muted/20 p-3">
+            <div className="rounded-md border border-border bg-muted/20 p-3">
               <div className="mb-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <Sparkles className="h-3 w-3 text-primary" />
                 解析预览（前 {preview.length} 条）
@@ -118,7 +118,7 @@ export function SmsPasteDialog({
                   return (
                     <li
                       key={i}
-                      className="rounded border border-hairline bg-background/60 p-2 text-[11px]"
+                      className="rounded border border-border bg-background p-2 text-[11px]"
                     >
                       <div className="flex items-center gap-2">
                         <span
@@ -157,7 +157,7 @@ export function SmsPasteDialog({
           )}
         </div>
 
-        <DialogFooter className="border-t border-hairline px-6 py-4">
+        <DialogFooter className="border-t border-border px-6 py-4">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
             取消
           </Button>

@@ -100,7 +100,7 @@ export function AddBillingSheet({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[88vh] w-[92vw] max-w-2xl flex-col gap-0 p-0">
-        <DialogHeader className="border-b border-hairline px-6 py-4">
+        <DialogHeader className="border-b border-border px-6 py-4">
           <DialogTitle>新增合同</DialogTitle>
           <DialogDescription className="text-xs">
             一个案件可以有多份合同（如分阶段委托）。可同时上传合同扫描件，加密入库后归到本案材料库。
@@ -151,7 +151,7 @@ export function AddBillingSheet({
             </Field>
 
             <Field label="合同附件（可选）">
-              <label className="flex cursor-pointer items-center gap-2 rounded border border-dashed border-hairline px-3 py-3 text-[12px] text-muted-foreground hover:bg-muted/30">
+              <label className="flex cursor-pointer items-center gap-2 rounded border border-dashed border-border px-3 py-3 text-[12px] text-muted-foreground hover:bg-muted/30">
                 <Paperclip className="h-3.5 w-3.5" />
                 {contractFile ? (
                   <span className="flex items-center gap-1 text-foreground">
@@ -174,7 +174,7 @@ export function AddBillingSheet({
             </Field>
           </div>
 
-          <DialogFooter className="border-t border-hairline px-6 py-4">
+          <DialogFooter className="border-t border-border px-6 py-4">
             <Button
               type="button"
               variant="outline"
@@ -251,7 +251,7 @@ export function AddFeeEntrySheet({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[88vh] w-[92vw] max-w-2xl flex-col gap-0 p-0">
-        <DialogHeader className="border-b border-hairline px-6 py-4">
+        <DialogHeader className="border-b border-border px-6 py-4">
           <DialogTitle>新增收付记录</DialogTitle>
         </DialogHeader>
 
@@ -346,7 +346,7 @@ export function AddFeeEntrySheet({
             </Field>
           </div>
 
-          <DialogFooter className="border-t border-hairline px-6 py-4">
+          <DialogFooter className="border-t border-border px-6 py-4">
             <Button
               type="button"
               variant="outline"
@@ -435,7 +435,7 @@ export function EditCommissionPlanDialog({
 
         <div className="space-y-2">
           {plans.length === 0 ? (
-            <p className="rounded-md border border-dashed border-border bg-background/40 py-6 text-center text-xs text-muted-foreground">
+            <p className="rounded-md border border-dashed border-border bg-background py-6 text-center text-xs text-muted-foreground">
               未配置分成
             </p>
           ) : (
@@ -444,7 +444,7 @@ export function EditCommissionPlanDialog({
               return (
                 <div
                   key={idx}
-                  className="grid grid-cols-12 gap-2 rounded-lg border border-border bg-background/40 p-3"
+                  className="grid grid-cols-12 gap-2 rounded-lg border border-border bg-background p-3"
                 >
                   <div className="col-span-4">
                     <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -509,7 +509,7 @@ export function EditCommissionPlanDialog({
           )}
         </div>
 
-        <div className="flex items-center justify-between rounded-md border border-border bg-background/40 px-3 py-2">
+        <div className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2">
           <Button variant="outline" size="sm" onClick={addRow} className="h-7 gap-1">
             <Plus className="h-3.5 w-3.5" />
             添加
@@ -578,7 +578,7 @@ function InvoiceOcrBlock({
   };
 
   return (
-    <div className="space-y-1.5 rounded-md border border-dashed border-hairline bg-muted/20 p-3">
+    <div className="space-y-1.5 rounded-md border border-dashed border-border bg-muted/20 p-3">
       <Label className="flex items-center gap-1.5 text-xs">
         <Sparkles className="h-3 w-3 text-primary" />
         AI 发票识别（可选）
@@ -587,7 +587,7 @@ function InvoiceOcrBlock({
         上传增值税发票图，识别后自动填发票号 / 金额 / 销售方 / 开票日
       </p>
       <div className="flex items-center gap-2">
-        <label className="flex flex-1 cursor-pointer items-center gap-2 rounded border border-hairline bg-background/60 px-2.5 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/30">
+        <label className="flex flex-1 cursor-pointer items-center gap-2 rounded border border-border bg-background px-2.5 py-1.5 text-[11px] text-muted-foreground hover:bg-muted/30">
           <Paperclip className="h-3 w-3" />
           {file ? (
             <span className="flex items-center gap-1 text-foreground">
@@ -620,7 +620,7 @@ function InvoiceOcrBlock({
         </Button>
       </div>
       {preview && (
-        <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 rounded border border-hairline bg-background/40 p-2 text-[10.5px] text-muted-foreground">
+        <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 rounded border border-border bg-background p-2 text-[10.5px] text-muted-foreground">
           {preview.invoiceType && <div>类型：{preview.invoiceType}</div>}
           {preview.invoiceNumber && (
             <div>

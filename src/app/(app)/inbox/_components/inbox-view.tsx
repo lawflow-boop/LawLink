@@ -74,7 +74,7 @@ export function InboxView({
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-2xl italic">收件箱</h1>
+          <h1 className="text-2xl italic">收件箱</h1>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
             粘贴 12368 / 法院短信 → 自动解析 → 一键生成开庭 / 期限
           </p>
@@ -86,7 +86,7 @@ export function InboxView({
       </div>
 
       {/* Tab */}
-      <div className="border-b" style={{ borderColor: "hsl(var(--hairline))" }}>
+      <div className="border-b border-border">
         <div className="flex gap-5">
           <TabBtn active={tab === "unprocessed"} onClick={() => setTab("unprocessed")}>
             待处理
@@ -106,7 +106,7 @@ export function InboxView({
         className="space-y-2"
       >
         {rows.length === 0 ? (
-          <div className="ll-surface rounded-lg border border-hairline p-12 text-center text-sm text-muted-foreground">
+          <div className="ll-surface rounded-lg border border-border p-12 text-center text-sm text-muted-foreground">
             <Inbox className="mx-auto mb-2 h-6 w-6 opacity-40" />
             {tab === "unprocessed" ? "无待处理短信" : "暂无已处理记录"}
           </div>
@@ -228,7 +228,7 @@ function SmsCard({
   };
 
   return (
-    <div className="ll-surface rounded-lg border border-hairline p-4">
+    <div className="ll-surface rounded-lg border border-border p-4">
       {/* 头：类型徽 + 法院 + 案号 + 时间 + 来源标 */}
       <div className="flex flex-wrap items-center gap-2 text-[11px]">
         <span
@@ -305,7 +305,7 @@ function SmsCard({
       </div>
 
       {/* 关联案件 + 操作行 */}
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-hairline pt-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-3">
         {sms.matchedMatter ? (
           <Link
             href={`/matters/${sms.matchedMatter.id}`}
@@ -441,7 +441,7 @@ function MatterPicker({ sms, matters }: { sms: SmsRow; matters: MatterOption[] }
         <button
           type="button"
           disabled={pending}
-          className="inline-flex items-center gap-1 rounded border border-dashed border-hairline px-2 py-1 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-foreground"
+          className="inline-flex items-center gap-1 rounded border border-dashed border-border px-2 py-1 text-[11px] text-muted-foreground hover:border-primary/40 hover:text-foreground"
         >
           {pending ? <Loader2 className="h-3 w-3 animate-spin" /> : <LinkIcon className="h-3 w-3" />}
           指派案件

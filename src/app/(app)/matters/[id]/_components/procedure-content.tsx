@@ -53,8 +53,8 @@ export function ProcedureContent({ procedure }: { procedure: ProcedureWithChildr
         className={cn(
           "rounded-xl border p-5",
           isInformational
-            ? "border-dashed border-border bg-card/20"
-            : "border-border bg-card/40"
+            ? "border-dashed border-border bg-card"
+            : "border-border bg-card"
         )}
       >
         <div className="flex items-start justify-between">
@@ -168,7 +168,7 @@ function DeadlinesCard({
   }
 
   return (
-    <section className="rounded-xl border border-border bg-card/40 p-5">
+    <section className="rounded-xl border border-border bg-card p-5">
       <header className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <AlertTriangle className="h-4 w-4 text-[#FBBF24]" />
@@ -192,7 +192,7 @@ function DeadlinesCard({
               <li
                 key={d.id}
                 className={cn(
-                  "group flex items-start gap-3 rounded-md border bg-background/40 px-3 py-2 transition-colors",
+                  "group flex items-start gap-3 rounded-md border bg-background px-3 py-2 transition-colors",
                   d.completed
                     ? "border-border opacity-50"
                     : isOverdue
@@ -299,7 +299,7 @@ function HearingsCard({
   }
 
   return (
-    <section className="rounded-xl border border-border bg-card/40 p-5">
+    <section className="rounded-xl border border-border bg-card p-5">
       <header className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <Gavel className="h-4 w-4 text-primary" />
@@ -320,7 +320,7 @@ function HearingsCard({
             return (
               <li
                 key={h.id}
-                className="group rounded-md border border-border bg-background/40 px-3 py-2"
+                className="group rounded-md border border-border bg-background px-3 py-2"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">

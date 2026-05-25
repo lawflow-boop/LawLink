@@ -8,7 +8,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="space-y-5">
-      <section className="rounded-xl border border-border bg-card/40 p-6">
+      <section className="rounded-xl border border-border bg-card p-6">
         <h2 className="mb-4 text-base font-semibold">个人信息</h2>
         <dl className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
           <Item label="姓名">{user.name}</Item>
@@ -17,7 +17,7 @@ export default async function ProfilePage() {
         </dl>
       </section>
 
-      <section className="rounded-xl border border-border bg-card/40 p-6">
+      <section className="rounded-xl border border-border bg-card p-6">
         <h2 className="mb-4 text-base font-semibold">修改密码</h2>
         <ChangePasswordForm />
       </section>

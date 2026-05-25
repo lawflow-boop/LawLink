@@ -27,7 +27,7 @@ export function OverviewPanel({ matter }: { matter: MatterPayload }) {
   return (
     <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
       {/* 近期期限 */}
-      <section className="rounded-xl border border-border bg-card/40 p-5 lg:col-span-2">
+      <section className="rounded-xl border border-border bg-card p-5 lg:col-span-2">
         <h2 className="mb-4 flex items-center gap-2 text-base font-semibold">
           <Briefcase className="h-4 w-4 text-primary" />
           近期期限
@@ -47,7 +47,7 @@ export function OverviewPanel({ matter }: { matter: MatterPayload }) {
               return (
                 <li
                   key={d.id}
-                  className="flex items-center justify-between rounded-md border border-border bg-background/40 px-3 py-2"
+                  className="flex items-center justify-between rounded-md border border-border bg-background px-3 py-2"
                 >
                   <div className="flex-1 overflow-hidden">
                     <div className="truncate text-sm">{d.title}</div>
@@ -77,7 +77,7 @@ export function OverviewPanel({ matter }: { matter: MatterPayload }) {
       </section>
 
       {/* 近期开庭 */}
-      <section className="rounded-xl border border-border bg-card/40 p-5">
+      <section className="rounded-xl border border-border bg-card p-5">
         <h2 className="mb-4 text-base font-semibold">近期开庭</h2>
         {upcomingHearings.length === 0 ? (
           <p className="py-6 text-center text-xs text-muted-foreground">暂无</p>
@@ -86,7 +86,7 @@ export function OverviewPanel({ matter }: { matter: MatterPayload }) {
             {upcomingHearings.map((h) => (
               <li
                 key={h.id}
-                className="rounded-md border border-border bg-background/40 px-3 py-2"
+                className="rounded-md border border-border bg-background px-3 py-2"
               >
                 <div className="text-sm font-medium">{h.title}</div>
                 <div className="mt-0.5 font-mono text-xs text-muted-foreground tabular">
@@ -104,7 +104,7 @@ export function OverviewPanel({ matter }: { matter: MatterPayload }) {
       </section>
 
       {/* 团队 */}
-      <section className="rounded-xl border border-border bg-card/40 p-5 lg:col-span-3">
+      <section className="rounded-xl border border-border bg-card p-5 lg:col-span-3">
         <h2 className="mb-4 flex items-center gap-2 text-base font-semibold">
           <Users className="h-4 w-4 text-primary" />
           团队成员
@@ -113,7 +113,7 @@ export function OverviewPanel({ matter }: { matter: MatterPayload }) {
           {matter.members.map((m) => (
             <li
               key={m.userId}
-              className="flex items-center justify-between rounded-md border border-border bg-background/40 p-3"
+              className="flex items-center justify-between rounded-md border border-border bg-background p-3"
             >
               <div className="flex items-center gap-3">
                 <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary/15 text-xs font-semibold text-primary">

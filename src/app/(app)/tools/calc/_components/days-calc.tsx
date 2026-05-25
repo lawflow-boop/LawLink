@@ -43,10 +43,10 @@ export function DaysCalc() {
   }, [baseDate, offset]);
 
   return (
-    <section className="ll-surface rounded-lg border border-hairline p-5">
+    <section className="ll-surface rounded-lg border border-border p-5">
       <header className="mb-4 flex items-center gap-2">
         <CalendarDays className="h-4 w-4 text-primary" strokeWidth={1.8} />
-        <h2 className="font-display text-lg italic">天数计算</h2>
+        <h2 className="text-lg italic">天数计算</h2>
         <span className="ml-2 text-[10px] text-muted-foreground">
           举证期 / 上诉期 / 答辩期常用
         </span>
@@ -94,7 +94,7 @@ export function DaysCalc() {
           </label>
 
           {between !== null && (
-            <div className="rounded-lg border border-hairline bg-muted/20 p-4">
+            <div className="rounded-lg border border-border bg-muted/20 p-4">
               <div className="text-[10px] tracking-wider text-muted-foreground">间隔天数</div>
               <div className="mt-1 font-mono text-[26px] font-medium tabular text-primary">
                 {between >= 0 ? between : `-${Math.abs(between)}`} 天
@@ -129,7 +129,7 @@ export function DaysCalc() {
           </div>
 
           {targetDate && (
-            <div className="flex items-center gap-3 rounded-lg border border-hairline bg-muted/20 p-4">
+            <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/20 p-4">
               <div className="text-center">
                 <div className="text-[10px] tracking-wider text-muted-foreground">基准日</div>
                 <div className="mt-1 font-mono text-[14px] tabular text-foreground">

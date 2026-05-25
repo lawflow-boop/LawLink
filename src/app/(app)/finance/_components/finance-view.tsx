@@ -124,7 +124,7 @@ export function FinanceView({
     >
       <header className="space-y-2">
         <div className="space-y-1">
-          <h1 className="ll-h1">财务管理</h1>
+          <h1 className="text-xl font-medium tracking-tight">财务管理</h1>
           <p className="text-[13px] text-muted-foreground">
             全所收付流水 + 开票管理 ·{" "}
             <Link href="/matters" className="text-primary hover:underline">
@@ -137,7 +137,6 @@ export function FinanceView({
 
       <div
         className="flex items-end gap-6 border-b"
-        style={{ borderColor: "hsl(var(--hairline))" }}
       >
         <TabBtn active={tab === "overview"} onClick={() => setTab("overview")}>
           <Wallet className="h-3.5 w-3.5" strokeWidth={1.8} />
@@ -202,7 +201,7 @@ export function FinanceView({
       </div>
 
       {/* 月度趋势图 */}
-      <section className="rounded-xl border border-border bg-card/40">
+      <section className="rounded-xl border border-border bg-card">
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
           <h2 className="text-sm font-semibold">近 6 个月趋势</h2>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -280,7 +279,7 @@ export function FinanceView({
       </section>
 
       {/* 流水 */}
-      <section className="rounded-xl border border-border bg-card/40">
+      <section className="rounded-xl border border-border bg-card">
         <header className="flex items-center justify-between border-b border-border px-5 py-3">
           <h2 className="flex items-center gap-2 text-sm font-semibold">
             收付流水{" "}
@@ -290,7 +289,7 @@ export function FinanceView({
             value={typeFilter}
             onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}
           >
-            <SelectTrigger className="h-8 w-32 bg-background/60 text-xs">
+            <SelectTrigger className="h-8 w-32 bg-background text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -310,7 +309,7 @@ export function FinanceView({
             {filtered.map((e) => {
               const color = feeTypeColor[e.type];
               return (
-                <li key={e.id} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-popover/40">
+                <li key={e.id} className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-popover">
                   <span
                     className="inline-flex h-6 min-w-12 items-center justify-center rounded-md border px-2 text-[10px] font-medium"
                     style={{ borderColor: `${color}50`, color }}
@@ -401,7 +400,7 @@ function StatCard({
     <div className="ll-surface relative overflow-hidden px-5 py-4">
       <div className="flex items-center gap-1.5">
         <span style={{ color }}>{icon}</span>
-        <span className="font-eyebrow text-[0.56rem] text-muted-foreground">{label}</span>
+        <span className="text-[0.56rem] text-muted-foreground">{label}</span>
       </div>
       <div className="ll-stat mt-3 text-[1.7rem] leading-none text-foreground">
         {formatCurrency(value, { compact: true })}

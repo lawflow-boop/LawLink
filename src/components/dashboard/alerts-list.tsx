@@ -180,7 +180,7 @@ export async function AlertsList() {
   return (
     <section className="ll-surface flex h-full flex-col">
       <header className="flex items-center justify-between px-5 pb-3 pt-4">
-        <h2 className="font-display text-lg italic tracking-tight">待我处理</h2>
+        <h2 className="text-lg font-medium tracking-tight">待我处理</h2>
         <Link
           href="/schedule"
           className="group inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
@@ -193,7 +193,7 @@ export async function AlertsList() {
         </Link>
       </header>
 
-      <div className="ll-hairline-t flex-1 overflow-y-auto px-2 py-2">
+      <div className="border-t border-border flex-1 overflow-y-auto px-2 py-2">
         {alerts.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center py-10 text-center text-sm text-muted-foreground">
             <AlertTriangle className="mb-2 h-5 w-5 opacity-30" />
@@ -212,10 +212,10 @@ export async function AlertsList() {
                 <span
                   className={cn(
                     "mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded",
-                    a.tone === "danger" && "bg-red-500/12 text-red-700",
-                    a.tone === "warn" && "bg-amber-500/15 text-amber-700",
+                    a.tone === "danger" && "bg-red-500/12 text-red-600",
+                    a.tone === "warn" && "bg-amber-500/15 text-amber-600",
                     a.tone === "muted" && "bg-muted/60 text-muted-foreground",
-                    a.tone === "ok" && "bg-emerald-500/12 text-emerald-700"
+                    a.tone === "ok" && "bg-emerald-500/12 text-emerald-600"
                   )}
                 >
                   <Icon className="h-3 w-3" strokeWidth={2} />

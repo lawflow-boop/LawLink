@@ -30,7 +30,7 @@ export function IntakeActions({ intakeId }: { intakeId: string }) {
 
   if (!canApprove) {
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card/50 px-3 py-1.5 text-xs text-muted-foreground">
+      <div className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground">
         <Clock className="h-3.5 w-3.5" />
         等待管理员/主任律师审批
       </div>
@@ -87,7 +87,7 @@ export function IntakeActions({ intakeId }: { intakeId: string }) {
           size="sm"
           onClick={handleConvert}
           disabled={isPending}
-          className="gap-1.5 shadow-[0_0_24px_-6px_rgba(91,141,239,0.45)]"
+          className="gap-1.5"
         >
           {isPending ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />

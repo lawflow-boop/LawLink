@@ -3,9 +3,9 @@
 import { motion } from "framer-motion";
 import { ArrowUp, ArrowDown, AlertTriangle, Minus } from "lucide-react";
 import { cn, formatCurrency } from "@/lib/utils";
-import { dashboardKpis } from "@/lib/mock-data";
+import type { KpiItem } from "@/server/dashboard/actions";
 
-export function KpiCards() {
+export function KpiCards({ data }: { data: KpiItem[] }) {
   return (
     <motion.section
       initial="hidden"
@@ -15,19 +15,18 @@ export function KpiCards() {
         show: { transition: { staggerChildren: 0.07, delayChildren: 0.15 } }
       }}
       className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2 lg:grid-cols-4"
-      style={{ borderColor: "hsl(var(--border))", background: "hsl(var(--hairline))" }}
     >
-      {dashboardKpis.map((kpi) => (
+      {data.map((kpi) => (
         <motion.div
           key={kpi.key}
           variants={{
             hidden: { opacity: 0, y: 8 },
             show: { opacity: 1, y: 0 }
           }}
-          className="group relative overflow-hidden bg-card px-5 py-4 transition-colors hover:bg-card/80"
+          className="group relative overflow-hidden bg-card px-5 py-4 transition-colors hover:bg-muted/40"
         >
           <div className="flex items-center justify-between">
-            <span className="font-eyebrow text-[0.58rem] text-muted-foreground">
+            <span className="text-[0.68rem] font-medium uppercase tracking-widest text-muted-foreground">
               {kpi.label}
             </span>
             <TrendBadge direction={kpi.trend.direction} text={kpi.trend.text} />
@@ -61,10 +60,10 @@ function TrendBadge({
     direction === "up" ? ArrowUp : direction === "down" ? ArrowDown : direction === "warn" ? AlertTriangle : Minus;
   const cls =
     direction === "up"
-      ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/8 border-emerald-500/20"
+      ? "text-emerald-600 bg-emerald-500/8 border-emerald-500/20"
       : direction === "warn"
-        ? "text-amber-600 dark:text-amber-400 bg-amber-500/8 border-amber-500/20"
-        : "text-rose-600 dark:text-rose-400 bg-rose-500/8 border-rose-500/20";
+        ? "text-amber-600 bg-amber-500/8 border-amber-500/20"
+        : "text-red-600 bg-red-500/8 border-red-500/20";
   return (
     <span
       className={cn(
@@ -99,8 +98,8 @@ function Sparkline({ values }: { values: number[] }) {
     <svg viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" className="h-full w-full">
       <defs>
         <linearGradient id="sparkline-fill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="currentColor" stopOpacity="0.18" />
-          <stop offset="100%" stopColor="currentColor" stopOpacity="0" />
+          <stop offset="0%" stopColor="currentColor" stopOpacity={0.18} />
+          <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
         </linearGradient>
       </defs>
       <g className="text-primary">

@@ -3,14 +3,14 @@
 import { useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import {
-  Bell,
   Search,
   ChevronDown,
   Plus,
   LogOut,
   User,
   Settings as SettingsIcon,
-  ShieldCheck
+  ShieldCheck,
+  Menu
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,9 +24,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { toast } from "sonner";
 import { ConflictDialog } from "@/components/conflict-dialog";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationPopover } from "@/components/layout/notification-popover";
+import { SearchDialog } from "@/components/layout/search-dialog";
 import { cn } from "@/lib/utils";
 
 const roleLabels: Record<string, string> = {
@@ -37,35 +37,40 @@ const roleLabels: Record<string, string> = {
   FINANCE: "财务"
 };
 
-export function Topbar() {
+export function Topbar({ onMobileMenuToggle }: { onMobileMenuToggle?: () => void }) {
   const { data: session } = useSession();
   const router = useRouter();
   const [conflictOpen, setConflictOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const user = session?.user;
   const displayName = user?.name ?? "";
   const roleLabel = user?.role ? (roleLabels[user.role] ?? user.role) : "";
   const initial = displayName ? displayName.charAt(0) : "?";
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-20 flex h-14 items-center gap-2.5 px-7",
-        "border-b border-hairline bg-background/70 backdrop-blur-xl"
+    <header className="sticky top-0 z-20 flex h-14 items-center gap-2.5 border-b border-border bg-background px-4 sm:px-6">
+      {/* 移动端汉堡菜单 */}
+      {onMobileMenuToggle && (
+        <button
+          onClick={onMobileMenuToggle}
+          className="flex h-8 w-8 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden"
+          aria-label="打开菜单"
+        >
+          <Menu className="h-4 w-4" />
+        </button>
       )}
-      style={{ borderBottomColor: "hsl(var(--hairline))" }}
-    >
       {/* 搜索 */}
       <button
+        onClick={() => setSearchOpen(true)}
         className={cn(
-          "group flex h-8 w-72 items-center gap-2 px-3 text-left",
-          "rounded-md border border-hairline bg-card/40 text-sm text-muted-foreground",
-          "transition-colors hover:border-border hover:bg-card hover:text-foreground"
+          "flex h-8 w-48 items-center gap-2 rounded-md border border-border bg-card px-3 text-left sm:w-72",
+          "text-sm text-muted-foreground transition-colors hover:border-input hover:text-foreground"
         )}
         aria-label="全局搜索 (Cmd+K)"
       >
         <Search className="h-3.5 w-3.5 shrink-0" strokeWidth={1.8} />
         <span className="flex-1 truncate">搜索案件、客户、材料...</span>
-        <kbd className="hidden h-5 items-center gap-0.5 rounded border border-hairline bg-muted/60 px-1.5 font-mono text-[10px] font-medium sm:inline-flex">
+        <kbd className="hidden h-5 items-center gap-0.5 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium sm:inline-flex">
           ⌘K
         </kbd>
       </button>
@@ -78,9 +83,8 @@ export function Topbar() {
           type="button"
           onClick={() => setConflictOpen(true)}
           className={cn(
-            "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-[13px]",
-            "border border-hairline bg-card/40 text-foreground/80",
-            "transition-all hover:border-border hover:bg-card hover:text-foreground"
+            "inline-flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-[13px]",
+            "text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           )}
           title="利益冲突检索"
         >
@@ -91,33 +95,15 @@ export function Topbar() {
         <Button
           size="sm"
           onClick={() => router.push("/matters?tab=intake&new=1")}
-          className="h-8 gap-1.5 px-3 text-[13px] shadow-ll-low"
+          className="h-8 gap-1.5 px-3 text-[13px]"
         >
           <Plus className="h-3.5 w-3.5" strokeWidth={2} />
           新建收案
         </Button>
 
-        <div className="mx-0.5 h-4 w-px" style={{ background: "hsl(var(--hairline))" }} />
+        <div className="mx-0.5 h-4 w-px bg-border" />
 
-        <ThemeToggle />
-
-        <button
-          type="button"
-          onClick={() =>
-            toast.info("通知中心", {
-              description: "邮件 / 站内消息推送将在 V1.5 上线"
-            })
-          }
-          className={cn(
-            "relative flex h-8 w-8 items-center justify-center rounded-md",
-            "border border-hairline bg-card/40 text-muted-foreground",
-            "transition-colors hover:border-border hover:bg-card hover:text-foreground"
-          )}
-          aria-label="通知"
-        >
-          <Bell className="h-3.5 w-3.5" strokeWidth={1.8} />
-          <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary ring-2 ring-background" />
-        </button>
+        <NotificationPopover />
       </div>
 
       {/* 用户 */}
@@ -125,13 +111,12 @@ export function Topbar() {
         <DropdownMenuTrigger asChild>
           <button
             className={cn(
-              "flex h-8 items-center gap-2 rounded-md pl-1 pr-2.5",
-              "border border-hairline bg-card/40 transition-colors",
-              "hover:border-border hover:bg-card"
+              "flex h-8 items-center gap-2 rounded-md border border-border pl-1 pr-2.5",
+              "transition-colors hover:bg-muted"
             )}
           >
             <Avatar className="h-6 w-6">
-              <AvatarFallback className="bg-primary/12 text-[11px] font-semibold text-primary">
+              <AvatarFallback className="bg-primary/10 text-[11px] font-semibold text-primary">
                 {initial}
               </AvatarFallback>
             </Avatar>
@@ -171,6 +156,7 @@ export function Topbar() {
       </DropdownMenu>
 
       <ConflictDialog open={conflictOpen} onOpenChange={setConflictOpen} />
+      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </header>
   );
 }

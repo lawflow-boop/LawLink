@@ -9,35 +9,31 @@ export const metadata: Metadata = {
 
 export default function LoginPage() {
   return (
-    <div className="grid w-full max-w-5xl grid-cols-1 gap-16 lg:grid-cols-2">
-      {/* 左侧：品牌区 —— editorial */}
-      <div className="hidden flex-col justify-between lg:flex">
+    <div className="grid w-full max-w-5xl grid-cols-1 gap-0 lg:grid-cols-2">
+      {/* 左侧：品牌区 */}
+      <div className="hidden flex-col justify-between rounded-l-lg border border-r-0 border-border bg-muted/30 p-10 lg:flex">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-ll-low">
-            <Scale className="h-5 w-5" strokeWidth={1.5} />
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <Scale className="h-4 w-4" strokeWidth={1.8} />
           </div>
           <div>
-            <div className="font-display text-[1.5rem] font-medium leading-none tracking-tight">
-              LawLink
-            </div>
-            <div className="mt-1 text-[11px] text-muted-foreground/80">律师工作台</div>
+            <div className="text-lg font-semibold tracking-tight">LawLink</div>
+            <div className="mt-0.5 text-[11px] text-muted-foreground">律师工作台</div>
           </div>
         </div>
 
         <div className="space-y-8">
           <div className="space-y-4">
-            <div className="text-[11px] text-primary/85">{new Date().getFullYear()}</div>
-            <h2 className="font-display text-[3.2rem] font-medium leading-[1.05] tracking-tight">
-              把精力放在
-              <br />
-              <span className="italic">案件本身</span>，
+            <div className="text-xs text-primary">{new Date().getFullYear()}</div>
+            <h2 className="text-2xl font-semibold leading-snug tracking-tight">
+              把精力放在案件本身，
               <br />
               而不是表格里。
             </h2>
-            <div className="ll-rule-accent" />
+            <div className="h-[2px] w-8 bg-primary rounded-full" />
           </div>
 
-          <ul className="space-y-4 text-[0.92rem] text-muted-foreground">
+          <ul className="space-y-3.5 text-sm text-muted-foreground">
             <Feature icon={<ShieldCheck className="h-3.5 w-3.5" />}>
               数据自托管，附件可选加密，不依赖第三方 SaaS
             </Feature>
@@ -51,17 +47,15 @@ export default function LoginPage() {
         </div>
 
         <div className="text-[11px] text-muted-foreground/70">
-          MIT 协议 · 自主部署 · <span className="font-mono">v0.8.0</span>
+          MIT 协议 · 自主部署
         </div>
       </div>
 
       {/* 右侧：登录卡 */}
-      <div className="ll-surface flex flex-col justify-center p-10 lg:p-12">
+      <div className="flex flex-col justify-center rounded-lg border border-border bg-card p-10 lg:rounded-l-none">
         <div className="mb-8">
-          <div className="text-[11px] text-muted-foreground">登录</div>
-          <h1 className="mt-2 font-display text-[2rem] font-medium tracking-tight">
-            欢迎回来
-          </h1>
+          <div className="text-xs text-muted-foreground">登录</div>
+          <h1 className="mt-2 text-xl font-semibold tracking-tight">欢迎回来</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
             用您的工作邮箱登录
           </p>
@@ -86,7 +80,7 @@ function LoginFallback() {
 function Feature({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <li className="flex items-start gap-3">
-      <span className="mt-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-primary/8 text-primary">
+      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
         {icon}
       </span>
       <span>{children}</span>

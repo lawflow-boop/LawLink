@@ -139,7 +139,7 @@ export function DocumentsPanel({
         <Button
           onClick={() => setSheetOpen(true)}
           size="sm"
-          className="gap-1.5 shadow-[0_0_24px_-6px_rgba(91,141,239,0.45)]"
+          className="gap-1.5 "
         >
           <Plus className="h-4 w-4" />
           上传材料
@@ -168,7 +168,7 @@ export function DocumentsPanel({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card/20 py-16 text-center">
+        <div className="rounded-xl border border-dashed border-border bg-card py-16 text-center">
           <FileBox className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
           <p className="text-sm text-muted-foreground">
             {activeCategory === "ALL" ? "还没有材料" : `没有「${categoryLabel[activeCategory]}」分类材料`}
@@ -182,7 +182,7 @@ export function DocumentsPanel({
             return (
               <li
                 key={d.id}
-                className="group flex items-start gap-3 rounded-xl border border-border bg-card/40 p-3"
+                className="group flex items-start gap-3 rounded-xl border border-border bg-card p-3"
               >
                 <div
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border"
@@ -279,7 +279,7 @@ function CategoryChip({
         "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs transition-colors",
         active
           ? "border-primary bg-primary/15 text-primary"
-          : "border-border bg-background/40 text-muted-foreground hover:border-input"
+          : "border-border bg-background text-muted-foreground hover:border-input"
       )}
     >
       <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
@@ -385,7 +385,7 @@ function UploadSheet({
       }}
     >
       <SheetContent side="right" className="flex w-full max-w-md flex-col gap-0 p-0">
-        <SheetHeader className="border-b border-border bg-background/60 px-6 py-4 backdrop-blur">
+        <SheetHeader className="border-b border-border bg-background px-6 py-4">
           <SheetTitle>上传材料</SheetTitle>
           <SheetDescription className="text-xs">
             单文件最大 20MB · 加密后下载需经鉴权解密
@@ -399,7 +399,7 @@ function UploadSheet({
             <div
               className={cn(
                 "flex items-center gap-3 rounded-md border border-dashed p-4",
-                file ? "border-primary bg-primary/5" : "border-border bg-background/30"
+                file ? "border-primary bg-primary/5" : "border-border bg-background"
               )}
             >
               <input
@@ -504,7 +504,7 @@ function UploadSheet({
             </Field>
           )}
 
-          <div className="flex items-start justify-between gap-3 rounded-md border border-border bg-background/40 p-3">
+          <div className="flex items-start justify-between gap-3 rounded-md border border-border bg-background p-3">
             <div className="flex-1">
               <div className="flex items-center gap-1.5 text-sm">
                 <Lock className="h-3.5 w-3.5 text-[#9B7BF7]" />
@@ -519,7 +519,7 @@ function UploadSheet({
           </div>
         </div>
 
-        <SheetFooter className="border-t border-border bg-background/60 px-6 py-4 backdrop-blur">
+        <SheetFooter className="border-t border-border bg-background px-6 py-4">
           <Button
             type="button"
             variant="outline"

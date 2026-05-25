@@ -28,9 +28,9 @@ export function ClientsTable({
 }) {
   if (items.length === 0) {
     return (
-      <div className="ll-surface-quiet flex flex-col items-center gap-2 py-20 text-center">
-        <div className="font-display text-base text-muted-foreground">还没有客户</div>
-        <div className="text-xs text-muted-subtle">
+      <div className="rounded-md border border-border bg-muted/30 flex flex-col items-center gap-2 py-20 text-center">
+        <div className="text-sm text-muted-foreground">还没有客户</div>
+        <div className="text-xs text-muted-foreground">
           点击右上角 <span className="text-foreground/80">新建客户</span> 开始
         </div>
       </div>
@@ -41,31 +41,27 @@ export function ClientsTable({
     <div className="ll-surface overflow-hidden">
       <table className="w-full text-sm">
         <thead>
-          <tr
-            className="border-b text-left font-eyebrow text-[0.6rem] text-muted-foreground/80"
-            style={{ borderColor: "hsl(var(--hairline))" }}
-          >
-            <th className="px-5 py-2.5 font-semibold">客户</th>
-            <th className="px-4 py-2.5 font-semibold">类型</th>
-            <th className="px-4 py-2.5 font-semibold">联系方式</th>
-            <th className="px-4 py-2.5 font-semibold">主要联系人</th>
-            <th className="px-4 py-2.5 font-semibold">案件</th>
-            <th className="px-4 py-2.5 font-semibold">标签</th>
-            <th className="w-20 px-5 py-2.5 text-right font-semibold">操作</th>
+          <tr className="border-b border-border text-left text-[0.68rem] font-medium uppercase tracking-wider text-muted-foreground">
+            <th className="px-5 py-2.5">客户</th>
+            <th className="px-4 py-2.5">类型</th>
+            <th className="px-4 py-2.5">联系方式</th>
+            <th className="px-4 py-2.5">主要联系人</th>
+            <th className="px-4 py-2.5">案件</th>
+            <th className="px-4 py-2.5">标签</th>
+            <th className="w-20 px-5 py-2.5 text-right">操作</th>
           </tr>
         </thead>
         <tbody>
-          {items.map((c, idx) => {
+          {items.map((c) => {
             const primary = c.contacts[0];
             return (
               <tr
                 key={c.id}
-                className="group transition-colors hover:bg-muted/30"
-                style={idx > 0 ? { borderTop: "1px solid hsl(var(--hairline))" } : undefined}
+                className="group border-t border-border transition-colors hover:bg-muted/30"
               >
                 <td className="px-5 py-2.5">
                   <Link href={`/clients/${c.id}`} className="block">
-                    <div className="font-display text-[1.05rem] font-medium leading-snug text-foreground transition-colors group-hover:text-primary">
+                    <div className="text-[0.92rem] font-medium leading-snug text-foreground transition-colors group-hover:text-primary">
                       {c.name}
                     </div>
                     {c.idNumber && (
@@ -76,10 +72,7 @@ export function ClientsTable({
                   </Link>
                 </td>
                 <td className="px-4 py-2.5">
-                  <span
-                    className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px]"
-                    style={{ borderColor: "hsl(var(--hairline))" }}
-                  >
+                  <span className="inline-flex items-center gap-1.5 rounded-sm border border-border px-2 py-0.5 text-[11px]">
                     <TypeIcon type={c.type} />
                     {clientTypeLabel[c.type]}
                   </span>
@@ -128,8 +121,7 @@ export function ClientsTable({
                       <Badge
                         key={t}
                         variant="secondary"
-                        className="border-hairline bg-muted/40 text-[10px] font-normal"
-                        style={{ borderColor: "hsl(var(--hairline))" }}
+                        className="text-[10px] font-normal"
                       >
                         {t}
                       </Badge>

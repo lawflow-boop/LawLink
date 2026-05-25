@@ -100,7 +100,7 @@ export function AuditView({
         </h2>
       </header>
 
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card/40 p-3">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
         <Select
           value={action}
           onValueChange={(v) => {
@@ -108,7 +108,7 @@ export function AuditView({
             updateUrl({ action: v });
           }}
         >
-          <SelectTrigger className="h-9 w-44 bg-background/60">
+          <SelectTrigger className="h-9 w-44 bg-background">
             <SelectValue placeholder="动作" />
           </SelectTrigger>
           <SelectContent className="max-h-80">
@@ -128,7 +128,7 @@ export function AuditView({
             updateUrl({ userId: v });
           }}
         >
-          <SelectTrigger className="h-9 w-40 bg-background/60">
+          <SelectTrigger className="h-9 w-40 bg-background">
             <SelectValue placeholder="用户" />
           </SelectTrigger>
           <SelectContent>
@@ -148,7 +148,7 @@ export function AuditView({
             updateUrl({ days: v });
           }}
         >
-          <SelectTrigger className="h-9 w-32 bg-background/60">
+          <SelectTrigger className="h-9 w-32 bg-background">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -168,7 +168,7 @@ export function AuditView({
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card/20 py-16 text-center">
+        <div className="rounded-xl border border-dashed border-border bg-card py-16 text-center">
           <p className="text-sm text-muted-foreground">没有匹配的审计记录</p>
         </div>
       ) : (
@@ -178,7 +178,7 @@ export function AuditView({
             return (
               <li
                 key={it.id}
-                className="flex items-start gap-3 rounded-md border border-border bg-card/40 px-4 py-2.5"
+                className="flex items-start gap-3 rounded-md border border-border bg-card px-4 py-2.5"
               >
                 <span
                   className="mt-1 inline-block h-1.5 w-1.5 shrink-0 rounded-full"

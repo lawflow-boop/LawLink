@@ -116,7 +116,7 @@ export function ConflictDialog({
       }}
     >
       <DialogContent className="max-h-[85vh] overflow-hidden p-0 sm:max-w-2xl">
-        <DialogHeader className="border-b border-border bg-background/60 px-6 py-4 backdrop-blur">
+        <DialogHeader className="border-b border-border bg-background px-6 py-4">
           <DialogTitle className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-primary" />
             利益冲突检索
@@ -147,7 +147,7 @@ export function ConflictDialog({
               {queries.map((q, idx) => (
                 <div
                   key={idx}
-                  className="grid grid-cols-12 gap-2 rounded-lg border border-border bg-background/40 p-2"
+                  className="grid grid-cols-12 gap-2 rounded-lg border border-border bg-background p-2"
                 >
                   <div className="col-span-5">
                     <Input
@@ -204,7 +204,7 @@ export function ConflictDialog({
                 type="button"
                 onClick={handleRun}
                 disabled={isPending}
-                className="gap-1.5 shadow-[0_0_24px_-6px_rgba(91,141,239,0.45)]"
+                className="gap-1.5 "
               >
                 {isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -229,7 +229,7 @@ export function ConflictDialog({
                     key={c.clientId}
                     href={`/clients/${c.clientId}`}
                     onClick={() => onOpenChange(false)}
-                    className="inline-flex items-center gap-1 rounded border border-border bg-background/60 px-2 py-0.5 text-[11px] hover:border-primary/40 hover:text-primary"
+                    className="inline-flex items-center gap-1 rounded border border-border bg-background px-2 py-0.5 text-[11px] hover:border-primary/40 hover:text-primary"
                   >
                     {c.name}
                     <ExternalLink className="h-2.5 w-2.5" />

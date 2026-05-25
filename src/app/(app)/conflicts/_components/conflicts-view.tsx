@@ -104,7 +104,7 @@ export function ConflictsView() {
         </p>
       </header>
 
-      <section className="rounded-xl border border-border bg-card/40 p-5">
+      <section className="rounded-xl border border-border bg-card p-5">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold">检索项</h2>
           <Button variant="outline" size="sm" onClick={addQuery} className="h-7 gap-1">
@@ -117,7 +117,7 @@ export function ConflictsView() {
           {queries.map((q, idx) => (
             <div
               key={idx}
-              className="grid grid-cols-12 gap-2 rounded-lg border border-border bg-background/40 p-3"
+              className="grid grid-cols-12 gap-2 rounded-lg border border-border bg-background p-3"
             >
               <div className="col-span-5">
                 <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -162,7 +162,7 @@ export function ConflictsView() {
           <Button
             onClick={handleRun}
             disabled={isPending}
-            className="gap-1.5 shadow-[0_0_24px_-6px_rgba(91,141,239,0.45)]"
+            className="gap-1.5 "
           >
             {isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -175,7 +175,7 @@ export function ConflictsView() {
       </section>
 
       {hasRun && (
-        <section className="rounded-xl border border-border bg-card/40 p-5">
+        <section className="rounded-xl border border-border bg-card p-5">
           <h2 className="mb-3 text-sm font-semibold">
             检索结果{" "}
             <span className="font-mono text-xs text-muted-foreground tabular">

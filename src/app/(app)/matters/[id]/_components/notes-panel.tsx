@@ -89,7 +89,7 @@ export function NotesPanel({
         <Button
           onClick={() => setSheetOpen(true)}
           size="sm"
-          className="gap-1.5 shadow-[0_0_24px_-6px_rgba(91,141,239,0.45)]"
+          className="gap-1.5 "
         >
           <Plus className="h-4 w-4" />
           录入沟通
@@ -97,7 +97,7 @@ export function NotesPanel({
       </header>
 
       {notes.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-card/20 py-16 text-center">
+        <div className="rounded-xl border border-dashed border-border bg-card py-16 text-center">
           <p className="text-sm text-muted-foreground">
             还没有沟通记录。点击 <span className="text-foreground">录入沟通</span> 开始
           </p>
@@ -110,7 +110,7 @@ export function NotesPanel({
             return (
               <li
                 key={n.id}
-                className="group rounded-xl border border-border bg-card/40 p-4"
+                className="group rounded-xl border border-border bg-card p-4"
               >
                 <div className="flex items-start gap-3">
                   <div
@@ -230,7 +230,7 @@ function NoteSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full max-w-md flex-col gap-0 p-0">
-        <SheetHeader className="border-b border-border bg-background/60 px-6 py-4 backdrop-blur">
+        <SheetHeader className="border-b border-border bg-background px-6 py-4">
           <SheetTitle>录入沟通</SheetTitle>
         </SheetHeader>
 
@@ -252,7 +252,7 @@ function NoteSheet({
                           "flex flex-col items-center gap-1 rounded-md border p-2 text-xs transition-colors",
                           channel === c
                             ? "border-primary bg-primary/15 text-primary"
-                            : "border-border bg-background/40 text-muted-foreground hover:border-input"
+                            : "border-border bg-background text-muted-foreground hover:border-input"
                         )}
                       >
                         <Icon className="h-4 w-4" />
@@ -292,7 +292,7 @@ function NoteSheet({
             </div>
           </div>
 
-          <SheetFooter className="border-t border-border bg-background/60 px-6 py-4 backdrop-blur">
+          <SheetFooter className="border-t border-border bg-background px-6 py-4">
             <Button
               type="button"
               variant="outline"

@@ -70,13 +70,12 @@ export function ScheduleView({ items }: { items: ScheduleItem[] }) {
       <header className="space-y-2">
         <div className="flex items-end justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="ll-h1">日程</h1>
+            <h1 className="text-xl font-medium tracking-tight">日程</h1>
             <p className="text-[13px] text-muted-foreground">未来 90 天的开庭、期限、任务</p>
           </div>
 
           <div
-            className="flex items-center gap-1 rounded-md border border-hairline bg-card/40 p-0.5"
-            style={{ borderColor: "hsl(var(--hairline))" }}
+            className="flex items-center gap-1 rounded-md border border-border bg-card p-0.5"
           >
             <Button
               size="sm"
@@ -143,7 +142,7 @@ function ListView({
 
   if (items.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border bg-card/20 py-16 text-center">
+      <div className="rounded-xl border border-dashed border-border bg-card py-16 text-center">
         <p className="text-sm text-muted-foreground">未来 90 天没有日程</p>
       </div>
     );
@@ -158,7 +157,7 @@ function ListView({
         return (
           <section
             key={key}
-            className="overflow-hidden rounded-xl border border-border bg-card/40"
+            className="overflow-hidden rounded-xl border border-border bg-card"
           >
             <header
               className={cn(
@@ -207,7 +206,7 @@ function Row({ item }: { item: ScheduleItem }) {
   });
 
   return (
-    <li className="px-5 py-3 transition-colors hover:bg-popover/40">
+    <li className="px-5 py-3 transition-colors hover:bg-popover">
       <Link href={`/matters/${item.matter.id}`} className="flex items-start gap-3">
         <span className="w-12 shrink-0 font-mono text-sm tabular text-muted-foreground">
           {item.type === "task" ? "--:--" : time}
@@ -290,7 +289,7 @@ function CalendarView({
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      <section className="rounded-xl border border-border bg-card/40 p-4 lg:col-span-2">
+      <section className="rounded-xl border border-border bg-card p-4 lg:col-span-2">
         <header className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Button
@@ -349,7 +348,7 @@ function CalendarView({
                   "group flex h-20 flex-col rounded-md border p-1.5 text-left transition-colors",
                   isSelected
                     ? "border-primary bg-primary/15"
-                    : "border-border bg-background/40 hover:border-input",
+                    : "border-border bg-background hover:border-input",
                   isToday && !isSelected && "border-primary/40"
                 )}
               >
@@ -393,7 +392,7 @@ function CalendarView({
       </section>
 
       {/* 右侧：选中日详情 */}
-      <section className="rounded-xl border border-border bg-card/40 p-4 lg:col-span-1">
+      <section className="rounded-xl border border-border bg-card p-4 lg:col-span-1">
         {selectedDay ? (
           <>
             <header className="mb-3">
@@ -415,7 +414,7 @@ function CalendarView({
                 {selectedItems.map((it) => (
                   <li
                     key={it.id}
-                    className="rounded-md border border-border bg-background/40 px-3 py-2"
+                    className="rounded-md border border-border bg-background px-3 py-2"
                   >
                     <Row item={it} />
                   </li>
@@ -448,7 +447,7 @@ function Stat({
     <div className="ll-surface px-5 py-4">
       <div className="flex items-center gap-1.5">
         <span style={{ color }}>{icon}</span>
-        <span className="font-eyebrow text-[0.56rem] text-muted-foreground">{label}</span>
+        <span className="text-[0.56rem] text-muted-foreground">{label}</span>
       </div>
       <div className="ll-stat mt-3 text-[1.85rem] leading-none text-foreground">
         {value}

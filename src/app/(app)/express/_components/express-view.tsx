@@ -93,7 +93,7 @@ export function ExpressView({
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="flex items-center gap-2 font-display text-2xl italic">
+          <h1 className="flex items-center gap-2 text-2xl italic">
             <Package className="h-5 w-5 text-primary" />
             快递追踪
           </h1>
@@ -129,8 +129,7 @@ export function ExpressView({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="搜索单号 / 用途 / 收件人 / 案件"
-            className="h-9 border-hairline bg-card/40 pl-9"
-            style={{ borderColor: "hsl(var(--hairline))" }}
+            className="h-9 border-border bg-card pl-9"
           />
         </div>
         <RadioChips
@@ -151,7 +150,7 @@ export function ExpressView({
         transition={{ duration: 0.3 }}
       >
         {filtered.length === 0 ? (
-          <div className="ll-surface rounded-lg border border-hairline p-12 text-center text-sm text-muted-foreground">
+          <div className="ll-surface rounded-lg border border-border p-12 text-center text-sm text-muted-foreground">
             <Package className="mx-auto mb-2 h-6 w-6 opacity-40" />
             {items.length === 0
               ? "暂无快递追踪记录，点上方「新建追踪」开始"
@@ -205,7 +204,7 @@ function Card({ e }: { e: Row }) {
   };
 
   return (
-    <div className="ll-surface flex flex-col gap-2 rounded-lg border border-hairline p-4">
+    <div className="ll-surface flex flex-col gap-2 rounded-lg border border-border p-4">
       {/* 行 1：方向 + 公司 + 状态 */}
       <div className="flex flex-wrap items-center gap-2 text-[11px]">
         {e.direction === "OUTBOUND" ? (
@@ -230,7 +229,7 @@ function Card({ e }: { e: Row }) {
               tone === "danger" && "border-red-500/40 bg-red-500/10 text-red-700",
               tone === "ok" && "border-emerald-500/40 bg-emerald-500/10 text-emerald-700",
               tone === "warn" && "border-amber-500/40 bg-amber-500/10 text-amber-700",
-              tone === "muted" && "border-hairline bg-muted/40 text-muted-foreground"
+              tone === "muted" && "border-border bg-muted/40 text-muted-foreground"
             )}
           >
             {e.lastState}
@@ -316,7 +315,7 @@ function Card({ e }: { e: Row }) {
               {e.companyCode} · {traces.length} 条
             </DialogDescription>
           </DialogHeader>
-          <ol className="space-y-2 border-l border-hairline pl-4">
+          <ol className="space-y-2 border-l border-border pl-4">
             {traces.map((t, i) => (
               <li key={i} className="relative">
                 <span

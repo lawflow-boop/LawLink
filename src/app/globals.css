@@ -2,142 +2,64 @@
 @tailwind components;
 @tailwind utilities;
 
-/* v0.7 字体策略：
- *  - display: Cormorant Garamond  → hero 大标题、案件标题
- *  - eyebrow: Cinzel              → 小标、品牌
- *  - sans:    Inter               → 正文（由 next/font 注入）
- *  - mono:    JetBrains Mono      → 数字/案号（由 next/font 注入）
- */
-@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&display=swap');
-
 @layer base {
-  /* ============================================================
-   * 浅色主题 —— editorial / 纸面
-   * ============================================================ */
   :root {
-    --background: 36 14% 97%;         /* #F8F6F2 微暖白底 */
-    --foreground: 222 30% 12%;        /* #15192B */
+    --background: 0 0% 100%;           /* #ffffff */
+    --foreground: 215 25% 10%;         /* #151a21 */
 
     --card: 0 0% 100%;
-    --card-foreground: 222 30% 12%;
+    --card-foreground: 215 25% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 30% 12%;
+    --popover-foreground: 215 25% 10%;
 
-    --primary: 220 60% 38%;           /* #2752A7 深邃法理蓝 */
+    --primary: 180 100% 25%;           /* #007b7f teal */
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 96%;
-    --secondary-foreground: 222 30% 12%;
+    --secondary-foreground: 215 25% 10%;
 
     --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
-    --muted-subtle: 220 9% 65%;       /* v0.7: 更弱的灰 */
+    --muted-foreground: 210 8% 46%;    /* #6b7280 */
+    --muted-subtle: 210 8% 65%;
 
     --accent: 220 14% 96%;
-    --accent-foreground: 222 30% 12%;
+    --accent-foreground: 215 25% 10%;
 
-    --destructive: 0 70% 50%;
+    --destructive: 0 70% 50%;          /* #d4252f */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 13% 90%;
-    --border-strong: 220 13% 78%;     /* v0.7: 强分隔 */
-    --hairline: 220 13% 88%;          /* v0.7: 0.5px 细线色 */
-    --input: 220 13% 86%;
-    --ring: 220 60% 38%;
+    --border: 220 14% 92%;             /* #e8eaed */
+    --border-strong: 220 13% 78%;
+    --hairline: 220 14% 92%;
+    --input: 220 10% 80%;              /* #c4c8cb */
+    --ring: 180 100% 25%;
 
-    --radius: 0.5rem;
-    --radius-sm: 0.3125rem;
-    --radius-md: 0.5rem;
-    --radius-lg: 0.875rem;
-    --radius-xl: 1.25rem;
+    --radius: 0.375rem;                /* 6px */
+    --radius-sm: 0.25rem;              /* 4px */
+    --radius-md: 0.5rem;               /* 8px */
+    --radius-lg: 0.5rem;
+    --radius-xl: 0.75rem;
 
-    --shadow-low: 0 1px 2px rgba(15, 19, 36, 0.04), 0 1px 3px rgba(15, 19, 36, 0.02);
-    --shadow-medium: 0 4px 16px -4px rgba(15, 19, 36, 0.08), 0 2px 6px -2px rgba(15, 19, 36, 0.04);
-    --shadow-high: 0 12px 32px -8px rgba(15, 19, 36, 0.12), 0 4px 12px -4px rgba(15, 19, 36, 0.06);
-    --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  }
+    --shadow-low: 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-medium: 0 2px 8px rgba(0,0,0,0.06);
+    --shadow-high: 0 4px 16px rgba(0,0,0,0.08);
+    --shadow-inset: inset 0 1px 0 rgba(255,255,255,0.6);
 
-  /* ============================================================
-   * 深色主题 —— 午夜法理蓝
-   * ============================================================ */
-  .dark {
-    --background: 222 38% 6%;         /* #0B0F1A 更深沉 */
-    --foreground: 220 25% 95%;
+    /* 侧边栏专用 */
+    --sidebar-bg: 220 14% 96%;         /* #f0f2f5 */
 
-    --card: 222 32% 9%;
-    --card-foreground: 220 25% 95%;
-
-    --popover: 222 32% 12%;
-    --popover-foreground: 220 25% 95%;
-
-    --primary: 218 80% 70%;           /* #7AA7F0 略提亮 */
-    --primary-foreground: 222 38% 6%;
-
-    --secondary: 222 28% 14%;
-    --secondary-foreground: 220 25% 95%;
-
-    --muted: 222 28% 14%;
-    --muted-foreground: 220 18% 65%;
-    --muted-subtle: 220 12% 45%;
-
-    --accent: 222 28% 14%;
-    --accent-foreground: 220 25% 95%;
-
-    --destructive: 0 80% 65%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 222 30% 16%;
-    --border-strong: 222 25% 26%;
-    --hairline: 222 30% 18%;
-    --input: 222 25% 22%;
-    --ring: 218 80% 70%;
-
-    --shadow-low: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.25);
-    --shadow-medium: 0 4px 16px -4px rgba(0, 0, 0, 0.5), 0 2px 6px -2px rgba(0, 0, 0, 0.3);
-    --shadow-high: 0 16px 40px -8px rgba(0, 0, 0, 0.6), 0 6px 16px -4px rgba(0, 0, 0, 0.35);
-    --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  }
-
-  /* ============================================================
-   * 金 / 米色主题 —— 律所纸张
-   * ============================================================ */
-  .gold {
-    --background: 36 28% 92%;         /* #EFE9DD */
-    --foreground: 28 22% 16%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 28 22% 16%;
-
-    --popover: 36 30% 96%;
-    --popover-foreground: 28 22% 16%;
-
-    --primary: 33 32% 45%;            /* #A38758 庄重金 */
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 36 22% 86%;
-    --secondary-foreground: 28 22% 16%;
-
-    --muted: 36 22% 86%;
-    --muted-foreground: 30 12% 42%;
-    --muted-subtle: 30 12% 58%;
-
-    --accent: 36 22% 86%;
-    --accent-foreground: 28 22% 16%;
-
-    --destructive: 0 50% 48%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 36 22% 82%;
-    --border-strong: 36 22% 68%;
-    --hairline: 36 22% 80%;
-    --input: 36 22% 78%;
-    --ring: 33 32% 45%;
-
-    --shadow-low: 0 1px 2px rgba(80, 60, 30, 0.06), 0 1px 3px rgba(80, 60, 30, 0.03);
-    --shadow-medium: 0 4px 16px -4px rgba(80, 60, 30, 0.10), 0 2px 6px -2px rgba(80, 60, 30, 0.05);
-    --shadow-high: 0 16px 36px -8px rgba(80, 60, 30, 0.14), 0 6px 14px -4px rgba(80, 60, 30, 0.07);
-    --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    /* 状态色 */
+    --status-green: 125 55% 36%;       /* #1aa126 */
+    --status-green-bg: 125 55% 94%;
+    --status-orange: 35 88% 45%;       /* #e18d00 */
+    --status-orange-bg: 35 88% 94%;
+    --status-red: 0 70% 48%;           /* #d4252f */
+    --status-red-bg: 0 70% 94%;
+    --status-purple: 270 67% 48%;      /* #722ec7 */
+    --status-purple-bg: 270 67% 94%;
+    --status-blue: 217 91% 60%;        /* #3b82f6 */
+    --status-blue-bg: 217 91% 94%;
   }
 
   * {
@@ -146,101 +68,27 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1, "cv11" 1, "ss01" 1;
+    font-feature-settings: "rlig" 1, "calt" 1;
   }
 
-  /* 数字 / 案号统一等宽 + 同宽数字位 */
   .tabular { font-variant-numeric: tabular-nums; }
 }
 
-/* ============================================================
- *  Components / utilities —— "高端感"工具集
- * ============================================================ */
 @layer components {
-  /* —— 字体工具 ——
-   *  display: 英文 Cormorant Garamond 衬线，中文落回 PingFang（现代黑体），
-   *           **不允许落到宋体类**（用户偏好）
-   */
-  .font-display {
-    font-family: 'Cormorant Garamond', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
-    font-feature-settings: "lnum" 1;
-  }
-  .font-eyebrow {
-    font-family: 'Cinzel', 'PingFang SC', system-ui, sans-serif;
-    text-transform: uppercase;
-    letter-spacing: 0.18em;
-    font-weight: 600;
-  }
-
-  /* 旧别名（向后兼容） */
-  .ll-eyebrow {
-    @apply font-eyebrow;
-    font-size: 0.66rem;
-    color: hsl(var(--muted-foreground));
-  }
-  .ll-brand {
-    @apply font-eyebrow;
-    letter-spacing: 0.08em;
-    text-transform: none;
-  }
-
-  /* —— 卡片 —— */
+  /* 卡片 */
   .ll-surface {
     background: hsl(var(--card));
     border: 1px solid hsl(var(--border));
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-md);
     box-shadow: var(--shadow-low);
   }
   .ll-surface-quiet {
-    background: hsl(var(--card) / 0.5);
-    border: 1px solid hsl(var(--hairline));
-    border-radius: var(--radius-lg);
-  }
-  .ll-surface-lift {
-    background: hsl(var(--card));
+    background: hsl(var(--muted));
     border: 1px solid hsl(var(--border));
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-medium);
-    transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.3, 1),
-                box-shadow 0.25s cubic-bezier(0.2, 0.7, 0.3, 1),
-                border-color 0.25s ease;
-  }
-  .ll-surface-lift:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-high);
-    border-color: hsl(var(--border-strong));
+    border-radius: var(--radius-md);
   }
 
-  /* 玻璃（顶栏 / 模态） */
-  .ll-glass {
-    background: hsl(var(--card) / 0.72);
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
-    border: 1px solid hsl(var(--hairline));
-  }
-
-  /* hero "今日焦点" —— 主色玻璃 */
-  .ll-glass-accent {
-    background:
-      linear-gradient(135deg, hsl(var(--primary) / 0.10) 0%, hsl(var(--card) / 0.7) 60%),
-      hsl(var(--card) / 0.7);
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
-    border: 1px solid hsl(var(--primary) / 0.30);
-    box-shadow:
-      var(--shadow-medium),
-      0 0 60px -20px hsl(var(--primary) / 0.35);
-  }
-
-  /* 仪表盘 / 详情页背景 —— 极淡主色径向晕染 */
-  .ll-page-bg {
-    background:
-      radial-gradient(60% 40% at 100% 0%, hsl(var(--primary) / 0.04) 0%, transparent 70%),
-      radial-gradient(40% 30% at 0% 100%, hsl(var(--primary) / 0.025) 0%, transparent 70%),
-      hsl(var(--background));
-  }
-
-  /* —— hairline —— 半透明 0.5px 细线 */
+  /* hairline */
   .ll-hairline-b { border-bottom: 1px solid hsl(var(--hairline)); }
   .ll-hairline-t { border-top: 1px solid hsl(var(--hairline)); }
   .ll-hairline-y {
@@ -248,142 +96,69 @@
     border-bottom: 1px solid hsl(var(--hairline));
   }
 
-  /* 装饰金线 —— editorial 风格的水平细线 */
+  /* 分割线 */
   .ll-rule {
     height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      hsl(var(--border-strong)) 20%,
-      hsl(var(--border-strong)) 80%,
-      transparent 100%
-    );
-  }
-  /* 主色装饰短线（hero 标题旁） */
-  .ll-rule-accent {
-    height: 2px;
-    width: 2.5rem;
-    background: hsl(var(--primary));
+    background: hsl(var(--border));
   }
 
-  /* —— editorial header（页面大标题区） —— */
-  .ll-h1 {
-    @apply font-display;
-    font-size: clamp(1.6rem, 2.6vw, 2.2rem);
-    line-height: 1.1;
-    letter-spacing: -0.012em;
-    font-weight: 500;
-  }
-  .ll-h2 {
-    @apply font-display;
-    font-size: clamp(1.25rem, 1.9vw, 1.6rem);
-    line-height: 1.18;
-    letter-spacing: -0.008em;
-    font-weight: 500;
-  }
-
-  /* —— stat number —— 巨号数字 */
+  /* stat 数字 */
   .ll-stat {
     font-family: var(--font-mono), 'JetBrains Mono', ui-monospace, monospace;
     font-variant-numeric: tabular-nums lining-nums;
-    font-feature-settings: "tnum" 1, "lnum" 1, "zero" 1;
     letter-spacing: -0.02em;
     font-weight: 500;
   }
 
-  /* —— pill / chip 极简 —— */
+  /* pill / chip */
   .ll-chip {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    padding: 0.2rem 0.6rem;
-    border-radius: 999px;
+    padding: 0.15rem 0.55rem;
+    border-radius: var(--radius-sm);
     font-size: 0.72rem;
-    line-height: 1;
+    line-height: 1.4;
     background: hsl(var(--muted));
     color: hsl(var(--muted-foreground));
-    border: 1px solid hsl(var(--hairline));
   }
   .ll-chip-primary {
     background: hsl(var(--primary) / 0.10);
     color: hsl(var(--primary));
-    border-color: hsl(var(--primary) / 0.30);
   }
 
-  /* —— 状态严重度（保留旧 ll-sev-*） —— */
-  .ll-sev-low      { @apply text-[#16A34A] bg-[#16A34A]/10 border-[#16A34A]/30; }
-  .ll-sev-medium   { @apply text-[#CA8A04] bg-[#CA8A04]/10 border-[#CA8A04]/30; }
-  .ll-sev-high     { @apply text-[#EA580C] bg-[#EA580C]/10 border-[#EA580C]/30; }
-  .ll-sev-blocking { @apply text-[#DC2626] bg-[#DC2626]/10 border-[#DC2626]/30; }
-  .dark .ll-sev-low      { @apply text-[#4ADE80] bg-[#4ADE80]/10 border-[#4ADE80]/30; }
-  .dark .ll-sev-medium   { @apply text-[#FBBF24] bg-[#FBBF24]/10 border-[#FBBF24]/30; }
-  .dark .ll-sev-high     { @apply text-[#FB923C] bg-[#FB923C]/10 border-[#FB923C]/30; }
-  .dark .ll-sev-blocking { @apply text-[#F87171] bg-[#F87171]/10 border-[#F87171]/30; }
+  /* 状态严重度 */
+  .ll-sev-low      { @apply text-[#1aa126] bg-[#e6f4ea]; }
+  .ll-sev-medium   { @apply text-[#e18d00] bg-[#fef3e2]; }
+  .ll-sev-high     { @apply text-[#d4252f] bg-[#fde8e8]; }
+  .ll-sev-blocking { @apply text-[#d4252f] bg-[#fde8e8] font-semibold; }
 
-  /* —— 列表行 hover 微浮起（editorial 列表）—— */
+  /* 列表行 hover */
   .ll-row {
     position: relative;
-    transition: background-color 0.2s ease, padding-left 0.2s ease;
-  }
-  .ll-row::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 25%; bottom: 25%;
-    width: 2px;
-    background: hsl(var(--primary));
-    opacity: 0;
-    transform: scaleY(0.6);
-    transition: opacity 0.25s ease, transform 0.25s ease;
+    transition: background-color 0.15s ease;
   }
   .ll-row:hover {
-    background: hsl(var(--muted) / 0.4);
-    padding-left: 0.25rem;
-  }
-  .ll-row:hover::before {
-    opacity: 1;
-    transform: scaleY(1);
+    background: hsl(var(--muted) / 0.5);
   }
 
-  /* —— roman 数字（程序标签用）—— */
-  .ll-roman {
-    @apply font-display;
-    font-style: italic;
-    font-weight: 500;
-    color: hsl(var(--primary));
-  }
-
-  /* —— 装饰角标（卡片右上角小印章感）—— */
-  .ll-corner {
-    position: absolute;
-    top: 0; right: 0;
-    width: 32px; height: 32px;
-    pointer-events: none;
-    background:
-      linear-gradient(135deg, transparent 50%, hsl(var(--primary) / 0.12) 50%);
-    border-top-right-radius: var(--radius-lg);
-  }
+  /* chip status colors */
+  .ll-chip-green  { color: hsl(var(--status-green));  background: hsl(var(--status-green-bg)); }
+  .ll-chip-orange { color: hsl(var(--status-orange)); background: hsl(var(--status-orange-bg)); }
+  .ll-chip-red    { color: hsl(var(--status-red));    background: hsl(var(--status-red-bg)); }
+  .ll-chip-purple { color: hsl(var(--status-purple)); background: hsl(var(--status-purple-bg)); }
+  .ll-chip-blue   { color: hsl(var(--status-blue));   background: hsl(var(--status-blue-bg)); }
+  .ll-chip-teal   { color: hsl(var(--primary));       background: hsl(var(--primary) / 0.10); }
 }
 
 @layer utilities {
-  /* 阴影 token utility */
   .shadow-ll-low    { box-shadow: var(--shadow-low); }
   .shadow-ll-medium { box-shadow: var(--shadow-medium); }
   .shadow-ll-high   { box-shadow: var(--shadow-high); }
 
-  /* 隐藏滚动条但保留滚动能力 */
   .scrollbar-none {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
   .scrollbar-none::-webkit-scrollbar { display: none; }
-
-  /* 平滑出现 —— 加 staggered delay */
-  .ll-fade-in {
-    opacity: 0;
-    transform: translateY(8px);
-    animation: ll-fade-in 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) forwards;
-  }
-  @keyframes ll-fade-in {
-    to { opacity: 1; transform: translateY(0); }
-  }
 }

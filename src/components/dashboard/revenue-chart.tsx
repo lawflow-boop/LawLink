@@ -10,9 +10,8 @@ import {
   Tooltip,
   CartesianGrid
 } from "recharts";
-import { revenueTrend } from "@/lib/mock-data";
 
-export function RevenueChart() {
+export function RevenueChart({ data }: { data: { month: string; received: number; receivable: number }[] }) {
   return (
     <motion.section
       initial={{ opacity: 0, y: 8 }}
@@ -22,7 +21,7 @@ export function RevenueChart() {
     >
       <header className="flex items-center justify-between px-5 pb-3 pt-4">
         <div>
-          <h2 className="font-display text-lg italic tracking-tight">近 6 个月实收趋势</h2>
+          <h2 className="text-lg font-medium tracking-tight">近 6 个月实收趋势</h2>
         </div>
         <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
           <Legend color="hsl(var(--primary))" label="实收" thick />
@@ -30,9 +29,9 @@ export function RevenueChart() {
         </div>
       </header>
 
-      <div className="ll-hairline-t flex-1 p-2 pt-3">
+      <div className="border-t border-border flex-1 p-2 pt-3">
         <ResponsiveContainer width="100%" height="100%" minHeight={240}>
-          <AreaChart data={revenueTrend} margin={{ top: 10, right: 16, bottom: 0, left: -8 }}>
+          <AreaChart data={data} margin={{ top: 10, right: 16, bottom: 0, left: -8 }}>
             <defs>
               <linearGradient id="received-fill" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.28} />
@@ -45,7 +44,7 @@ export function RevenueChart() {
             </defs>
             <CartesianGrid
               strokeDasharray="2 4"
-              stroke="hsl(var(--hairline))"
+              stroke="hsl(var(--border))"
               vertical={false}
             />
             <XAxis
@@ -53,7 +52,7 @@ export function RevenueChart() {
               tick={{
                 fill: "hsl(var(--muted-foreground))",
                 fontSize: 11,
-                fontFamily: "var(--font-mono)"
+                fontFamily: "system-ui, sans-serif"
               }}
               axisLine={false}
               tickLine={false}
@@ -63,7 +62,7 @@ export function RevenueChart() {
               tick={{
                 fill: "hsl(var(--muted-foreground))",
                 fontSize: 11,
-                fontFamily: "var(--font-mono)"
+                fontFamily: "system-ui, sans-serif"
               }}
               axisLine={false}
               tickLine={false}

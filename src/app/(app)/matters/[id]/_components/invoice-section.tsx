@@ -63,7 +63,7 @@ export function InvoiceSection({ matterId }: { matterId: string }) {
   }, [matterId]);
 
   return (
-    <section className="rounded-xl border border-border bg-card/40">
+    <section className="rounded-xl border border-border bg-card">
       <header className="flex items-center justify-between border-b border-border px-5 py-3">
         <h3 className="flex items-center gap-2 text-sm font-semibold">
           <Receipt className="h-4 w-4 text-primary" />
@@ -84,7 +84,7 @@ export function InvoiceSection({ matterId }: { matterId: string }) {
         </p>
       ) : !requests || requests.length === 0 ? (
         <p className="py-10 text-center text-xs text-muted-foreground">
-          还没有开票申请。客户需要发票时点上方"申请开票"
+          还没有开票申请。客户需要发票时点上方&ldquo;申请开票&rdquo;
         </p>
       ) : (
         <ul className="divide-y divide-border">
@@ -109,7 +109,7 @@ export function InvoiceSection({ matterId }: { matterId: string }) {
 function InvoiceItem({ row }: { row: InvoiceRow }) {
   const color = invoiceRequestStatusColor[row.status];
   return (
-    <li className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-popover/30">
+    <li className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-popover">
       <span
         className="inline-flex h-6 min-w-16 items-center justify-center rounded-md border px-2 text-[10px] font-medium"
         style={{ borderColor: `${color}50`, color }}
@@ -154,7 +154,7 @@ function InvoiceItem({ row }: { row: InvoiceRow }) {
             href={`/api/documents/${row.contractScan.id}/download`}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex items-center gap-1 rounded-md border border-border bg-background/60 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
             title={row.contractScan.name}
           >
             <FileCheck2 className="h-3 w-3" />

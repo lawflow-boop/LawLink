@@ -12,11 +12,18 @@ import {
   Shield,
   Clock,
   Plus,
-  Calendar
+  Calendar,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { matterCategoryColor, matterCategoryLabel, matterStatusLabel, procedureTypeLabel } from "@/lib/enums";
 import { cn } from "@/lib/utils";
 import { buildIcs, downloadIcs, type IcsEvent } from "@/lib/ics";
@@ -226,28 +233,27 @@ export function MatterDetailTabs({
         initial={{ opacity: 0, y: 4 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className="ll-surface rounded-lg border border-hairline p-5"
+        className="bg-card rounded-lg border border-border p-5"
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <span className="font-mono">{matter.internalCode}</span>
               <span
-                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5"
+                className="inline-flex items-center gap-1 rounded-sm px-2 py-0.5"
                 style={{ background: `${categoryColor}14`, color: categoryColor }}
               >
-                <span className="h-1 w-1 rounded-full" style={{ background: categoryColor }} />
+                <span className="h-1 w-1 rounded-full" />
                 {matterCategoryLabel[matter.category]}
               </span>
               <Badge
                 variant="outline"
-                className="border-hairline px-1.5 text-[10px] font-normal"
-                style={{ borderColor: "hsl(var(--hairline))" }}
+                className="border-border px-1.5 text-[10px] font-normal"
               >
                 {matterStatusLabel[matter.status]}
               </Badge>
             </div>
-            <h1 className="mt-1.5 font-display text-2xl italic leading-tight">
+            <h1 className="mt-1.5 text-2xl italic leading-tight">
               {matter.title}
             </h1>
             <p className="mt-1 text-[12px] text-muted-foreground">
@@ -274,8 +280,7 @@ export function MatterDetailTabs({
         transition={{ duration: 0.4, delay: 0.05 }}
       >
         <div
-          className="flex items-end gap-5 overflow-x-auto border-b scrollbar-none"
-          style={{ borderColor: "hsl(var(--hairline))" }}
+          className="flex items-end gap-5 overflow-x-auto border-b border-border scrollbar-none"
         >
           <TabButton active={tab === "info"} onClick={() => setTab("info")}>
             <Info className="h-3.5 w-3.5" strokeWidth={1.8} />
@@ -297,51 +302,49 @@ export function MatterDetailTabs({
             )}
           </TabButton>
 
-          <TabButton active={tab === "folders"} onClick={() => setTab("folders")}>
-            <FolderTree className="h-3.5 w-3.5" strokeWidth={1.8} />
-            卷宗
-            {folderDocuments.length > 0 && (
-              <span className="ml-1 font-mono text-[10px] tabular text-muted-foreground">
-                {folderDocuments.length}
-              </span>
-            )}
-          </TabButton>
+          {/* 更多：低频 tab 收入下拉 */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  "mb-3.5 inline-flex items-center gap-1 rounded-sm px-1 py-0.5 text-[0.82rem] text-muted-foreground transition-colors hover:text-foreground",
+                  (tab === "folders" || tab === "preservation" || tab === "notes") && "text-primary font-medium"
+                )}
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" strokeWidth={1.8} />
+                更多
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem onClick={() => setTab("folders")}>
+                <FolderTree className="mr-2 h-4 w-4" />
+                卷宗 {folderDocuments.length > 0 ? `(${folderDocuments.length})` : ""}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTab("preservation")}>
+                <Shield className="mr-2 h-4 w-4" />
+                保全 {preservations.length > 0 ? `(${preservations.length})` : ""}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTab("notes")}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                大事记 {notes.length > 0 ? `(${notes.length})` : ""}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          <TabButton active={tab === "preservation"} onClick={() => setTab("preservation")}>
-            <Shield className="h-3.5 w-3.5" strokeWidth={1.8} />
-            保全
-            {preservations.length > 0 && (
-              <span className="ml-1 font-mono text-[10px] tabular text-muted-foreground">
-                {preservations.length}
-              </span>
-            )}
-          </TabButton>
-
-          <TabButton active={tab === "notes"} onClick={() => setTab("notes")}>
-            <MessageSquare className="h-3.5 w-3.5" strokeWidth={1.8} />
-            大事记
-            {notes.length > 0 && (
-              <span className="ml-1 font-mono text-[10px] tabular text-muted-foreground">
-                {notes.length}
-              </span>
-            )}
-          </TabButton>
-
-          <span className="mb-3.5 h-3 w-px bg-hairline" style={{ background: "hsl(var(--hairline))" }} />
+          <span className="mb-3.5 h-3 w-px bg-border" />
 
           {engagedProcedures.map((p, idx) => {
             const key: TabKey = `proc:${p.id}`;
             return (
               <TabButton key={p.id} active={tab === key} onClick={() => setTab(key)}>
-                <span className="ll-roman text-xs">{ROMAN[idx] ?? idx + 1}</span>
-                <span className="font-display text-[0.95rem] italic">
+                <span className="text-primary font-medium text-xs">{ROMAN[idx] ?? idx + 1}</span>
+                <span className="text-[0.95rem] italic">
                   {p.customLabel ?? procedureTypeLabel[p.type]}
                 </span>
                 {p.status === "CONCLUDED" && (
                   <Badge
                     variant="outline"
-                    className="ml-0.5 border-hairline bg-muted/30 px-1 text-[9px] font-normal"
-                    style={{ borderColor: "hsl(var(--hairline))" }}
+                    className="ml-0.5 border-border bg-muted/30 px-1 text-[9px] font-normal"
                   >
                     已结
                   </Badge>
@@ -419,7 +422,7 @@ export function MatterDetailTabs({
 
       {/* 底部状态操作 */}
       {currentUserRole && (
-        <footer className="mt-6 flex items-center justify-end border-t border-hairline pt-4">
+        <footer className="mt-6 flex items-center justify-end border-t border-border pt-4">
           <LifecycleActions
             matterId={matter.id}
             status={matter.status}

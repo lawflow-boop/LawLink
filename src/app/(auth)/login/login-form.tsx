@@ -91,7 +91,7 @@ export function LoginForm() {
 
       <Button
         type="submit"
-        className="h-10 w-full gap-2 shadow-[0_0_32px_-8px_rgba(91,141,239,0.55)]"
+        className="h-10 w-full gap-2 shadow-md"
         disabled={isSubmitting}
       >
         {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}

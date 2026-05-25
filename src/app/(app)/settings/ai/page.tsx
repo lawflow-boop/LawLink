@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { getAiSettingsPublic, AI_DEFAULTS } from "@/server/settings/ai-actions";
+import { getAiSettingsPublic } from "@/server/settings/ai-actions";
+import { AI_DEFAULTS } from "@/lib/ai/settings";
 import { AiSettingsForm } from "./_components/ai-settings-form";
 
 export default async function AiSettingsPage() {

@@ -23,7 +23,7 @@ export function CalcView() {
     <div className="space-y-5">
       {/* 标题 */}
       <div>
-        <h1 className="flex items-center gap-2 font-display text-2xl italic">
+        <h1 className="flex items-center gap-2 text-2xl italic">
           <Calculator className="h-5 w-5 text-primary" strokeWidth={1.6} />
           律师工具箱
         </h1>
@@ -33,7 +33,7 @@ export function CalcView() {
       </div>
 
       {/* Tab */}
-      <div className="border-b" style={{ borderColor: "hsl(var(--hairline))" }}>
+      <div className="border-b border-border">
         <div className="flex gap-5">
           {TABS.map((t) => {
             const Icon = t.icon;

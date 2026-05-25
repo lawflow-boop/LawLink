@@ -112,13 +112,13 @@ export function TeamEditorDialog({
 
           <div className="space-y-1.5">
             <Label className="text-xs">协办律师（可多选）</Label>
-            <div className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-background/40 p-3">
+            <div className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-background p-3">
               {userOptions
                 .filter((u) => u.id !== ownerId)
                 .map((u) => (
                   <label
                     key={u.id}
-                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-popover/40"
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-popover"
                   >
                     <Checkbox
                       checked={coLeads.includes(u.id)}
@@ -132,13 +132,13 @@ export function TeamEditorDialog({
 
           <div className="space-y-1.5">
             <Label className="text-xs">助理（可多选）</Label>
-            <div className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-background/40 p-3">
+            <div className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-background p-3">
               {userOptions
                 .filter((u) => u.id !== ownerId && !coLeads.includes(u.id))
                 .map((u) => (
                   <label
                     key={u.id}
-                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-popover/40"
+                    className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-popover"
                   >
                     <Checkbox
                       checked={assistants.includes(u.id)}

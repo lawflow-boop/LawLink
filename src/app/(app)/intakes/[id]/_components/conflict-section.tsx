@@ -158,10 +158,10 @@ export function ConflictSection({
   }
 
   return (
-    <section className="ll-surface rounded-lg border border-hairline p-5">
+    <section className="ll-surface rounded-lg border border-border p-5">
       <header className="mb-4 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="flex items-center gap-2 font-display text-lg italic">
+          <h2 className="flex items-center gap-2 text-lg italic">
             <ShieldCheck className="h-4 w-4 text-primary" />
             利益冲突检索
           </h2>
@@ -187,13 +187,13 @@ export function ConflictSection({
       </header>
 
       {!latestCheck ? (
-        <div className="rounded-md border border-dashed border-hairline py-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-md border border-dashed border-border py-8 text-center text-sm text-muted-foreground">
           还未运行冲突检索
         </div>
       ) : (
         <div className="space-y-3">
           {/* 概览 */}
-          <div className="flex flex-wrap items-center gap-2 rounded-md border border-hairline bg-muted/20 p-2.5 text-[12px]">
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-muted/20 p-2.5 text-[12px]">
             <span className="font-mono text-[11px] text-muted-foreground">
               {new Date(latestCheck.checkedAt).toLocaleString("zh-CN")}
             </span>
@@ -235,7 +235,7 @@ export function ConflictSection({
                   <Link
                     key={c.clientId}
                     href={`/clients/${c.clientId}`}
-                    className="inline-flex items-center gap-1 rounded border border-hairline bg-background/60 px-2 py-0.5 text-[11px] hover:border-primary/40 hover:text-primary"
+                    className="inline-flex items-center gap-1 rounded border border-border bg-background px-2 py-0.5 text-[11px] hover:border-primary/40 hover:text-primary"
                   >
                     {c.name}
                     <ExternalLink className="h-2.5 w-2.5" />
@@ -285,7 +285,7 @@ export function ConflictSection({
 
           {/* 结论 */}
           {canEditConclusion && (
-            <div className="rounded-md border border-hairline bg-background/40 p-3">
+            <div className="rounded-md border border-border bg-background p-3">
               <div className="mb-2 flex items-center gap-2">
                 <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
                 <h3 className="text-[13px] font-medium">标记结论</h3>
@@ -393,7 +393,7 @@ function HitCard({ hit }: { hit: Hit }) {
       {m ? (
         <Link
           href={`/matters/${m.id}`}
-          className="group mt-2 block rounded border border-hairline bg-background/60 p-2.5 hover:border-primary/40"
+          className="group mt-2 block rounded border border-border bg-background p-2.5 hover:border-primary/40"
         >
           <div className="flex items-center gap-2 text-[12px]">
             <Briefcase className="h-3.5 w-3.5 text-muted-foreground" />

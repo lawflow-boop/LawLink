@@ -23,7 +23,7 @@ export function ProceduresPanel({ matter }: { matter: MatterPayload }) {
   return (
     <div className="space-y-4">
       {/* 程序 tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto rounded-xl border border-border bg-card/40 p-2 scrollbar-none">
+      <div className="flex items-center gap-2 overflow-x-auto rounded-xl border border-border bg-card p-2 scrollbar-none">
         {matter.procedures.map((p) => {
           const isInfo = p.engagement === "INFORMATIONAL";
           const isActive = p.id === activeId;
@@ -35,8 +35,8 @@ export function ProceduresPanel({ matter }: { matter: MatterPayload }) {
               className={cn(
                 "group flex shrink-0 items-center gap-2 rounded-md border px-3 py-1.5 text-sm transition-all",
                 isActive
-                  ? "border-primary bg-primary/15 text-primary shadow-[0_0_16px_-4px_rgba(91,141,239,0.4)]"
-                  : "border-border bg-background/40 text-muted-foreground hover:border-input hover:text-foreground",
+                  ? "border-primary bg-primary/15 text-primary shadow-sm"
+                  : "border-border bg-background text-muted-foreground hover:border-input hover:text-foreground",
                 isInfo && !isActive && "opacity-60"
               )}
             >
@@ -68,7 +68,7 @@ export function ProceduresPanel({ matter }: { matter: MatterPayload }) {
       {active ? (
         <ProcedureContent procedure={active} />
       ) : (
-        <div className="rounded-xl border border-dashed border-border bg-card/20 py-16 text-center">
+        <div className="rounded-xl border border-dashed border-border bg-card py-16 text-center">
           <p className="text-sm text-muted-foreground">
             还没有程序。点击 <span className="text-foreground">添加程序</span> 开始
           </p>

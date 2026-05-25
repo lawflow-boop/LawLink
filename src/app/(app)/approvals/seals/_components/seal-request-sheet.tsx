@@ -284,7 +284,7 @@ export function SealRequestSheet({
             <div className="md:col-span-2">
               <Label className="text-[11px]">待盖章稿 *</Label>
               <div className="mt-1">
-                <label className="flex cursor-pointer items-center gap-2 rounded border border-dashed border-hairline px-3 py-3 text-[12px] text-muted-foreground hover:bg-muted/30">
+                <label className="flex cursor-pointer items-center gap-2 rounded border border-dashed border-border px-3 py-3 text-[12px] text-muted-foreground hover:bg-muted/30">
                   <Paperclip className="h-3.5 w-3.5" />
                   {file ? (
                     <span className="flex items-center gap-1 text-foreground">

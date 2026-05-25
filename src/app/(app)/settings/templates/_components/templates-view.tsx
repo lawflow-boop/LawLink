@@ -77,7 +77,7 @@ export function TemplatesView({ templates }: { templates: StageTemplate[] }) {
           阶段模板
         </h2>
         <Select value={selected} onValueChange={(v) => setSelected(v as ProcedureType)}>
-          <SelectTrigger className="h-9 w-48 bg-background/60">
+          <SelectTrigger className="h-9 w-48 bg-background">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -90,7 +90,7 @@ export function TemplatesView({ templates }: { templates: StageTemplate[] }) {
         </Select>
       </header>
 
-      <section className="rounded-xl border border-border bg-card/40 p-5">
+      <section className="rounded-xl border border-border bg-card p-5">
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold">
@@ -107,7 +107,7 @@ export function TemplatesView({ templates }: { templates: StageTemplate[] }) {
         </div>
 
         {!current ? (
-          <div className="rounded-md border border-dashed border-border bg-background/30 py-8 text-center text-sm text-muted-foreground">
+          <div className="rounded-md border border-dashed border-border bg-background py-8 text-center text-sm text-muted-foreground">
             该程序类型还没有默认模板
           </div>
         ) : (
@@ -118,7 +118,7 @@ export function TemplatesView({ templates }: { templates: StageTemplate[] }) {
               .map((s, idx) => (
                 <li
                   key={idx}
-                  className="rounded-md border border-border bg-background/40 p-3"
+                  className="rounded-md border border-border bg-background p-3"
                 >
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-xs text-muted-foreground tabular">
@@ -251,7 +251,7 @@ function EditTemplateDialog({
           </div>
           <ol className="space-y-2 max-h-96 overflow-y-auto pr-1">
             {steps.map((s, idx) => (
-              <li key={idx} className="rounded-md border border-border bg-background/40 p-3">
+              <li key={idx} className="rounded-md border border-border bg-background p-3">
                 <div className="flex items-center gap-2">
                   <span className="font-mono text-xs text-muted-foreground tabular">
                     {idx + 1}
@@ -277,7 +277,7 @@ function EditTemplateDialog({
                       <span
                         key={ti}
                         className={cn(
-                          "inline-flex items-center gap-1 rounded-md border border-border bg-popover/40 px-2 py-0.5 text-[11px]"
+                          "inline-flex items-center gap-1 rounded-md border border-border bg-popover px-2 py-0.5 text-[11px]"
                         )}
                       >
                         {t}

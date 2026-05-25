@@ -50,7 +50,7 @@ export function InfoPanel({
   return (
     <div className="space-y-5">
       {/* 4 数据点（H1 已展示编号/类别/状态/名/客户/案由） */}
-      <section className="ll-surface rounded-lg border border-hairline p-4">
+      <section className="ll-surface rounded-lg border border-border p-4">
         <dl className="grid grid-cols-2 gap-y-3 md:grid-cols-4">
           <Datum label="案由">
             {matter.cause?.name ?? matter.causeFreeText ?? "—"}
@@ -119,7 +119,7 @@ export function InfoPanel({
                             isOverdue
                               ? "text-destructive"
                               : isWarn
-                                ? "text-amber-500 dark:text-amber-400"
+                                ? "text-amber-500"
                                 : "text-foreground"
                           )}
                         >
@@ -197,7 +197,7 @@ export function InfoPanel({
                     <div className="flex items-center gap-3">
                       <div
                         className={cn(
-                          "flex h-9 w-9 items-center justify-center rounded-full font-display text-sm font-medium",
+                          "flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium",
                           m.role === "LEAD"
                             ? "bg-primary text-primary-foreground"
                             : "bg-muted text-foreground/70"
@@ -214,7 +214,7 @@ export function InfoPanel({
                     </div>
                     <span
                       className={cn(
-                        "font-eyebrow text-[0.58rem]",
+                        "text-[0.58rem]",
                         m.role === "LEAD" ? "text-primary" : "text-muted-foreground"
                       )}
                     >
@@ -237,8 +237,7 @@ export function InfoPanel({
                 {intakeContracts.map((d) => (
                   <li
                     key={d.id}
-                    className="group flex items-center gap-3 rounded-md border border-hairline bg-card/30 px-3 py-2.5 transition-colors hover:border-border"
-                    style={{ borderColor: "hsl(var(--hairline))" }}
+                    className="group flex items-center gap-3 rounded-md border border-border bg-card px-3 py-2.5 transition-colors hover:border-border"
                   >
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
                       <FileText className="h-4 w-4" strokeWidth={1.6} />
@@ -319,7 +318,7 @@ function CardHeader({
     <header className="flex items-center justify-between">
       <div className="flex items-center gap-2">
         <Icon className="h-3.5 w-3.5 text-primary" strokeWidth={1.8} />
-        <span className="font-display text-[15px] italic">{title}</span>
+        <span className="text-[15px] italic">{title}</span>
       </div>
       {action}
     </header>

@@ -37,10 +37,10 @@ export function LateInterestCalc() {
   }, [principal, dueDate, paidDate, lprPercent, extraPercent]);
 
   return (
-    <section className="ll-surface rounded-lg border border-hairline p-5">
+    <section className="ll-surface rounded-lg border border-border p-5">
       <header className="mb-4 flex items-center gap-2">
         <Coins className="h-4 w-4 text-primary" strokeWidth={1.8} />
-        <h2 className="font-display text-lg italic">迟延履行金计算</h2>
+        <h2 className="text-lg italic">迟延履行金计算</h2>
         <span className="ml-2 text-[10px] text-muted-foreground">
           民诉法第 260 条 + 民诉法解释第 463 条
         </span>
@@ -113,7 +113,7 @@ export function LateInterestCalc() {
               accent="#DC2626"
             />
           </div>
-          <div className="mt-3 rounded-md border border-hairline bg-muted/20 p-3 text-[12px]">
+          <div className="mt-3 rounded-md border border-border bg-muted/20 p-3 text-[12px]">
             <div className="flex items-baseline justify-between gap-3">
               <span className="text-muted-foreground">本金 + 加倍利息合计</span>
               <span className="font-mono text-[16px] font-medium tabular text-foreground">
@@ -144,7 +144,7 @@ function ResultCard({
   accent: string;
 }) {
   return (
-    <div className="rounded-lg border border-hairline bg-muted/20 p-4">
+    <div className="rounded-lg border border-border bg-muted/20 p-4">
       <div className="text-[10px] tracking-wider text-muted-foreground">{label}</div>
       <div className="mt-1 font-mono text-[20px] font-medium tabular" style={{ color: accent }}>
         {value}

@@ -53,7 +53,7 @@ function Column({
   children: React.ReactNode;
 }) {
   return (
-    <div className="ll-surface rounded-lg border border-hairline p-4">
+    <div className="ll-surface rounded-lg border border-border p-4">
       <div className="mb-3 flex items-center gap-1.5">
         <span className="h-1 w-1 rounded-full" style={{ backgroundColor: accent }} />
         <h3 className="text-[11px] font-medium tracking-wider text-muted-foreground">{title}</h3>
@@ -77,7 +77,7 @@ function ClientCard({
   return (
     <Link
       href={href}
-      className="group flex min-h-[88px] flex-col rounded-md border border-hairline bg-background/40 px-3 py-2 transition-colors hover:bg-muted/30"
+      className="group flex min-h-[88px] flex-col rounded-md border border-border bg-background px-3 py-2 transition-colors hover:bg-muted/30"
     >
       <div className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 truncate text-[13px] font-medium">
@@ -97,11 +97,11 @@ function ClientCard({
 function PartyCard({ party }: { party: PartyRow }) {
   const standing = party.standing ? litigationStandingLabel[party.standing] : null;
   return (
-    <div className="flex min-h-[88px] flex-col rounded-md border border-hairline bg-background/40 px-3 py-2">
+    <div className="flex min-h-[88px] flex-col rounded-md border border-border bg-background px-3 py-2">
       <div className="flex items-center justify-between gap-2">
         <span className="truncate text-[13px] font-medium">{party.name}</span>
         {standing && (
-          <span className="shrink-0 rounded border border-hairline px-1.5 py-0.5 text-[10px] text-muted-foreground">
+          <span className="shrink-0 rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">
             {standing}
           </span>
         )}
@@ -137,7 +137,7 @@ function Line({ icon, value, mono }: { icon: React.ReactNode; value: string; mon
 
 function Empty() {
   return (
-    <div className="rounded-md border border-dashed border-hairline py-3 text-center text-[11px] text-muted-foreground">
+    <div className="rounded-md border border-dashed border-border py-3 text-center text-[11px] text-muted-foreground">
       —
     </div>
   );

@@ -95,9 +95,9 @@ export function UsersView({
         </Button>
       </header>
 
-      <div className="overflow-hidden rounded-xl border border-border bg-card/40">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         <table className="w-full text-sm">
-          <thead className="border-b border-border bg-popover/30">
+          <thead className="border-b border-border bg-popover">
             <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
               <th className="px-5 py-3 font-medium">姓名 / 邮箱</th>
               <th className="px-5 py-3 font-medium">角色</th>
@@ -294,7 +294,7 @@ function CreateUserSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="flex w-full max-w-md flex-col gap-0 p-0">
-        <SheetHeader className="border-b border-border bg-background/60 px-6 py-4 backdrop-blur">
+        <SheetHeader className="border-b border-border bg-background px-6 py-4">
           <SheetTitle>新增用户</SheetTitle>
           <SheetDescription className="text-xs">
             初始密码可让用户登录后自行修改
@@ -336,7 +336,7 @@ function CreateUserSheet({
             </SheetField>
           </div>
 
-          <SheetFooter className="border-t border-border bg-background/60 px-6 py-4 backdrop-blur">
+          <SheetFooter className="border-t border-border bg-background px-6 py-4">
             <Button
               type="button"
               variant="outline"

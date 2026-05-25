@@ -64,7 +64,7 @@ export function SealsView({
       {/* 标题区 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-2xl italic">审批 · 用章</h1>
+          <h1 className="text-2xl italic">审批 · 用章</h1>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
             未来可扩展文书内审等其他审批类型
           </p>
@@ -98,7 +98,7 @@ export function SealsView({
       </div>
 
       {/* Tab */}
-      <div className="border-b" style={{ borderColor: "hsl(var(--hairline))" }}>
+      <div className="border-b border-border">
         <div className="flex gap-5">
           <TabBtn active={tab === "mine"} onClick={() => setTab("mine")}>
             我的申请
@@ -192,7 +192,7 @@ function KpiCard({
         <span style={{ color: accent }}>{icon}</span>
         {label}
       </div>
-      <p className="mt-2 font-display text-3xl italic" style={{ color: accent }}>
+      <p className="mt-2 text-3xl italic" style={{ color: accent }}>
         {value}
       </p>
     </div>
@@ -257,7 +257,7 @@ function SealRow({
     (currentUser.role === "FINANCE" && row.sealType === "FINANCE_SEAL");
 
   return (
-    <tr className="ll-row border-t" style={{ borderColor: "hsl(var(--hairline))" }}>
+    <tr className="ll-row border-t border-border">
       <td className="px-3 py-2 font-mono text-[11px] text-foreground">{row.code}</td>
       <td className="px-3 py-2">{SEAL_TYPE_CN[row.sealType] ?? row.sealType}</td>
       <td className="px-3 py-2 text-foreground">{row.requestedBy.name}</td>

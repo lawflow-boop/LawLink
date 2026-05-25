@@ -133,10 +133,10 @@ export function AiSettingsForm({
 
   return (
     <div className="space-y-5">
-      <section className="ll-surface rounded-lg border border-hairline p-5">
+      <section className="ll-surface rounded-lg border border-border p-5">
         <header className="mb-3 flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-primary" strokeWidth={1.8} />
-          <h2 className="font-display text-lg italic">AI 接入</h2>
+          <h2 className="text-lg italic">AI 接入</h2>
           {initial.configured && (
             <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-700">
               <CheckCircle2 className="h-3 w-3" /> 已配置
@@ -159,7 +159,7 @@ export function AiSettingsForm({
                 key={p.name}
                 type="button"
                 onClick={() => applyPreset(p)}
-                className="rounded-full border border-hairline px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                className="rounded-full border border-border px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
               >
                 {p.name}
               </button>
@@ -267,8 +267,8 @@ export function AiSettingsForm({
         )}
       </section>
 
-      <section className="ll-surface rounded-lg border border-hairline p-5">
-        <h3 className="mb-3 font-display text-base italic">获取 API key</h3>
+      <section className="ll-surface rounded-lg border border-border p-5">
+        <h3 className="mb-3 text-base italic">获取 API key</h3>
         <ul className="space-y-2 text-[12px]">
           {PROVIDER_PRESETS.map((p) => (
             <li key={p.name} className="flex items-baseline gap-3">

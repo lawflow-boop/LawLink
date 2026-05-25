@@ -38,7 +38,7 @@ export function RadioChips<T extends string>({
               size === "sm" ? "px-2.5 py-1 text-[11px]" : "px-3 py-1.5 text-[12px]",
               active
                 ? "border-primary bg-primary/12 text-foreground"
-                : "border-hairline bg-transparent text-muted-foreground hover:border-border hover:text-foreground"
+                : "border-border bg-transparent text-muted-foreground hover:border-border hover:text-foreground"
             )}
             style={
               active && accent

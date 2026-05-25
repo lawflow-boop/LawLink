@@ -33,7 +33,7 @@ export default async function ArchivePage() {
 
       {items.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border/60 py-16 text-center text-sm text-muted-foreground">
-          暂无已归档案件。在案件详情顶部"状态 → 归档"完成归档流程后，会出现在这里。
+          暂无已归档案件。在案件详情顶部&ldquo;状态 → 归档&rdquo;完成归档流程后，会出现在这里。
         </div>
       ) : (
         <div className="rounded-lg border border-border/60 overflow-hidden">

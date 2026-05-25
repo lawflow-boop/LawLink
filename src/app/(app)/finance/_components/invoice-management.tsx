@@ -60,7 +60,7 @@ export function InvoiceManagementSection({
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1 rounded-lg border border-border bg-card/40 p-1">
+      <div className="flex gap-1 rounded-lg border border-border bg-muted/30 p-1">
         {STATUS_TABS.map((t) => {
           const count =
             t.key === "ALL"
@@ -86,7 +86,7 @@ export function InvoiceManagementSection({
         })}
       </div>
 
-      <section className="rounded-xl border border-border bg-card/40">
+      <section className="rounded-xl border border-border bg-muted/30">
         {filtered.length === 0 ? (
           <p className="py-16 text-center text-sm text-muted-foreground">
             <Receipt className="mx-auto mb-2 h-5 w-5 opacity-50" />
@@ -153,7 +153,7 @@ export function InvoiceManagementSection({
                         href={`/api/documents/${r.contractScan.id}/download`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 rounded-md border border-border bg-background/60 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                        className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
                       >
                         <FileCheck2 className="h-3 w-3" />
                         合同
@@ -164,7 +164,7 @@ export function InvoiceManagementSection({
                         href={`/api/documents/${r.invoiceFile.id}/download`}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-[11px] text-primary"
+                        className="inline-flex items-center gap-1 rounded-md border border-primary/40 bg-primary/15 px-2 py-1 text-[11px] text-primary"
                       >
                         <Download className="h-3 w-3" />
                         电子发票

@@ -3,16 +3,16 @@
 import { motion } from "framer-motion";
 import { AlertTriangle, Calendar, Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { scheduleItems, type ScheduleItem } from "@/lib/mock-data";
+import type { ScheduleItem } from "@/server/dashboard/actions";
 
 const typeMeta = {
-  deadline: { icon: AlertTriangle, color: "text-amber-500 dark:text-amber-400", label: "期限" },
+  deadline: { icon: AlertTriangle, color: "text-amber-600", label: "期限" },
   hearing: { icon: Calendar, color: "text-primary", label: "开庭" },
-  task: { icon: Clock, color: "text-teal-500 dark:text-teal-400", label: "任务" }
+  task: { icon: Clock, color: "text-primary", label: "任务" }
 };
 
-export function ScheduleList() {
-  const grouped = scheduleItems.reduce<Record<string, ScheduleItem[]>>((acc, item) => {
+export function ScheduleList({ data }: { data: ScheduleItem[] }) {
+  const grouped = data.reduce<Record<string, ScheduleItem[]>>((acc, item) => {
     const key = `${item.date} · ${item.weekday}`;
     if (!acc[key]) acc[key] = [];
     acc[key].push(item);
@@ -28,7 +28,7 @@ export function ScheduleList() {
     >
       <header className="flex items-center justify-between px-5 pb-3 pt-4">
         <div>
-          <h2 className="font-display text-lg italic tracking-tight">近期日程</h2>
+          <h2 className="text-lg font-medium tracking-tight">近期日程</h2>
         </div>
         <button className="group inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
           完整日历
@@ -39,14 +39,14 @@ export function ScheduleList() {
         </button>
       </header>
 
-      <div className="ll-hairline-t flex-1 space-y-4 overflow-y-auto px-5 py-3">
+      <div className="border-t border-border flex-1 space-y-4 overflow-y-auto px-5 py-3">
         {Object.entries(grouped).map(([dateKey, items]) => (
           <div key={dateKey}>
             <div className="mb-2 flex items-center gap-2.5">
-              <div className="font-display text-[0.95rem] font-medium text-foreground">
+              <div className="text-[0.9rem] font-medium text-foreground">
                 {dateKey.split(" · ")[0]}
               </div>
-              <div className="font-eyebrow text-[0.56rem] text-muted-foreground">
+              <div className="text-[0.68rem] text-muted-foreground">
                 {dateKey.split(" · ")[1]}
               </div>
               <div className="ll-rule flex-1" />

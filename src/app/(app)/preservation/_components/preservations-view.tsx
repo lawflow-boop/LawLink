@@ -133,7 +133,7 @@ export function PreservationsView({
       {/* 标题 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-2xl italic">财产保全</h1>
+          <h1 className="text-2xl italic">财产保全</h1>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
             到期自动分级预警 30/15/7/3/1 天 · 续保留痕
           </p>
@@ -194,8 +194,7 @@ export function PreservationsView({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="搜索 被保全人 / 案件名 / 编号 / 裁定书"
-            className="h-9 border-hairline bg-card/40 pl-9"
-            style={{ borderColor: "hsl(var(--hairline))" }}
+            className="h-9 border-border bg-card pl-9"
           />
         </div>
         <RadioChips
@@ -219,7 +218,7 @@ export function PreservationsView({
         transition={{ duration: 0.3 }}
       >
         {filtered.length === 0 ? (
-          <div className="ll-surface rounded-lg border border-hairline p-12 text-center text-sm text-muted-foreground">
+          <div className="ll-surface rounded-lg border border-border p-12 text-center text-sm text-muted-foreground">
             <Shield className="mx-auto mb-2 h-6 w-6 opacity-40" />
             {items.length === 0 ? "暂无保全记录，点右上「新建保全」添加" : "没有匹配的保全记录"}
           </div>
@@ -288,7 +287,7 @@ function Kpi({
         <span style={{ color: accent }}>{icon}</span>
         {label}
       </div>
-      <p className="mt-2 font-display text-3xl italic" style={{ color: accent }}>
+      <p className="mt-2 text-3xl italic" style={{ color: accent }}>
         {value}
       </p>
     </div>
@@ -326,13 +325,13 @@ function PresCard({
   };
 
   return (
-    <div className="ll-surface flex flex-col gap-2 rounded-lg border border-hairline p-4">
+    <div className="ll-surface flex flex-col gap-2 rounded-lg border border-border p-4">
       {/* 行 1：类型 + 财产 + 状态 + 到期倒计时 */}
       <div className="flex flex-wrap items-center gap-2 text-[11px]">
-        <span className="rounded border border-hairline px-1.5 py-0.5 text-muted-foreground">
+        <span className="rounded border border-border px-1.5 py-0.5 text-muted-foreground">
           {PRES_TYPE_CN[pres.type]}
         </span>
-        <span className="rounded border border-hairline px-1.5 py-0.5 text-muted-foreground">
+        <span className="rounded border border-border px-1.5 py-0.5 text-muted-foreground">
           {PROPERTY_TYPE_CN[pres.propertyType]}
         </span>
         <Badge
@@ -359,7 +358,7 @@ function PresCard({
 
       {/* 行 2：被保全人 + 金额 */}
       <div className="flex items-baseline justify-between gap-2">
-        <h3 className="line-clamp-1 font-display text-[1rem] italic text-foreground">
+        <h3 className="line-clamp-1 text-[1rem] italic text-foreground">
           {pres.respondent}
         </h3>
         {pres.amount && (
@@ -388,7 +387,7 @@ function PresCard({
       )}
 
       {/* 行 4：日期 + 法院 + 裁定书 */}
-      <div className="mt-1 space-y-0.5 border-t border-hairline pt-2 text-[11px] text-muted-foreground">
+      <div className="mt-1 space-y-0.5 border-t border-border pt-2 text-[11px] text-muted-foreground">
         <div className="flex justify-between gap-2">
           <span>生效：{fmtDate(pres.startDate)}</span>
           <span>到期：{fmtDate(pres.expiryDate)}</span>

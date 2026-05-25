@@ -251,10 +251,10 @@ export function IntakeSheet({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[88vh] w-[92vw] max-w-3xl flex-col gap-0 p-0">
-        <DialogHeader className="border-b border-hairline px-6 py-4">
+        <DialogHeader className="border-b border-border px-6 py-4">
           <DialogTitle>新建收案</DialogTitle>
           <DialogDescription className="text-xs">
-            提交后进入"待审批"，由管理员/主任律师确认后转为正式案件
+            提交后进入&ldquo;待审批&rdquo;，由管理员/主任律师确认后转为正式案件
           </DialogDescription>
         </DialogHeader>
 
@@ -444,7 +444,7 @@ export function IntakeSheet({
                       "rounded-md border px-2 py-1.5 text-xs transition-colors",
                       feeType === t
                         ? "border-primary bg-primary/15 text-primary"
-                        : "border-border bg-background/40 text-muted-foreground hover:border-input"
+                        : "border-border bg-background text-muted-foreground hover:border-input"
                     )}
                   >
                     {feeTypeLabel[t]}
@@ -499,13 +499,13 @@ export function IntakeSheet({
               </Field>
 
               <Field label="共同参与律师（可多选，事后可改）">
-                <div className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-background/40 p-3">
+                <div className="grid grid-cols-2 gap-2 rounded-lg border border-border bg-background p-3">
                   {colleagues
                     .filter((u) => u.id !== ownerUserId)
                     .map((u) => (
                       <label
                         key={u.id}
-                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-popover/40"
+                        className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-popover"
                       >
                         <Checkbox
                           checked={coUserIds.includes(u.id)}
@@ -571,7 +571,7 @@ export function IntakeSheet({
               </div>
 
               {parties.length === 0 ? (
-                <p className="rounded-md border border-dashed border-border bg-background/40 py-3 text-center text-xs text-muted-foreground">
+                <p className="rounded-md border border-dashed border-border bg-background py-3 text-center text-xs text-muted-foreground">
                   暂无相对方，添加后可触发利益冲突检索
                 </p>
               ) : (
@@ -579,7 +579,7 @@ export function IntakeSheet({
                   {parties.map((p, idx) => (
                     <div
                       key={p.id}
-                      className="rounded-lg border border-border bg-background/40 p-3"
+                      className="rounded-lg border border-border bg-background p-3"
                     >
                       <div className="mb-2 flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -680,7 +680,7 @@ export function IntakeSheet({
                 </Button>
               </div>
               {contracts.length === 0 ? (
-                <p className="rounded-md border border-dashed border-border bg-background/40 py-3 text-center text-xs text-muted-foreground">
+                <p className="rounded-md border border-dashed border-border bg-background py-3 text-center text-xs text-muted-foreground">
                   上传委托代理合同、授权委托书等（加密存储，单文件 ≤ 20MB）
                 </p>
               ) : (
@@ -688,7 +688,7 @@ export function IntakeSheet({
                   {contracts.map((f, i) => (
                     <li
                       key={i}
-                      className="flex items-center gap-2 rounded-md border border-border bg-background/40 px-3 py-2 text-xs"
+                      className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-xs"
                     >
                       <FileText className="h-3.5 w-3.5 text-primary" />
                       <span className="flex-1 truncate">{f.name}</span>
@@ -711,7 +711,7 @@ export function IntakeSheet({
             </Section>
           </div>
 
-          <DialogFooter className="border-t border-hairline px-6 py-4">
+          <DialogFooter className="border-t border-border px-6 py-4">
             <Button
               type="button"
               variant="outline"
@@ -758,12 +758,11 @@ function Section({
 
   return (
     <section
-      className="space-y-3 rounded-lg border bg-card/40 p-5"
-      style={{ borderColor: "hsl(var(--hairline))" }}
+      className="space-y-3 rounded-lg border bg-card p-5"
     >
       <h3 className="flex items-baseline gap-3">
         {roman && (
-          <span className="font-eyebrow text-[0.7rem] text-primary">{roman}</span>
+          <span className="text-[0.7rem] text-primary">{roman}</span>
         )}
         <span className="text-[0.95rem] font-medium tracking-tight">
           {text}

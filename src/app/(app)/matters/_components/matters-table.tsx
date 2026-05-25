@@ -26,8 +26,8 @@ export type MatterRow = Matter & {
 export function MattersTable({ items }: { items: MatterRow[] }) {
   if (items.length === 0) {
     return (
-      <div className="ll-surface-quiet flex flex-col items-center gap-2 py-20 text-center">
-        <div className="font-display text-base text-muted-foreground">没有匹配的案件</div>
+      <div className="rounded-md border border-border bg-muted/30 flex flex-col items-center gap-2 py-20 text-center">
+        <div className="text-base text-muted-foreground">没有匹配的案件</div>
         <div className="text-xs text-muted-subtle">
           点击右上角 <span className="text-foreground/80">新建收案</span> 开始
         </div>
@@ -36,13 +36,12 @@ export function MattersTable({ items }: { items: MatterRow[] }) {
   }
 
   return (
-    <div className="ll-surface overflow-hidden">
+    <div className="bg-card rounded-md border border-border overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-[12.5px]">
           <thead>
             <tr
-              className="border-b text-left text-[10px] tracking-wider text-muted-foreground/80"
-              style={{ borderColor: "hsl(var(--hairline))" }}
+              className="border-b border-border text-left text-[10px] tracking-wider text-muted-foreground/80"
             >
               <th className="px-4 py-2.5 font-medium">案件</th>
               <th className="px-3 py-2.5 font-medium">类别·状态</th>
@@ -72,8 +71,10 @@ function MatterRowTr({ m, first }: { m: MatterRow; first: boolean }) {
 
   return (
     <tr
-      className="group transition-colors hover:bg-muted/30"
-      style={!first ? { borderTop: "1px solid hsl(var(--hairline))" } : undefined}
+      className={cn(
+        "group transition-colors hover:bg-muted/30",
+        !first && "border-t border-border"
+      )}
     >
       {/* 案件：编号 + 案件名 + 案由 */}
       <td className="px-4 py-3 align-top">
@@ -81,7 +82,7 @@ function MatterRowTr({ m, first }: { m: MatterRow; first: boolean }) {
           <div className="font-mono text-[10.5px] tracking-wider text-muted-foreground tabular">
             {m.internalCode}
           </div>
-          <div className="mt-0.5 font-display text-[14px] font-medium italic leading-snug text-foreground transition-colors group-hover:text-primary">
+          <div className="mt-0.5 text-[14px] font-medium italic leading-snug text-foreground transition-colors group-hover:text-primary">
             {m.title}
           </div>
           {causeText && (
@@ -96,7 +97,7 @@ function MatterRowTr({ m, first }: { m: MatterRow; first: boolean }) {
       <td className="px-3 py-3 align-top">
         <div className="flex flex-col gap-1">
           <span
-            className="inline-flex w-fit items-center gap-1 rounded-full px-2 py-0.5 text-[10px]"
+            className="inline-flex w-fit items-center gap-1 rounded-sm px-2 py-0.5 text-[10px]"
             style={{ background: `${categoryColor}14`, color: categoryColor }}
           >
             <span className="h-1 w-1 rounded-full" style={{ background: categoryColor }} />
@@ -104,8 +105,7 @@ function MatterRowTr({ m, first }: { m: MatterRow; first: boolean }) {
           </span>
           <Badge
             variant="outline"
-            className="w-fit border-hairline px-1.5 py-0 text-[10px] font-normal"
-            style={{ borderColor: "hsl(var(--hairline))" }}
+            className="w-fit border-border px-1.5 py-0 text-[10px] font-normal"
           >
             {matterStatusLabel[m.status]}
           </Badge>
@@ -144,7 +144,7 @@ function MatterRowTr({ m, first }: { m: MatterRow; first: boolean }) {
       <td className="px-3 py-3 align-top text-[11.5px]">
         {m.owner ? (
           <div className="flex items-center gap-1.5">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 font-display text-[11px] text-primary">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] text-primary">
               {m.owner.name.charAt(0)}
             </span>
             <span className="truncate text-foreground/85">{m.owner.name}</span>
@@ -158,7 +158,7 @@ function MatterRowTr({ m, first }: { m: MatterRow; first: boolean }) {
       <td className="px-3 py-3 align-top text-[11.5px]">
         {current ? (
           <div>
-            <div className="font-display text-[12.5px] italic text-foreground/85">
+            <div className="text-[12.5px] italic text-foreground/85">
               {procedureTypeLabel[current.type as keyof typeof procedureTypeLabel]}
             </div>
             {current.caseNumber ? (

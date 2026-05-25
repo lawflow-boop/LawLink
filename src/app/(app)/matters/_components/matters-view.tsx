@@ -124,7 +124,7 @@ export function MattersView({
       <header className="space-y-2">
         <div className="flex items-end justify-between gap-4">
           <div className="space-y-1">
-            <h1 className="ll-h1">案件管理</h1>
+            <h1 className="text-xl font-medium tracking-tight">案件管理</h1>
             <p className="text-[13px] text-muted-foreground">
               <span className="text-foreground/80">
                 {TABS.find((t) => t.key === tab)?.label}
@@ -133,7 +133,7 @@ export function MattersView({
               共 <span className="font-mono tabular text-foreground">{total}</span> 件
             </p>
           </div>
-          <Button onClick={() => setSheetOpen(true)} className="h-9 gap-1.5 px-4 shadow-ll-low">
+          <Button onClick={() => setSheetOpen(true)} className="h-9 gap-1.5 px-4 shadow-sm">
             <Plus className="h-4 w-4" strokeWidth={2} />
             新建收案
           </Button>
@@ -144,7 +144,6 @@ export function MattersView({
       {/* Tab */}
       <div
         className="flex items-end gap-6 border-b"
-        style={{ borderColor: "hsl(var(--hairline))" }}
       >
         {TABS.map((t) => {
           const Icon = t.icon;
@@ -196,8 +195,7 @@ export function MattersView({
                 ? "搜索标题 / 客户 / 描述"
                 : "搜索案件名称 / 编号 / 客户"
             }
-            className="h-9 border-hairline bg-card/40 pl-9"
-            style={{ borderColor: "hsl(var(--hairline))" }}
+            className="h-9 border-border bg-card pl-9"
           />
         </form>
 

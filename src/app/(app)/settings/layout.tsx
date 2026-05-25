@@ -21,7 +21,7 @@ export default async function SettingsLayout({
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-5">
         <nav className="lg:col-span-1">
-          <ul className="space-y-0.5 rounded-xl border border-border bg-card/40 p-2">
+          <ul className="space-y-0.5 rounded-xl border border-border bg-card p-2">
             <SettingsNavLink
               href="/settings/profile"
               icon={<KeyRound className="h-3.5 w-3.5" />}

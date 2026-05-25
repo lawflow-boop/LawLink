@@ -146,7 +146,7 @@ export function TemplatePickerDialog({
             <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
               1 · 选模板
             </Label>
-            <div className="mt-2 max-h-[280px] overflow-y-auto rounded border border-hairline">
+            <div className="mt-2 max-h-[280px] overflow-y-auto rounded border border-border">
               {grouped.length === 0 ? (
                 <p className="p-4 text-center text-sm text-muted-foreground">
                   该案件类型暂无可用模板
@@ -163,7 +163,7 @@ export function TemplatePickerDialog({
                         type="button"
                         onClick={() => setSelectedId(t.id)}
                         className={cn(
-                          "flex w-full items-start gap-3 border-t border-hairline px-3 py-2 text-left transition-colors",
+                          "flex w-full items-start gap-3 border-t border-border px-3 py-2 text-left transition-colors",
                           selectedId === t.id
                             ? "bg-primary/10"
                             : "hover:bg-muted/40"

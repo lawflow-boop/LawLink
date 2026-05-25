@@ -28,10 +28,10 @@ export function CourtFeeCalc() {
   );
 
   return (
-    <section className="ll-surface rounded-lg border border-hairline p-5">
+    <section className="ll-surface rounded-lg border border-border p-5">
       <header className="mb-4 flex items-center gap-2">
         <Scale className="h-4 w-4 text-primary" strokeWidth={1.8} />
-        <h2 className="font-display text-lg italic">诉讼费计算</h2>
+        <h2 className="text-lg italic">诉讼费计算</h2>
         <span className="ml-2 text-[10px] text-muted-foreground">
           《诉讼费用交纳办法》全国统一标准
         </span>
@@ -90,7 +90,7 @@ export function CourtFeeCalc() {
 
 function ResultCard({ label, value, accent }: { label: string; value: number; accent: string }) {
   return (
-    <div className={cn("rounded-lg border border-hairline bg-muted/20 p-4")}>
+    <div className={cn("rounded-lg border border-border bg-muted/20 p-4")}>
       <div className="text-[10px] tracking-wider text-muted-foreground">{label}</div>
       <div
         className="mt-1 font-mono text-[26px] font-medium tabular"
