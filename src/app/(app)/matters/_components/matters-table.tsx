@@ -136,7 +136,7 @@ export function CaseListCard({
                   <span className="text-muted-foreground/60">—</span>
                 )}
               </Cell>
-              <Cell label="客户">
+              <Cell label="客户" minWidthCh={16}>
                 {clientName ?? <span className="text-muted-foreground/60">—</span>}
               </Cell>
               <Cell label="案由">
@@ -182,9 +182,20 @@ export function CaseListCard({
   );
 }
 
-function Cell({ label, children }: { label: string; children: React.ReactNode }) {
+function Cell({
+  label,
+  children,
+  minWidthCh
+}: {
+  label: string;
+  children: React.ReactNode;
+  minWidthCh?: number;
+}) {
   return (
-    <div className="flex min-w-0 items-baseline gap-1">
+    <div
+      className="flex min-w-0 items-baseline gap-1"
+      style={minWidthCh ? { minWidth: `${minWidthCh}ch` } : undefined}
+    >
       <span className="shrink-0 text-[11px] text-muted-foreground/70">{label}：</span>
       <span className="truncate text-foreground/90">{children}</span>
     </div>
