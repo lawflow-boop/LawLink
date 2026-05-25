@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { CalendarDays, ArrowRight } from "lucide-react";
+import { useState } from "react";
+import { CalendarDays, ArrowRight, Calculator } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,23 +25,30 @@ export function DaysCalc() {
   const [dateB, setDateB] = useState(fmtDate(today));
   const [excludeWeekend, setExcludeWeekend] = useState(false);
 
-  const between = useMemo(() => {
+  const [between, setBetween] = useState<number | null>(null);
+  function computeBetween() {
     const a = new Date(dateA);
     const b = new Date(dateB);
-    if (isNaN(a.getTime()) || isNaN(b.getTime())) return null;
-    return daysBetween(a, b, excludeWeekend);
-  }, [dateA, dateB, excludeWeekend]);
+    if (isNaN(a.getTime()) || isNaN(b.getTime())) {
+      setBetween(null);
+      return;
+    }
+    setBetween(daysBetween(a, b, excludeWeekend));
+  }
 
   // 模式 2：加减天数
   const [baseDate, setBaseDate] = useState(fmtDate(today));
   const [offset, setOffset] = useState("15");
-
-  const targetDate = useMemo(() => {
+  const [targetDate, setTargetDate] = useState<Date | null>(null);
+  function computeTarget() {
     const base = new Date(baseDate);
     const n = parseInt(offset);
-    if (isNaN(base.getTime()) || isNaN(n)) return null;
-    return addDays(base, n);
-  }, [baseDate, offset]);
+    if (isNaN(base.getTime()) || isNaN(n)) {
+      setTargetDate(null);
+      return;
+    }
+    setTargetDate(addDays(base, n));
+  }
 
   return (
     <section className="ll-surface rounded-lg border border-border p-5">
@@ -85,13 +93,19 @@ export function DaysCalc() {
             </div>
           </div>
 
-          <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
-            <Checkbox
-              checked={excludeWeekend}
-              onCheckedChange={(v) => setExcludeWeekend(v === true)}
-            />
-            仅算工作日（排除周末，不含法定节假日）
-          </label>
+          <div className="flex items-center justify-between gap-3">
+            <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
+              <Checkbox
+                checked={excludeWeekend}
+                onCheckedChange={(v) => setExcludeWeekend(v === true)}
+              />
+              仅算工作日（排除周末，不含法定节假日）
+            </label>
+            <Button onClick={computeBetween} className="h-9 gap-1.5">
+              <Calculator className="h-3.5 w-3.5" />
+              计算
+            </Button>
+          </div>
 
           {between !== null && (
             <div className="rounded-lg border border-border bg-muted/20 p-4">
@@ -126,6 +140,13 @@ export function DaysCalc() {
                 className="mt-1 font-mono"
               />
             </div>
+          </div>
+
+          <div className="flex justify-end">
+            <Button onClick={computeTarget} className="h-9 gap-1.5">
+              <Calculator className="h-3.5 w-3.5" />
+              计算
+            </Button>
           </div>
 
           {targetDate && (

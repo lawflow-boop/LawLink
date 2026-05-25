@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Scale } from "lucide-react";
+import { useState } from "react";
+import { Scale, Calculator } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioChips } from "@/components/ui/radio-chips";
@@ -19,13 +20,13 @@ const CASE_TYPES: { value: CourtFeeCaseType; label: string }[] = [
 export function CourtFeeCalc() {
   const [caseType, setCaseType] = useState<CourtFeeCaseType>("PROPERTY");
   const [amountInput, setAmountInput] = useState("100000");
+  const [result, setResult] = useState<ReturnType<typeof calcCourtFee> | null>(null);
   const showAmount = caseType === "PROPERTY" || caseType === "DIVORCE";
   const amount = parseFloat(amountInput) || 0;
 
-  const result = useMemo(
-    () => calcCourtFee({ caseType, amount: showAmount ? amount : undefined }),
-    [caseType, amount, showAmount]
-  );
+  function compute() {
+    setResult(calcCourtFee({ caseType, amount: showAmount ? amount : undefined }));
+  }
 
   return (
     <section className="ll-surface rounded-lg border border-border p-5">
@@ -70,20 +71,22 @@ export function CourtFeeCalc() {
         )}
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-        <ResultCard
-          label="普通程序"
-          value={result.fee}
-          accent="#4F46E5"
-        />
-        <ResultCard
-          label="简易程序（减半）"
-          value={result.feeSimplified}
-          accent="#16a34a"
-        />
+      <div className="mt-4 flex justify-end">
+        <Button onClick={compute} className="h-9 gap-1.5">
+          <Calculator className="h-3.5 w-3.5" />
+          计算
+        </Button>
       </div>
 
-      <p className="mt-3 text-[11px] text-muted-foreground">{result.note}</p>
+      {result && (
+        <>
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <ResultCard label="普通程序" value={result.fee} accent="#4F46E5" />
+            <ResultCard label="简易程序（减半）" value={result.feeSimplified} accent="#16a34a" />
+          </div>
+          <p className="mt-3 text-[11px] text-muted-foreground">{result.note}</p>
+        </>
+      )}
     </section>
   );
 }

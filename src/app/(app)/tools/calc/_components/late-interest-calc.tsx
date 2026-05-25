@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Coins, Info } from "lucide-react";
+import { useState } from "react";
+import { Coins, Info, Calculator } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { calcLateInterest, numberToChinese } from "@/lib/legal-calc";
@@ -22,19 +23,26 @@ export function LateInterestCalc() {
   const [lprPercent, setLprPercent] = useState("3.45");
   const [extraPercent, setExtraPercent] = useState("5");
 
-  const result = useMemo(() => {
+  const [result, setResult] = useState<ReturnType<typeof calcLateInterest> | null>(null);
+
+  function compute() {
     const p = parseFloat(principal) || 0;
     const d1 = new Date(dueDate);
     const d2 = new Date(paidDate);
-    if (isNaN(d1.getTime()) || isNaN(d2.getTime()) || p <= 0) return null;
-    return calcLateInterest({
-      principal: p,
-      dueDate: d1,
-      paidDate: d2,
-      lprPercent: parseFloat(lprPercent) || 0,
-      extraPercent: parseFloat(extraPercent) || 0
-    });
-  }, [principal, dueDate, paidDate, lprPercent, extraPercent]);
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime()) || p <= 0) {
+      setResult(null);
+      return;
+    }
+    setResult(
+      calcLateInterest({
+        principal: p,
+        dueDate: d1,
+        paidDate: d2,
+        lprPercent: parseFloat(lprPercent) || 0,
+        extraPercent: parseFloat(extraPercent) || 0
+      })
+    );
+  }
 
   return (
     <section className="ll-surface rounded-lg border border-border p-5">
@@ -96,6 +104,13 @@ export function LateInterestCalc() {
             />
           </div>
         </div>
+      </div>
+
+      <div className="mt-4 flex justify-end">
+        <Button onClick={compute} className="h-9 gap-1.5">
+          <Calculator className="h-3.5 w-3.5" />
+          计算
+        </Button>
       </div>
 
       {result && (

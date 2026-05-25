@@ -677,7 +677,7 @@ export function IntakeSheet({
                     appendParty({
                       role: "OPPOSING_PARTY",
                       standing: undefined,
-                      ordinal: parties.filter((p) => p.role === "OPPOSING_PARTY").length + 1,
+                      ordinal: parties.length + 1,
                       name: "",
                       idNumber: "",
                       phone: "",
@@ -688,29 +688,7 @@ export function IntakeSheet({
                   }
                 >
                   <Plus className="h-3 w-3" />
-                  添加对方
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1"
-                  onClick={() =>
-                    appendParty({
-                      role: "THIRD_PARTY",
-                      standing: undefined,
-                      ordinal: parties.filter((p) => p.role === "THIRD_PARTY").length + 1,
-                      name: "",
-                      idNumber: "",
-                      phone: "",
-                      address: "",
-                      legalRep: "",
-                      notes: ""
-                    })
-                  }
-                >
-                  <Plus className="h-3 w-3" />
-                  添加第三人
+                  添加其他案件当事人
                 </Button>
               </div>
 
@@ -728,7 +706,7 @@ export function IntakeSheet({
                       <div className="mb-2 flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground">
-                            {p.role === "OPPOSING_PARTY" ? "对方" : "第三人"} {p.ordinal}
+                            当事人 {p.ordinal}
                           </span>
                           <Select
                             value={watch(`parties.${idx}.standing`) ?? ""}
@@ -744,16 +722,13 @@ export function IntakeSheet({
                               <SelectValue placeholder="诉讼地位" />
                             </SelectTrigger>
                             <SelectContent>
-                              {(oppositeStandingOptions.length > 0
-                                ? oppositeStandingOptions
-                                : (Object.keys(
-                                    litigationStandingLabel
-                                  ) as LitigationStanding[])
-                              ).map((s) => (
-                                <SelectItem key={s} value={s} className="text-xs">
-                                  {litigationStandingLabel[s]}
-                                </SelectItem>
-                              ))}
+                              {(Object.keys(litigationStandingLabel) as LitigationStanding[]).map(
+                                (s) => (
+                                  <SelectItem key={s} value={s} className="text-xs">
+                                    {litigationStandingLabel[s]}
+                                  </SelectItem>
+                                )
+                              )}
                             </SelectContent>
                           </Select>
                         </div>

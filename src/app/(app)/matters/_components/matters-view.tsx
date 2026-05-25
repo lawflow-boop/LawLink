@@ -7,8 +7,14 @@ import { Plus, Search, X, Clock, CheckCircle2, Archive, AlertCircle, FolderOpen 
 import type { MatterCategory, ClientType, UserRole } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { RadioChips } from "@/components/ui/radio-chips";
-import { matterCategoryLabel, matterCategoryColor } from "@/lib/enums";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { matterCategoryLabel } from "@/lib/enums";
 import { cn } from "@/lib/utils";
 import { IntakeSheet } from "@/app/(app)/intakes/_components/intake-sheet";
 import { MattersTable, type MatterRow } from "./matters-table";
@@ -46,15 +52,15 @@ const ALL_CATEGORIES: (MatterCategory | "ALL")[] = [
 ];
 
 const TABS: { key: Tab; label: string; icon: typeof Clock }[] = [
+  { key: "all", label: "全部案件", icon: FolderOpen },
   { key: "intake", label: "待审批", icon: Clock },
   { key: "active", label: "进行中", icon: CheckCircle2 },
   { key: "revision", label: "待补正", icon: AlertCircle },
-  { key: "archived", label: "已归档", icon: Archive },
-  { key: "all", label: "全部案件", icon: FolderOpen }
+  { key: "archived", label: "已归档", icon: Archive }
 ];
 
 const ALL_STATUS_FILTERS: { value: string; label: string }[] = [
-  { value: "ALL", label: "全部" },
+  { value: "ALL", label: "全部状态" },
   { value: "active", label: "办理中" },
   { value: "closed", label: "已结案" },
   { value: "archived", label: "已归档" }
@@ -216,53 +222,72 @@ export function MattersView({
             e.preventDefault();
             applyFilters();
           }}
-          className="relative min-w-64 flex-1"
+          className="relative flex min-w-64 flex-1 items-center gap-2"
         >
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
-            strokeWidth={1.8}
-          />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            onBlur={applyFilters}
-            placeholder={
-              isIntakeStyle
-                ? "搜索标题 / 客户 / 描述"
-                : "搜索案件名称 / 编号 / 客户"
-            }
-            className="h-9 border-border bg-card pl-9"
-          />
+          <div className="relative flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+              strokeWidth={1.8}
+            />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={
+                isIntakeStyle
+                  ? "搜索标题 / 客户 / 描述"
+                  : "搜索案件名称 / 编号 / 客户"
+              }
+              className="h-9 border-border bg-card pl-9"
+            />
+          </div>
+          <Button type="submit" size="sm" variant="outline" className="h-9 gap-1">
+            <Search className="h-3.5 w-3.5" />
+            搜索
+          </Button>
         </form>
 
         {!isIntakeStyle && (
-          <RadioChips
-            size="sm"
-            items={ALL_CATEGORIES.map((c) => ({
-              value: c,
-              label: c === "ALL" ? "全部" : matterCategoryLabel[c as MatterCategory],
-              accent: c === "ALL" ? undefined : matterCategoryColor[c as MatterCategory]
-            }))}
+          <Select
             value={category}
-            onChange={(v) => {
+            onValueChange={(v) => {
               const next = v as MatterCategory | "ALL";
               setCategory(next);
               startTransition(() => router.replace(buildUrl({ category: next })));
             }}
-          />
+          >
+            <SelectTrigger className="h-9 w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ALL_CATEGORIES.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c === "ALL" ? "全部类型" : matterCategoryLabel[c as MatterCategory]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         )}
 
         {isAll && (
           <>
-            <RadioChips
-              size="sm"
-              items={ALL_STATUS_FILTERS}
+            <Select
               value={statusFilter}
-              onChange={(v) => {
+              onValueChange={(v) => {
                 setStatusFilter(v);
                 startTransition(() => router.replace(buildUrl({ status: v })));
               }}
-            />
+            >
+              <SelectTrigger className="h-9 w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ALL_STATUS_FILTERS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <div className="flex items-center gap-1 text-[12px] text-muted-foreground">
               <span>收案</span>
               <Input
@@ -270,7 +295,7 @@ export function MattersView({
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
                 onBlur={applyFilters}
-                className="h-8 w-36 px-2"
+                className="h-9 w-36 px-2"
                 title="收案时间起"
               />
               <span>→</span>
@@ -279,7 +304,7 @@ export function MattersView({
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
                 onBlur={applyFilters}
-                className="h-8 w-36 px-2"
+                className="h-9 w-36 px-2"
                 title="收案时间止"
               />
             </div>
