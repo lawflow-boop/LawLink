@@ -106,15 +106,8 @@ export function CaseListCard({
     <li>
       <Link
         href={href}
-        className="group relative block overflow-hidden rounded-lg border border-border bg-card py-4 pl-5 pr-5 transition-colors hover:border-foreground/30"
+        className="group block rounded-lg border border-border bg-card px-5 py-4 transition-colors hover:border-foreground/30"
       >
-        {/* 左侧 3px category accent 竖条 */}
-        <span
-          aria-hidden
-          className="absolute left-0 top-0 h-full w-[3px]"
-          style={{ background: accent }}
-        />
-
         {/* 两列布局：左主信息 + 右编号/主办 */}
         <div className="flex items-stretch gap-4">
           <div className="min-w-0 flex-1">
