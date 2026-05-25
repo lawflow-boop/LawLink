@@ -10,7 +10,8 @@ import {
   User,
   Settings as SettingsIcon,
   ShieldCheck,
-  Menu
+  Menu,
+  Calculator
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,6 +28,7 @@ import {
 import { ConflictDialog } from "@/components/conflict-dialog";
 import { NotificationPopover } from "@/components/layout/notification-popover";
 import { SearchDialog } from "@/components/layout/search-dialog";
+import { ToolsDialog } from "@/components/layout/tools-dialog";
 import { cn } from "@/lib/utils";
 
 const roleLabels: Record<string, string> = {
@@ -42,6 +44,7 @@ export function Topbar({ onMobileMenuToggle }: { onMobileMenuToggle?: () => void
   const router = useRouter();
   const [conflictOpen, setConflictOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const user = session?.user;
   const displayName = user?.name ?? "";
   const roleLabel = user?.role ? (roleLabels[user.role] ?? user.role) : "";
@@ -103,6 +106,16 @@ export function Topbar({ onMobileMenuToggle }: { onMobileMenuToggle?: () => void
 
         <div className="mx-0.5 h-4 w-px bg-border" />
 
+        <button
+          type="button"
+          onClick={() => setToolsOpen(true)}
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          aria-label="律师工具"
+          title="律师工具（诉讼费 / 迟延履行金 / 天数）"
+        >
+          <Calculator className="h-4 w-4" />
+        </button>
+
         <NotificationPopover />
       </div>
 
@@ -157,6 +170,7 @@ export function Topbar({ onMobileMenuToggle }: { onMobileMenuToggle?: () => void
 
       <ConflictDialog open={conflictOpen} onOpenChange={setConflictOpen} />
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <ToolsDialog open={toolsOpen} onOpenChange={setToolsOpen} />
     </header>
   );
 }

@@ -8,7 +8,6 @@ import {
   Shield,
   Package,
   ClipboardCheck,
-  Calculator,
   Archive,
   Settings
 } from "lucide-react";
@@ -35,8 +34,8 @@ export const primaryNav: NavItem[] = [
   { label: "审批", href: "/approvals/seals", icon: ClipboardCheck }
 ];
 
+// v0.12: 工具改为 Topbar 弹窗（去 sidebar 入口）；/tools/calc 路由保留作直接访问
 export const secondaryNav: NavItem[] = [
-  { label: "工具", href: "/tools/calc", icon: Calculator },
   { label: "归档", href: "/archive", icon: Archive },
   { label: "设置", href: "/settings", icon: Settings }
 ];
