@@ -787,7 +787,7 @@ export function IntakeSheet({
             <Section title="⑧ 标题与描述">
               <Field
                 label="案件标题"
-                hint="留空则按「{委托方} 与 {对方} {案由}纠纷」自动生成"
+                hint="留空则按「{委托方} 与 {对方} {案由}」自动生成"
                 error={errors.title?.message}
               >
                 <Input

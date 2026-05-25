@@ -30,7 +30,7 @@ function requireApprover(role: string) {
   }
 }
 
-/** 按 {委托方} 与 {对方} {案由}纠纷 自动生成标题 */
+/** 按 {委托方} 与 {对方} {案由} 自动生成标题 — 案由本身通常已含"纠纷"二字 */
 function generateTitle(
   clientName: string | null,
   opposingNames: string[],
@@ -38,7 +38,7 @@ function generateTitle(
 ): string {
   const left = clientName || "待补充委托方";
   const right = opposingNames.length > 0 ? opposingNames.join("、") : "待补充对方";
-  const cause = causeName ? `${causeName}纠纷` : "案件";
+  const cause = causeName ?? "案件";
   return `${left} 与 ${right} ${cause}`;
 }
 
