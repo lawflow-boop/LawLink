@@ -98,6 +98,14 @@ enum InvoiceRequestStatus {
   REJECTED // 被拒
 }
 
+// v0.10: 文书审批状态
+enum DocumentStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  FILED
+}
+
 enum ProcedureType {
   // 审判通用
   FIRST_INSTANCE
@@ -284,6 +292,8 @@ model User {
   feeEntriesRecorded    FeeEntry[]            @relation("FeeRecorder")
   authoredNotes         Note[]                @relation("NoteAuthor")
   uploadedDocuments     Document[]            @relation("DocumentUploader")
+  reviewedDocuments     Document[]            @relation("DocumentReviewer")
+  approvedDocuments     Document[]            @relation("DocumentApprover")
   auditLogs             AuditLog[]
   conflictDecisions     ConflictCheck[]       @relation("ConflictDecidedBy")
   // v0.5
@@ -300,6 +310,8 @@ model User {
   ownedPreservations    Preservation[]        @relation("PreservationOwner")
   preservationRenewals  PreservationRenewal[] @relation("RenewalPerformer")
   createdExpress        ExpressTracking[]     @relation("ExpressCreator")
+  // v0.10: 通知
+  notifications         Notification[]
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
 }
@@ -753,6 +765,14 @@ model Document {
   procedure   MatterProcedure? @relation(fields: [procedureId], references: [id])
   name        String
   category    DocumentCategory @default(OTHER)
+  // v0.10: 文书审批流程
+  status      DocumentStatus   @default(DRAFT)
+  reviewedById String?
+  reviewedBy   User?            @relation("DocumentReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  approvedById String?
+  approvedBy   User?            @relation("DocumentApprover", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
   version     Int              @default(1)
   isLatest    Boolean          @default(true)
   familyId    String?
@@ -1282,4 +1302,44 @@ model ExpressTracking {
   @@index([matterId])
   @@index([trackingNo])
   @@index([createdById, createdAt])
+}
+
+// ============================================================
+// v0.10: 通知系统
+// ============================================================
+
+enum NotificationType {
+  PRESERVATION_EXPIRY
+  HEARING_REMINDER
+  DEADLINE_REMINDER
+  SEAL_STATUS_CHANGE
+  SMS_ARRIVAL
+  TASK_ASSIGNED
+  SYSTEM
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model Notification {
+  id         String               @id @default(cuid())
+  userId     String
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       NotificationType
+  priority   NotificationPriority @default(NORMAL)
+  title      String
+  content    String?
+  href       String?
+  refType    String?
+  refId      String?
+  read       Boolean              @default(false)
+  readAt     DateTime?
+  createdAt  DateTime             @default(now())
+
+  @@index([userId, read, createdAt])
+  @@index([userId, createdAt])
 }
