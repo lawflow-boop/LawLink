@@ -14,7 +14,7 @@
  */
 import PizZip from "pizzip";
 import { prisma } from "@/lib/prisma";
-import { readFile } from "@/lib/storage/local";
+import { storage } from "@/lib/storage";
 import { decryptBuffer, sha256 } from "@/lib/storage/crypto";
 
 interface ZipResult {
@@ -43,7 +43,7 @@ async function readDocumentBuffer(doc: {
   iv: string | null;
   authTag: string | null;
 }): Promise<Buffer> {
-  const raw = await readFile(doc.path);
+  const raw = await storage.readFile(doc.path);
   if (!doc.encrypted) return raw;
   if (!doc.iv || !doc.authTag) throw new Error("加密元数据损坏");
   return decryptBuffer(raw, doc.iv, doc.authTag);

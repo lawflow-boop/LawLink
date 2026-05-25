@@ -7,7 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { assertDocumentWritable } from "@/lib/archive/guard";
-import { writeFile, deleteStoredFile } from "@/lib/storage/local";
+import { matterVisibilityFilter, isManager } from "@/lib/permissions";
+import { storage } from "@/lib/storage";
 import { validateUploadedFile } from "@/lib/storage/file-validator";
 import { encryptBuffer, sha256 } from "@/lib/storage/crypto";
 
@@ -100,12 +101,12 @@ export async function uploadDocument(formData: FormData) {
 
   if (encrypted) {
     const enc = encryptBuffer(raw);
-    path = await writeFile(storageBucket, enc.ciphertext);
+    path = await storage.writeFile(storageBucket, enc.ciphertext);
     iv = enc.iv.toString("base64");
     authTag = enc.authTag.toString("base64");
     algorithm = enc.algorithm;
   } else {
-    path = await writeFile(storageBucket, raw);
+    path = await storage.writeFile(storageBucket, raw);
   }
 
   const created = await prisma.document.create({
@@ -184,7 +185,7 @@ export async function hardDeleteDocument(id: string) {
   if (!doc) return { ok: false };
   await assertDocumentWritable(doc.matterId, { kind: "modify" });
 
-  await deleteStoredFile(doc.path);
+  await storage.deleteFile(doc.path);
   await prisma.document.delete({ where: { id } });
 
   await audit({
@@ -208,12 +209,13 @@ const docListQuerySchema = z.object({
 });
 
 export async function listAllDocuments(input: Partial<z.infer<typeof docListQuerySchema>> = {}) {
-  await requireSession();
+  const session = await requireSession();
   const query = docListQuerySchema.parse(input);
 
+  const visFilter = matterVisibilityFilter(session.user.id, session.user.role);
   const where: Prisma.DocumentWhereInput = {
     deletedAt: null,
-    matter: { deletedAt: null },
+    matter: { deletedAt: null, ...visFilter },
     ...(query.category ? { category: query.category } : {}),
     ...(query.matterId ? { matterId: query.matterId } : {}),
     ...(query.search
@@ -235,4 +237,112 @@ export async function listAllDocuments(input: Partial<z.infer<typeof docListQuer
       uploadedBy: { select: { id: true, name: true } }
     }
   });
+}
+
+// ============ v0.10: 文书审批流程 ============
+
+export async function submitDocumentForReview(id: string) {
+  const session = await requireSession();
+  const doc = await prisma.document.findUnique({ where: { id, deletedAt: null } });
+  if (!doc) throw new Error("材料不存在");
+  if (doc.status !== "DRAFT") throw new Error("只有草稿状态的材料才能提交审核");
+
+  await prisma.document.update({
+    where: { id },
+    data: { status: "PENDING_REVIEW" },
+  });
+
+  await audit({
+    userId: session.user.id,
+    action: "DOCUMENT_SUBMIT_REVIEW",
+    targetType: "Document",
+    targetId: id,
+    detail: { matterId: doc.matterId, name: doc.name },
+  });
+
+  if (doc.matterId) revalidatePath(`/matters/${doc.matterId}`);
+  return { ok: true };
+}
+
+export async function approveDocument(id: string) {
+  const session = await requireSession();
+  if (!isManager(session.user.role)) {
+    throw new Error("仅管理员或主办律师可审批文书");
+  }
+  const doc = await prisma.document.findUnique({ where: { id, deletedAt: null } });
+  if (!doc) throw new Error("材料不存在");
+  if (doc.status !== "PENDING_REVIEW") throw new Error("材料不在待审核状态");
+
+  await prisma.document.update({
+    where: { id },
+    data: {
+      status: "APPROVED",
+      approvedById: session.user.id,
+      approvedAt: new Date(),
+    },
+  });
+
+  await audit({
+    userId: session.user.id,
+    action: "DOCUMENT_APPROVE",
+    targetType: "Document",
+    targetId: id,
+    detail: { matterId: doc.matterId, name: doc.name },
+  });
+
+  if (doc.matterId) revalidatePath(`/matters/${doc.matterId}`);
+  return { ok: true };
+}
+
+export async function rejectDocument(id: string, reason?: string) {
+  const session = await requireSession();
+  if (!isManager(session.user.role)) {
+    throw new Error("仅管理员或主办律师可驳回文书");
+  }
+  const doc = await prisma.document.findUnique({ where: { id, deletedAt: null } });
+  if (!doc) throw new Error("材料不存在");
+  if (doc.status !== "PENDING_REVIEW") throw new Error("材料不在待审核状态");
+
+  await prisma.document.update({
+    where: { id },
+    data: {
+      status: "DRAFT",
+      reviewedById: session.user.id,
+      reviewedAt: new Date(),
+    },
+  });
+
+  await audit({
+    userId: session.user.id,
+    action: "DOCUMENT_REJECT",
+    targetType: "Document",
+    targetId: id,
+    detail: { matterId: doc.matterId, name: doc.name, reason },
+  });
+
+  if (doc.matterId) revalidatePath(`/matters/${doc.matterId}`);
+  return { ok: true };
+}
+
+export async function fileDocument(id: string) {
+  const session = await requireSession();
+  const doc = await prisma.document.findUnique({ where: { id, deletedAt: null } });
+  if (!doc) throw new Error("材料不存在");
+  if (doc.status !== "APPROVED") throw new Error("只有已审批的材料才能归档");
+
+  await prisma.document.update({
+    where: { id },
+    data: { status: "FILED" },
+  });
+
+  await audit({
+    userId: session.user.id,
+    action: "DOCUMENT_FILE",
+    targetType: "Document",
+    targetId: id,
+    detail: { matterId: doc.matterId, name: doc.name },
+  });
+
+  if (doc.matterId) revalidatePath(`/matters/${doc.matterId}`);
+  return { ok: true };
 }

@@ -6,7 +6,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
-import { readFile, writeFile } from "@/lib/storage/local";
+import { storage } from "@/lib/storage";
 import { decryptBuffer, encryptBuffer, sha256 } from "@/lib/storage/crypto";
 import { buildContext, renderDocxBuffer, detectMissing } from "@/lib/template-engine";
 import { suggestFolderByTemplateCategory } from "@/lib/default-folders";
@@ -131,7 +131,7 @@ export async function renderTemplate(input: z.infer<typeof templateRenderSchema>
   });
   if (!matter) throw new Error("案件不存在");
 
-  const rawCt = await readFile(tmpl.docxBlob.path);
+  const rawCt = await storage.readFile(tmpl.docxBlob.path);
   const templateBuffer = tmpl.docxBlob.encrypted
     ? decryptBuffer(rawCt, tmpl.docxBlob.iv ?? "", tmpl.docxBlob.authTag ?? "")
     : rawCt;
@@ -150,7 +150,7 @@ export async function renderTemplate(input: z.infer<typeof templateRenderSchema>
   // 渲染
   const renderedBuf = renderDocxBuffer(templateBuffer, context);
   const enc = encryptBuffer(renderedBuf);
-  const path = await writeFile(`m_${data.matterId}`, enc.ciphertext);
+  const path = await storage.writeFile(`m_${data.matterId}`, enc.ciphertext);
 
   // 若未指定 folder，按模板大类推荐
   let folderId = data.folderId;

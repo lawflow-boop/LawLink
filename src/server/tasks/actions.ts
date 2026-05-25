@@ -5,6 +5,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
+import { createNotification } from "@/server/notifications/create";
 import { assertMatterWritable } from "@/lib/archive/guard";
 
 const taskCreateSchema = z.object({
@@ -48,6 +49,19 @@ export async function createTask(input: TaskCreateInput) {
     targetId: created.id,
     detail: { matterId: data.matterId, title: created.title }
   });
+
+  // 通知被指派人（非创建者本人时）
+  if (data.assigneeId && data.assigneeId !== session.user.id) {
+    await createNotification({
+      userId: data.assigneeId,
+      type: "TASK_ASSIGNED",
+      title: "您有新任务",
+      content: `任务「${created.title}」已指派给您`,
+      href: `/matters/${data.matterId}`,
+      refType: "Task",
+      refId: created.id
+    });
+  }
 
   revalidatePath(`/matters/${data.matterId}`);
   return { ok: true, id: created.id };

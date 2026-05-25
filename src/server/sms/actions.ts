@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
+import { createNotification } from "@/server/notifications/create";
 import { assertMatterWritable } from "@/lib/archive/guard";
 import { parseSms, splitSmsBatch, toDate, type ParsedSms } from "@/lib/sms-parser";
 import { enrichWithAi } from "@/lib/sms-parser-ai";
@@ -64,6 +65,25 @@ export async function parseAndSaveSms(input: z.infer<typeof smsParseAndSaveSchem
       select: { id: true }
     });
     createdIds.push(created.id);
+
+    // 通知关联案件的负责人
+    if (matchedMatterId) {
+      const matter = await prisma.matter.findUnique({
+        where: { id: matchedMatterId },
+        select: { ownerId: true }
+      });
+      if (matter && matter.ownerId !== session.user.id) {
+        await createNotification({
+          userId: matter.ownerId,
+          type: "SMS_ARRIVAL",
+          title: "收到新法院短信",
+          content: `案件收到新的法院短信，类型：${parsed.smsType ?? "未知"}`,
+          href: "/inbox",
+          refType: "SmsMessage",
+          refId: created.id
+        });
+      }
+    }
   }
 
   await audit({

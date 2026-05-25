@@ -8,7 +8,7 @@
  * 渲染产物落到 ARCHIVE/结案/归档 卷宗，category=PROCEDURE，绑定模板 ID（用于审计）。
  */
 import { Prisma, type PrismaClient } from "@prisma/client";
-import { readFile, writeFile } from "@/lib/storage/local";
+import { storage } from "@/lib/storage";
 import { decryptBuffer, encryptBuffer, sha256 } from "@/lib/storage/crypto";
 import { buildContext, renderDocxBuffer, type RenderContext } from "@/lib/template-engine";
 import { suggestFolderByTemplateCategory } from "@/lib/default-folders";
@@ -59,7 +59,7 @@ async function loadBuiltinTemplate(prisma: PrismaClient, key: "archive_cover" | 
   if (!tmpl || !tmpl.docxBlob) {
     throw new Error(`内置模板 ${nameMap[key]} 缺失，请运行 npx prisma db seed`);
   }
-  const raw = await readFile(tmpl.docxBlob.path);
+  const raw = await storage.readFile(tmpl.docxBlob.path);
   const buffer = tmpl.docxBlob.encrypted
     ? decryptBuffer(raw, tmpl.docxBlob.iv ?? "", tmpl.docxBlob.authTag ?? "")
     : raw;
@@ -116,7 +116,7 @@ export async function renderArchiveCover(
 
   const buf = renderDocxBuffer(templateBuffer, ctx);
   const enc = encryptBuffer(buf);
-  const path = await writeFile(`m_${opts.matterId}`, enc.ciphertext);
+  const path = await storage.writeFile(`m_${opts.matterId}`, enc.ciphertext);
 
   const folderId = await findOrCreateArchiveFolder(prisma, opts.matterId, matter.category);
 
@@ -212,7 +212,7 @@ export async function renderArchiveCatalog(
 
   const buf = renderDocxBuffer(templateBuffer, ctx);
   const enc = encryptBuffer(buf);
-  const path = await writeFile(`m_${opts.matterId}`, enc.ciphertext);
+  const path = await storage.writeFile(`m_${opts.matterId}`, enc.ciphertext);
 
   const folderId = await findOrCreateArchiveFolder(prisma, opts.matterId, matter.category);
 

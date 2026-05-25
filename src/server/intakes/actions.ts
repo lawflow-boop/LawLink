@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
+import { intakeVisibilityFilter } from "@/lib/permissions";
 import {
   intakeCreateSchema,
   intakeListQuerySchema,
@@ -42,10 +43,11 @@ function generateTitle(
 }
 
 export async function listIntakes(input: Partial<IntakeListQuery> = {}) {
-  await requireSession();
+  const session = await requireSession();
   const query = intakeListQuerySchema.parse(input);
 
   const where: Prisma.IntakeWhereInput = {
+    ...intakeVisibilityFilter(session.user.id, session.user.role),
     ...(query.status ? { status: query.status } : {}),
     ...(query.search
       ? {
@@ -84,6 +86,21 @@ export async function listIntakes(input: Partial<IntakeListQuery> = {}) {
 
 export async function getIntakeById(id: string) {
   const session = await requireSession();
+  // 单条收案权限检查：manager 看全部，其他人只能看自己参与或创建的
+  if (session.user.role !== "ADMIN" && session.user.role !== "PRINCIPAL_LAWYER") {
+    const owned = await prisma.intake.findFirst({
+      where: {
+        id,
+        OR: [
+          { createdById: session.user.id },
+          { ownerUserId: session.user.id },
+          { coUserIds: { has: session.user.id } }
+        ]
+      },
+      select: { id: true }
+    });
+    if (!owned) throw new Error("收案记录不存在");
+  }
   const intake = await prisma.intake.findUnique({
     where: { id },
     include: {

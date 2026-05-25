@@ -6,8 +6,9 @@ import { Prisma, type SealType, type UserRole } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
+import { createNotification } from "@/server/notifications/create";
 import { assertMatterWritable } from "@/lib/archive/guard";
-import { readFile, writeFile } from "@/lib/storage/local";
+import { storage } from "@/lib/storage";
 import { validateUploadedFile } from "@/lib/storage/file-validator";
 import { decryptBuffer, encryptBuffer, sha256 } from "@/lib/storage/crypto";
 import {
@@ -230,13 +231,13 @@ export async function createSealRequest(formData: FormData) {
       where: { id: existingDraftDocId }
     });
     if (!src) throw new Error("待盖章文档不存在");
-    const srcCt = await readFile(src.path);
+    const srcCt = await storage.readFile(src.path);
     const plain =
       src.encrypted && src.iv && src.authTag
         ? decryptBuffer(srcCt, src.iv, src.authTag)
         : srcCt;
     const enc = encryptBuffer(plain);
-    const newPath = await writeFile(
+    const newPath = await storage.writeFile(
       data.matterId ? `m_${data.matterId}` : "seals",
       enc.ciphertext
     );
@@ -254,7 +255,7 @@ export async function createSealRequest(formData: FormData) {
     validateUploadedFile(draftFile, { purpose: "seal", maxBytes: MAX_FILE_SIZE });
     const buf = Buffer.from(await draftFile.arrayBuffer());
     const enc = encryptBuffer(buf);
-    const newPath = await writeFile(
+    const newPath = await storage.writeFile(
       data.matterId ? `m_${data.matterId}` : "seals",
       enc.ciphertext
     );
@@ -337,7 +338,7 @@ export async function approveSealRequest(input: z.infer<typeof sealApproveSchema
 
   const seal = await prisma.sealRequest.findUnique({
     where: { id: data.id },
-    select: { id: true, status: true, sealType: true, matterId: true }
+    select: { id: true, status: true, sealType: true, matterId: true, requestedById: true }
   });
   if (!seal) throw new Error("申请不存在");
   if (seal.status !== "PENDING") throw new Error("此申请已处理");
@@ -363,6 +364,16 @@ export async function approveSealRequest(input: z.infer<typeof sealApproveSchema
     detail: { sealType: seal.sealType }
   });
 
+  await createNotification({
+    userId: seal.requestedById,
+    type: "SEAL_STATUS_CHANGE",
+    title: "用章申请已通过",
+    content: `您的用章申请（${seal.sealType}）已审批通过`,
+    href: "/approvals/seals",
+    refType: "SealRequest",
+    refId: data.id
+  });
+
   revalidatePath("/approvals/seals");
   if (seal.matterId) revalidatePath(`/matters/${seal.matterId}`);
   return { ok: true };
@@ -377,7 +388,7 @@ export async function rejectSealRequest(input: z.infer<typeof sealRejectSchema>)
 
   const seal = await prisma.sealRequest.findUnique({
     where: { id: data.id },
-    select: { id: true, status: true, sealType: true, matterId: true }
+    select: { id: true, status: true, sealType: true, matterId: true, requestedById: true }
   });
   if (!seal) throw new Error("申请不存在");
   if (seal.status !== "PENDING") throw new Error("此申请已处理");
@@ -402,6 +413,16 @@ export async function rejectSealRequest(input: z.infer<typeof sealRejectSchema>)
     targetType: "SealRequest",
     targetId: data.id,
     detail: { reason: data.reason }
+  });
+
+  await createNotification({
+    userId: seal.requestedById,
+    type: "SEAL_STATUS_CHANGE",
+    title: "用章申请已驳回",
+    content: `您的用章申请（${seal.sealType}）已被驳回，原因：${data.reason}`,
+    href: "/approvals/seals",
+    refType: "SealRequest",
+    refId: data.id
   });
 
   revalidatePath("/approvals/seals");
@@ -437,7 +458,7 @@ export async function stampSealRequest(formData: FormData) {
 
   const buf = Buffer.from(await stampedFile.arrayBuffer());
   const enc = encryptBuffer(buf);
-  const path = await writeFile(
+  const path = await storage.writeFile(
     seal.matterId ? `m_${seal.matterId}` : "seals",
     enc.ciphertext
   );

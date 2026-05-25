@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/prisma";
 import { audit } from "@/server/audit";
-import { readFile } from "@/lib/storage/local";
+import { storage } from "@/lib/storage";
 import { decryptBuffer } from "@/lib/storage/crypto";
 
 export const runtime = "nodejs";
@@ -35,7 +35,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
   let buf: Buffer;
   try {
-    const stored = await readFile(doc.path);
+    const stored = await storage.readFile(doc.path);
     if (doc.encrypted) {
       if (!doc.iv || !doc.authTag) {
         return NextResponse.json({ error: "加密元数据损坏" }, { status: 500 });

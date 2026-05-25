@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth/options";
 import { prisma } from "@/lib/prisma";
 import { audit } from "@/server/audit";
 import { buildArchiveZip } from "@/server/archive/export";
-import { writeFile } from "@/lib/storage/local";
+import { storage } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,7 +50,7 @@ export async function GET(
 
   // 持久化路径 + checksum 回填到最新 ArchiveRecord
   try {
-    const storagePath = await writeFile(`archive_${matter.id}`, result.buffer);
+    const storagePath = await storage.writeFile(`archive_${matter.id}`, result.buffer);
     await prisma.archiveRecord.updateMany({
       where: { matterId: matter.id },
       data: { exportPath: storagePath, checksum: result.checksum }

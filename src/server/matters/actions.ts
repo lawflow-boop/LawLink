@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { assertMatterWritable } from "@/lib/archive/guard";
+import { matterVisibilityFilter, assertCanAccessMatter } from "@/lib/permissions";
 import { generateInternalCode } from "./code-generator";
 import { seedDefaultFolders } from "@/lib/default-folders";
 import {
@@ -24,10 +25,11 @@ function emptyToNull<T extends Record<string, unknown>>(obj: T): T {
 }
 
 export async function listMatters(input: Partial<MatterListQuery> = {}) {
-  await requireSession();
+  const session = await requireSession();
   const query = matterListQuerySchema.parse(input);
 
   const where: Prisma.MatterWhereInput = {
+    ...matterVisibilityFilter(session.user.id, session.user.role),
     deletedAt: null,
     ...(query.category ? { category: query.category } : {}),
     ...(query.status ? { status: query.status } : {}),
@@ -80,6 +82,7 @@ export async function listMatters(input: Partial<MatterListQuery> = {}) {
 
 export async function getMatterById(id: string) {
   const session = await requireSession();
+  await assertCanAccessMatter(session.user.id, session.user.role, id);
   const matter = await prisma.matter.findFirst({
     where: { id, deletedAt: null },
     include: {

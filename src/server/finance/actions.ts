@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { assertMatterWritable } from "@/lib/archive/guard";
+import { assertCanAccessMatter, isManager, matterVisibilityFilter } from "@/lib/permissions";
 import {
   billingCreateSchema,
   feeEntryCreateSchema,
@@ -152,6 +153,9 @@ export async function createFeeEntry(input: FeeEntryCreateInput) {
 
 export async function deleteFeeEntry(id: string) {
   const session = await requireSession();
+  if (!isManager(session.user.role) && session.user.role !== "FINANCE") {
+    throw new Error("仅管理员、主办律师或财务可删除收付记录");
+  }
   const entry = await prisma.feeEntry.findUnique({
     where: { id },
     include: { commissionChildren: { select: { id: true } } }
@@ -192,6 +196,9 @@ export async function deleteFeeEntry(id: string) {
  */
 export async function setCommissionPlan(input: CommissionPlanSetInput) {
   const session = await requireSession();
+  if (!isManager(session.user.role)) {
+    throw new Error("仅管理员或主办律师可设置分成方案");
+  }
   const data = commissionPlanSetSchema.parse(input);
   await assertMatterWritable(data.matterId);
 
@@ -223,7 +230,8 @@ export async function setCommissionPlan(input: CommissionPlanSetInput) {
 // ============ 全局财务统计 ============
 
 export async function getMatterFinance(matterId: string) {
-  await requireSession();
+  const session = await requireSession();
+  await assertCanAccessMatter(session.user.id, session.user.role, matterId);
 
   const [billings, entries, plans] = await Promise.all([
     prisma.billing.findMany({
@@ -264,9 +272,13 @@ export async function listAllFeeEntries(params: {
   type?: "RECEIVABLE" | "RECEIVED" | "REFUND" | "COST" | "COMMISSION";
   limit?: number;
 }) {
-  await requireSession();
+  const session = await requireSession();
+  const visFilter = matterVisibilityFilter(session.user.id, session.user.role);
   return prisma.feeEntry.findMany({
-    where: params.type ? { type: params.type } : {},
+    where: {
+      ...(params.type ? { type: params.type } : {}),
+      matter: { deletedAt: null, ...visFilter }
+    },
     orderBy: { occurredAt: "desc" },
     take: params.limit ?? 100,
     include: {
@@ -278,14 +290,16 @@ export async function listAllFeeEntries(params: {
 }
 
 export async function getMonthlyRevenue(months = 6) {
-  await requireSession();
+  const session = await requireSession();
+  const visFilter = matterVisibilityFilter(session.user.id, session.user.role);
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
 
   const entries = await prisma.feeEntry.findMany({
     where: {
       type: { in: ["RECEIVABLE", "RECEIVED"] },
-      occurredAt: { gte: start }
+      occurredAt: { gte: start },
+      matter: { deletedAt: null, ...visFilter }
     },
     select: { type: true, amount: true, occurredAt: true }
   });
@@ -312,7 +326,10 @@ export async function getMonthlyRevenue(months = 6) {
 }
 
 export async function getPersonalRevenue(userId: string) {
-  await requireSession();
+  const session = await requireSession();
+  if (!isManager(session.user.role) && session.user.id !== userId) {
+    throw new Error("只能查看自己的收入数据");
+  }
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);

@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { assertMatterWritable } from "@/lib/archive/guard";
-import { writeFile } from "@/lib/storage/local";
+import { storage } from "@/lib/storage";
 import { validateUploadedFile } from "@/lib/storage/file-validator";
 import { encryptBuffer, sha256 } from "@/lib/storage/crypto";
 
@@ -134,7 +134,7 @@ export async function approveInvoiceRequest(formData: FormData) {
     validateUploadedFile(contractScan, { purpose: "invoice", maxBytes: MAX_FILE_SIZE });
     const raw = Buffer.from(await contractScan.arrayBuffer());
     const enc = encryptBuffer(raw);
-    const path = await writeFile(`m_${existing.matterId}`, enc.ciphertext);
+    const path = await storage.writeFile(`m_${existing.matterId}`, enc.ciphertext);
     const doc = await prisma.document.create({
       data: {
         matterId: existing.matterId,
@@ -160,7 +160,7 @@ export async function approveInvoiceRequest(formData: FormData) {
     validateUploadedFile(invoiceFile, { purpose: "invoice", maxBytes: MAX_FILE_SIZE });
     const raw = Buffer.from(await invoiceFile.arrayBuffer());
     const enc = encryptBuffer(raw);
-    const path = await writeFile(`m_${existing.matterId}`, enc.ciphertext);
+    const path = await storage.writeFile(`m_${existing.matterId}`, enc.ciphertext);
     const doc = await prisma.document.create({
       data: {
         matterId: existing.matterId,

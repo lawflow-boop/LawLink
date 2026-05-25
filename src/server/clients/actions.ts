@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
+import { clientVisibilityFilter, isManager } from "@/lib/permissions";
 import {
   clientCreateSchema,
   clientUpdateSchema,
@@ -26,10 +27,11 @@ function emptyToNull<T extends Record<string, unknown>>(obj: T): T {
 }
 
 export async function listClients(input: Partial<ClientListQuery> = {}) {
-  await requireSession();
+  const session = await requireSession();
   const query = clientListQuerySchema.parse(input);
 
   const where: Prisma.ClientWhereInput = {
+    ...clientVisibilityFilter(session.user.id, session.user.role),
     deletedAt: null,
     ...(query.type ? { type: query.type } : {}),
     ...(query.tag ? { tags: { has: query.tag } } : {}),
@@ -64,6 +66,18 @@ export async function listClients(input: Partial<ClientListQuery> = {}) {
 
 export async function getClientById(id: string) {
   const session = await requireSession();
+  // 权限检查：manager/finance 看全部，其他人需有关联案件
+  if (!isManager(session.user.role) && session.user.role !== "FINANCE") {
+    const accessible = await prisma.client.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+        ...clientVisibilityFilter(session.user.id, session.user.role)
+      },
+      select: { id: true }
+    });
+    if (!accessible) throw new Error("客户不存在");
+  }
   const client = await prisma.client.findFirst({
     where: { id, deletedAt: null },
     include: {
@@ -142,6 +156,9 @@ export async function createClient(input: ClientCreateInput) {
 
 export async function updateClient(input: ClientUpdateInput) {
   const session = await requireSession();
+  if (!isManager(session.user.role)) {
+    throw new Error("仅管理员或主办律师可编辑客户信息");
+  }
   const data = clientUpdateSchema.parse(input);
   const { id, contacts, ...rest } = data;
 
@@ -207,6 +224,9 @@ export async function softDeleteClient(id: string) {
 // 单独的 contact 操作（用于详情页快速编辑联系人，不通过整 client 重写）
 export async function addContact(clientId: string, input: ContactInput) {
   const session = await requireSession();
+  if (!isManager(session.user.role)) {
+    throw new Error("仅管理员或主办律师可编辑联系人");
+  }
   const data = contactInputSchema.parse(input);
   const created = await prisma.contact.create({
     data: { clientId, ...emptyToNull(data) }
@@ -224,6 +244,9 @@ export async function addContact(clientId: string, input: ContactInput) {
 
 export async function deleteContact(id: string) {
   const session = await requireSession();
+  if (!isManager(session.user.role)) {
+    throw new Error("仅管理员或主办律师可删除联系人");
+  }
   const contact = await prisma.contact.findUnique({ where: { id } });
   if (!contact) return { ok: false };
   await prisma.contact.delete({ where: { id } });

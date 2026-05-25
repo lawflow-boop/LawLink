@@ -99,5 +99,3 @@ export async function testAiConnection() {
     };
   }
 }
-
-export { AI_DEFAULTS };
