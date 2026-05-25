@@ -80,7 +80,8 @@ export async function searchCauses(params: {
   limit?: number;
 }): Promise<CauseSearchResult[]> {
   await requireSession();
-  const limit = Math.min(params.limit ?? 50, 200);
+  // v0.16: cap 提到 2000 以支持级联 UI 一次性拉全（民事 1055 / 刑事 511）
+  const limit = Math.min(params.limit ?? 50, 2000);
   const q = params.query?.trim();
 
   if (!q) {
