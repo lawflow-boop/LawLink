@@ -2,14 +2,11 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth/options";
 import { audit } from "@/server/audit";
-import { periodPresets } from "@/server/reports/queries";
 import { buildReportWorkbook } from "@/server/reports/export-xlsx";
+import { resolveReportPeriod } from "@/server/reports/resolve-period";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const VALID = ["month", "quarter", "year", "lastYear"] as const;
-type PeriodKey = (typeof VALID)[number];
 
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
@@ -21,11 +18,15 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url);
-  const raw = url.searchParams.get("period") ?? "year";
-  const periodKey: PeriodKey = (VALID as readonly string[]).includes(raw)
-    ? (raw as PeriodKey)
-    : "year";
-  const period = periodPresets()[periodKey];
+  const resolved = resolveReportPeriod({
+    period: url.searchParams.get("period") ?? undefined,
+    start: url.searchParams.get("start") ?? undefined,
+    end: url.searchParams.get("end") ?? undefined
+  });
+  if (resolved.error) {
+    return NextResponse.json({ error: resolved.error }, { status: 400 });
+  }
+  const { period, periodKey } = resolved;
 
   let buf: Buffer;
   try {
@@ -43,7 +44,8 @@ export async function GET(req: Request) {
     detail: { periodLabel: period.label, periodKey, bytes: buf.byteLength }
   });
 
-  const filename = `lawlink-report-${periodKey}-${period.start.toISOString().slice(0, 10)}.xlsx`;
+  const startTag = `${period.start.getFullYear()}-${String(period.start.getMonth() + 1).padStart(2, "0")}-${String(period.start.getDate()).padStart(2, "0")}`;
+  const filename = `lawlink-report-${periodKey}-${startTag}.xlsx`;
   const arr = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
   return new NextResponse(arr, {
     status: 200,

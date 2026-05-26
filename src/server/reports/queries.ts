@@ -46,6 +46,36 @@ export function periodPresets(now = new Date()): Record<"month" | "quarter" | "y
   };
 }
 
+/**
+ * 解析自定义时间范围（含 start，不含 end，半开区间）。
+ * - start/end 必须 yyyy-MM-dd，否则抛错
+ * - end > start
+ * - 跨度 ≤ 5 年（防止误输入年份导致全库扫描）
+ */
+export function customPeriod(startStr: string, endStr: string): ReportPeriod {
+  const re = /^\d{4}-\d{2}-\d{2}$/;
+  if (!re.test(startStr) || !re.test(endStr)) {
+    throw new Error("日期格式不合法，需要 yyyy-MM-dd");
+  }
+  const [sy, sm, sd] = startStr.split("-").map(Number);
+  const [ey, em, ed] = endStr.split("-").map(Number);
+  const start = new Date(sy, sm - 1, sd);
+  // end 解释为"含当天"，转半开区间需 +1 天
+  const end = new Date(ey, em - 1, ed + 1);
+  if (end.getTime() <= start.getTime()) {
+    throw new Error("结束日期必须晚于起始日期");
+  }
+  const days = (end.getTime() - start.getTime()) / 86400_000;
+  if (days > 5 * 366) {
+    throw new Error("自定义跨度不能超过 5 年");
+  }
+  return {
+    label: `${startStr} ~ ${endStr}`,
+    start,
+    end
+  };
+}
+
 export type ReportKpis = {
   newIntake: number;
   inProgress: number;

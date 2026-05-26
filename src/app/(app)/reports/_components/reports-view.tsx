@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -9,16 +10,18 @@ import {
   Archive,
   CheckCircle2,
   Download,
-  BarChart3
+  BarChart3,
+  CircleAlert
 } from "lucide-react";
 import { matterCategoryLabel, matterCategoryColor } from "@/lib/enums";
 import type { ReportData } from "@/server/reports/queries";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type PeriodKey = "month" | "quarter" | "year" | "lastYear";
+type PeriodKey = "month" | "quarter" | "year" | "lastYear" | "custom";
 
-const PERIOD_LABEL: Record<PeriodKey, string> = {
+const PERIOD_LABEL: Record<Exclude<PeriodKey, "custom">, string> = {
   month: "本月",
   quarter: "本季",
   year: "本年",
@@ -28,24 +31,55 @@ const PERIOD_LABEL: Record<PeriodKey, string> = {
 export function ReportsView({
   periodKey,
   periodLabel,
+  customStart,
+  customEnd,
+  resolveError,
   data,
   presetLabels
 }: {
   periodKey: PeriodKey;
   periodLabel: string;
+  customStart?: string;
+  customEnd?: string;
+  resolveError?: string;
   data: ReportData;
-  presetLabels: Record<PeriodKey, string>;
+  presetLabels: Record<Exclude<PeriodKey, "custom">, string>;
 }) {
   const router = useRouter();
   const sp = useSearchParams();
+  const [customOpen, setCustomOpen] = useState(periodKey === "custom");
+  const [start, setStart] = useState(customStart ?? "");
+  const [end, setEnd] = useState(customEnd ?? "");
 
-  function switchPeriod(k: PeriodKey) {
+  function switchPreset(k: Exclude<PeriodKey, "custom">) {
     const next = new URLSearchParams(sp.toString());
     next.set("period", k);
+    next.delete("start");
+    next.delete("end");
+    router.push(`/reports?${next.toString()}`);
+    setCustomOpen(false);
+  }
+
+  function applyCustom() {
+    if (!start || !end) return;
+    const next = new URLSearchParams();
+    next.set("period", "custom");
+    next.set("start", start);
+    next.set("end", end);
     router.push(`/reports?${next.toString()}`);
   }
 
   const maxCat = data.byCategory.reduce((m, c) => Math.max(m, c.count), 0);
+
+  const exportHref = (() => {
+    const q = new URLSearchParams();
+    q.set("period", periodKey);
+    if (periodKey === "custom" && customStart && customEnd) {
+      q.set("start", customStart);
+      q.set("end", customEnd);
+    }
+    return `/api/reports/export?${q.toString()}`;
+  })();
 
   return (
     <div className="space-y-5">
@@ -61,11 +95,11 @@ export function ReportsView({
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-md border border-border bg-card p-0.5">
-            {(["month", "quarter", "year", "lastYear"] as PeriodKey[]).map((k) => (
+            {(["month", "quarter", "year", "lastYear"] as const).map((k) => (
               <button
                 key={k}
                 type="button"
-                onClick={() => switchPeriod(k)}
+                onClick={() => switchPreset(k)}
                 className={cn(
                   "rounded px-2.5 py-1 text-[11px] transition-colors",
                   periodKey === k
@@ -77,8 +111,20 @@ export function ReportsView({
                 {PERIOD_LABEL[k]}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => setCustomOpen((v) => !v)}
+              className={cn(
+                "rounded px-2.5 py-1 text-[11px] transition-colors",
+                periodKey === "custom"
+                  ? "bg-primary/15 text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              自定义
+            </button>
           </div>
-          <Link href={`/api/reports/export?period=${periodKey}`} prefetch={false}>
+          <Link href={exportHref} prefetch={false}>
             <Button size="sm" className="gap-1.5">
               <Download className="h-3.5 w-3.5" />
               导出 xlsx
@@ -86,6 +132,41 @@ export function ReportsView({
           </Link>
         </div>
       </header>
+
+      {customOpen && (
+        <div className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-card p-3 text-xs">
+          <div>
+            <label className="text-muted-foreground">起始（含）</label>
+            <Input
+              type="date"
+              value={start}
+              onChange={(e) => setStart(e.target.value)}
+              className="mt-0.5 h-8 w-36 text-[12px]"
+            />
+          </div>
+          <span className="pb-2 text-muted-foreground">~</span>
+          <div>
+            <label className="text-muted-foreground">结束（含）</label>
+            <Input
+              type="date"
+              value={end}
+              onChange={(e) => setEnd(e.target.value)}
+              className="mt-0.5 h-8 w-36 text-[12px]"
+            />
+          </div>
+          <Button size="sm" onClick={applyCustom} disabled={!start || !end}>
+            应用
+          </Button>
+          <span className="ml-2 text-[10px] text-muted-foreground">最大跨度 5 年</span>
+        </div>
+      )}
+
+      {resolveError && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-700">
+          <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <span>{resolveError}</span>
+        </div>
+      )}
 
       {/* KPI */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
