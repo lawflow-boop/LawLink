@@ -1,10 +1,20 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
-import { ShieldCheck, ChevronDown, ChevronRight, Filter, X } from "lucide-react";
+import { useState, useTransition } from "react";
+import {
+  ShieldCheck,
+  ChevronDown,
+  ChevronRight,
+  Filter,
+  X,
+  Trash2,
+  Loader2
+} from "lucide-react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { triggerAuditCleanupNow } from "@/server/cron/manual-triggers";
 import {
   Select,
   SelectContent,
@@ -35,6 +45,29 @@ export function AuditView({
   const router = useRouter();
   const sp = useSearchParams();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [cleaning, startCleaning] = useTransition();
+
+  function handleCleanup() {
+    if (
+      !confirm(
+        "立刻清理超过保留期（默认 365 天，AUDIT_RETENTION_DAYS 环境变量可改）的审计记录？此操作不可撤销。"
+      )
+    )
+      return;
+    startCleaning(async () => {
+      try {
+        const r = await triggerAuditCleanupNow();
+        toast.success(
+          `清理完成：保留 ${r.retentionDays} 天，删除 ${r.deleted} 条`
+        );
+        router.refresh();
+      } catch (err) {
+        toast.error("清理失败", {
+          description: err instanceof Error ? err.message : ""
+        });
+      }
+    });
+  }
 
   function navigate(patch: Record<string, string | undefined>) {
     const next = new URLSearchParams(sp.toString());
@@ -71,14 +104,31 @@ export function AuditView({
 
   return (
     <div className="space-y-4">
-      <header>
-        <h1 className="flex items-center gap-2 text-xl">
-          <ShieldCheck className="h-5 w-5 text-primary" strokeWidth={1.8} />
-          审计日志
-        </h1>
-        <p className="mt-0.5 text-[12px] text-muted-foreground">
-          记录每个用户的关键操作，按时间倒序展示
-        </p>
+      <header className="flex items-end justify-between gap-3">
+        <div>
+          <h1 className="flex items-center gap-2 text-xl">
+            <ShieldCheck className="h-5 w-5 text-primary" strokeWidth={1.8} />
+            审计日志
+          </h1>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
+            记录每个用户的关键操作。默认保留 365 天，每天 03:00 自动清理旧记录
+          </p>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleCleanup}
+          disabled={cleaning}
+          className="gap-1.5"
+          title="立刻清理过期记录（不等到 03:00）"
+        >
+          {cleaning ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Trash2 className="h-3.5 w-3.5" />
+          )}
+          清理过期
+        </Button>
       </header>
 
       {/* 筛选区 */}

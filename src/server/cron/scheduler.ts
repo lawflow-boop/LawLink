@@ -18,6 +18,7 @@
 import cron from "node-cron";
 import { runWeeklyReportPush } from "@/server/reports/push-weekly";
 import { scanArchiveOverdue } from "./jobs/archive-overdue";
+import { runAuditCleanup } from "./jobs/audit-cleanup";
 
 const TIMEZONE = "Asia/Shanghai";
 let started = false;
@@ -65,5 +66,23 @@ export function registerCronJobs() {
     { timezone: TIMEZONE }
   );
 
-  console.log("[cron] 已注册 2 个定时任务（周报推送 / 归档逾期扫描），时区 Asia/Shanghai");
+  // 每天 03:00 清理超过 N 天的 AuditLog（默认 365 天，AUDIT_RETENTION_DAYS 可覆盖）
+  cron.schedule(
+    "0 3 * * *",
+    async () => {
+      const now = new Date().toISOString();
+      console.log(`[cron] ${now} 触发：AuditLog 清理`);
+      try {
+        const r = await runAuditCleanup();
+        console.log(
+          `[cron] AuditLog 清理完成：保留 ${r.retentionDays} 天，删除 ${r.deleted} 条`
+        );
+      } catch (err) {
+        console.error("[cron] AuditLog 清理异常：", err);
+      }
+    },
+    { timezone: TIMEZONE }
+  );
+
+  console.log("[cron] 已注册 3 个定时任务（周报推送 / 归档逾期扫描 / AuditLog 清理），时区 Asia/Shanghai");
 }
