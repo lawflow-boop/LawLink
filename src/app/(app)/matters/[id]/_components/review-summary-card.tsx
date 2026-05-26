@@ -1,9 +1,29 @@
 import { Sparkles, AlertTriangle, FileText } from "lucide-react";
 import type { MatterReviewSummary } from "@/server/ai/matter-review-summary";
 import { cn } from "@/lib/utils";
+import { BatchReviewButton } from "./batch-review-button";
 
-export function ReviewSummaryCard({ summary }: { summary: MatterReviewSummary }) {
-  if (summary.recordCount === 0) return null;
+export function ReviewSummaryCard({
+  summary,
+  matterId
+}: {
+  summary: MatterReviewSummary;
+  matterId: string;
+}) {
+  const hasRecords = summary.recordCount > 0;
+
+  // 即使没记录也渲染一个轻量入口供律师启动批量审查
+  if (!hasRecords) {
+    return (
+      <section className="flex items-center justify-between rounded-lg border border-violet-200 bg-violet-50/30 px-3 py-2">
+        <span className="flex items-center gap-1.5 text-xs text-violet-700">
+          <Sparkles className="h-3.5 w-3.5" />
+          本案尚未做过 AI 文书审查
+        </span>
+        <BatchReviewButton matterId={matterId} />
+      </section>
+    );
+  }
 
   return (
     <section className="rounded-lg border border-violet-200 bg-violet-50/40 p-3">
@@ -12,12 +32,15 @@ export function ReviewSummaryCard({ summary }: { summary: MatterReviewSummary })
           <Sparkles className="h-3.5 w-3.5" />
           AI 审查总览
         </h3>
-        <span className="font-mono text-[10px] text-muted-foreground">
-          {summary.documentCount} 份文档 · {summary.recordCount} 次审查 · 共 {summary.totalItems} 条
-          {summary.latestReviewedAt && (
-            <span className="ml-2">最新 {summary.latestReviewedAt.toLocaleDateString("zh-CN")}</span>
-          )}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="font-mono text-[10px] text-muted-foreground">
+            {summary.documentCount} 份文档 · {summary.recordCount} 次审查 · 共 {summary.totalItems} 条
+            {summary.latestReviewedAt && (
+              <span className="ml-2">最新 {summary.latestReviewedAt.toLocaleDateString("zh-CN")}</span>
+            )}
+          </span>
+          <BatchReviewButton matterId={matterId} />
+        </div>
       </header>
 
       <div className="grid grid-cols-3 gap-2">

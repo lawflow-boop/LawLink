@@ -138,7 +138,7 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
         返回案件列表
       </Link>
 
-      <ReviewSummaryCard summary={reviewSummary} />
+      <ReviewSummaryCard summary={reviewSummary} matterId={matter.id} />
 
       <MatterDetailTabs
         matter={matter}
