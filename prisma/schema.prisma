@@ -322,6 +322,8 @@ model User {
   createdExpress        ExpressTracking[]     @relation("ExpressCreator")
   // v0.10: 通知
   notifications         Notification[]
+  // v0.21: AI 文书审查历史（发起人）
+  aiReviews             ReviewRecord[]        @relation("ReviewAuthor")
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
 }
@@ -513,6 +515,8 @@ model Matter {
   smsMessages      SmsMessage[]
   preservations    Preservation[]
   expressTrackings ExpressTracking[]
+  // v0.21: AI 文书审查历史
+  reviewRecords    ReviewRecord[]
 
   deletedAt DateTime?
   createdAt DateTime  @default(now())
@@ -824,6 +828,9 @@ model Document {
   // v0.17: 归档清单关联——上传时绑定到 ArchiveChecklistItem.id（lib/archive/checklists.ts 内的字符串 id），
   // 用于归档向导自动勾选已上传的必交项。一个材料只能绑定一个 checklist item。
   archiveChecklistItemId String?
+
+  // v0.21: 反向 - AI 审查历史
+  reviewRecords ReviewRecord[]
 
   @@index([matterId, category])
   @@index([intakeId])
@@ -1387,4 +1394,25 @@ model Notification {
 
   @@index([userId, read, createdAt])
   @@index([userId, createdAt])
+}
+
+// v0.21: AI 文书审查历史
+// 每次点「AI 审查」+ 拿到结果都会写一条；按 document/matter 反查能拿全部历史
+model ReviewRecord {
+  id           String   @id @default(cuid())
+  matterId     String
+  matter       Matter   @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  documentId   String
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  reviewedById String
+  reviewedBy   User     @relation("ReviewAuthor", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime @default(now())
+
+  itemCount         Int
+  itemsJson         Json    // ReviewItem[]
+  textPreviewChars  Int
+  truncated         Boolean @default(false)
+
+  @@index([documentId, reviewedAt])
+  @@index([matterId, reviewedAt])
 }

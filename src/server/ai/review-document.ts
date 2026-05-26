@@ -28,6 +28,8 @@ export type ReviewResult = {
   textPreviewChars: number;
   truncated: boolean;
   items: ReviewItem[];
+  /** v0.21: 落库后的 ReviewRecord.id；doc 不属于 Matter（如 intake 阶段）则为 null */
+  recordId: string | null;
 };
 
 const SYSTEM_PROMPT = `你是中国资深执业律师，正在审查一份法律文书（可能是合同、起诉状、申请书、协议、内部备忘、客户提供的书证等）。
@@ -134,10 +136,29 @@ export async function reviewDocument(input: {
 
   const items = parseReviewItems(content);
 
+  // v0.21: 写入历史（仅当 doc 属于某个 Matter 才能记录）
+  let recordId: string | null = null;
+  if (doc.matterId) {
+    const rec = await prisma.reviewRecord.create({
+      data: {
+        matterId: doc.matterId,
+        documentId: doc.id,
+        reviewedById: session.user.id,
+        itemCount: items.length,
+        itemsJson: items as unknown as object,
+        textPreviewChars: text.length,
+        truncated
+      },
+      select: { id: true }
+    });
+    recordId = rec.id;
+  }
+
   return {
     documentName: doc.name,
     textPreviewChars: text.length,
     truncated,
-    items
+    items,
+    recordId
   };
 }
