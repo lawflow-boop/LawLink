@@ -17,7 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   searchSimilarCases,
-  type CaseSearchHit
+  searchSimilarCasesByVector,
+  type CaseSearchHit,
+  type VectorCaseHit
 } from "@/server/yuandian/cases";
 import { saveCaseToMatter } from "@/server/yuandian/save-case";
 import { cn } from "@/lib/utils";
@@ -50,9 +52,13 @@ function ajlbFromCategory(cat: MatterCategory): string | undefined {
   }
 }
 
+type SearchMode = "keyword" | "vector";
+
 export function CaseSearchPanel({ matterId, matterCategory, defaultCauseName }: Props) {
+  const [mode, setMode] = useState<SearchMode>("keyword");
   const [causeInput, setCauseInput] = useState(defaultCauseName ?? "");
   const [qw, setQw] = useState("");
+  const [vectorQuery, setVectorQuery] = useState("");
   const [provinces, setProvinces] = useState<string[]>([]);
   const [wszl, setWszl] = useState<string[]>(["判决书"]);
   const [jaStart, setJaStart] = useState("");
@@ -60,9 +66,13 @@ export function CaseSearchPanel({ matterId, matterCategory, defaultCauseName }: 
   const [topK, setTopK] = useState(10);
 
   const [pending, startTransition] = useTransition();
-  const [result, setResult] = useState<{
+  const [keywordResult, setKeywordResult] = useState<{
     total: number;
     items: CaseSearchHit[];
+    pointsCharged: number;
+  } | null>(null);
+  const [vectorResult, setVectorResult] = useState<{
+    items: VectorCaseHit[];
     pointsCharged: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -104,20 +114,40 @@ export function CaseSearchPanel({ matterId, matterCategory, defaultCauseName }: 
     setError(null);
     startTransition(async () => {
       try {
-        const r = await searchSimilarCases({
-          matterId,
-          ay: ay.length ? ay : undefined,
-          ajlb: ajlbFromCategory(matterCategory) as never,
-          xzqh_p: provinces.length ? provinces : undefined,
-          wszl: wszl.length ? (wszl as never) : undefined,
-          qw: qw.trim() || undefined,
-          ja_start: jaStart || undefined,
-          ja_end: jaEnd || undefined,
-          top_k: topK
-        });
-        setResult(r);
-        if (r.items.length === 0) {
-          toast.info("未命中类案");
+        if (mode === "keyword") {
+          const r = await searchSimilarCases({
+            matterId,
+            ay: ay.length ? ay : undefined,
+            ajlb: ajlbFromCategory(matterCategory) as never,
+            xzqh_p: provinces.length ? provinces : undefined,
+            wszl: wszl.length ? (wszl as never) : undefined,
+            qw: qw.trim() || undefined,
+            ja_start: jaStart || undefined,
+            ja_end: jaEnd || undefined,
+            top_k: topK
+          });
+          setKeywordResult(r);
+          setVectorResult(null);
+          if (r.items.length === 0) toast.info("未命中类案");
+        } else {
+          if (!vectorQuery.trim()) {
+            setError("语义检索的案情描述不能为空");
+            return;
+          }
+          const r = await searchSimilarCasesByVector({
+            matterId,
+            query: vectorQuery.trim(),
+            ay: ay.length ? ay : undefined,
+            ajlb: ajlbFromCategory(matterCategory) as never,
+            xzqh_p: provinces[0] || undefined, // vector 接受 string 单值
+            wszl: wszl.length ? (wszl as never) : undefined,
+            ja_start: jaStart || undefined,
+            ja_end: jaEnd || undefined,
+            return_num: topK
+          });
+          setVectorResult(r);
+          setKeywordResult(null);
+          if (r.items.length === 0) toast.info("未命中类案");
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "检索失败";
@@ -136,16 +166,56 @@ export function CaseSearchPanel({ matterId, matterCategory, defaultCauseName }: 
             类案检索
           </h3>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            元典普通案例库 · 每次检索扣 10 POINT
+            元典案例库 · 每次检索扣 10 POINT
           </p>
+        </div>
+        <div className="flex rounded-md border border-border bg-card p-0.5">
+          <button
+            type="button"
+            onClick={() => setMode("keyword")}
+            className={cn(
+              "rounded px-2.5 py-1 text-[11px]",
+              mode === "keyword"
+                ? "bg-primary/15 text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            关键词
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("vector")}
+            className={cn(
+              "rounded px-2.5 py-1 text-[11px]",
+              mode === "vector"
+                ? "bg-primary/15 text-primary"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            语义
+          </button>
         </div>
       </header>
 
       {/* 检索表单 */}
       <div className="space-y-3 rounded-lg border border-border bg-card p-4">
+        {mode === "vector" && (
+          <div>
+            <Label className="text-[11px]">案情描述（自然语言）</Label>
+            <textarea
+              value={vectorQuery}
+              onChange={(e) => setVectorQuery(e.target.value)}
+              placeholder="如：被告借款 50 万元到期未还，原告主张违约金和资金占用费"
+              rows={3}
+              className="mt-1 w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground"
+            />
+          </div>
+        )}
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div>
-            <Label className="text-[11px]">案由（多个用 / 逗号分隔）</Label>
+            <Label className="text-[11px]">
+              {mode === "vector" ? "案由过滤（可选）" : "案由（多个用 / 逗号分隔）"}
+            </Label>
             <Input
               value={causeInput}
               onChange={(e) => setCauseInput(e.target.value)}
@@ -153,19 +223,23 @@ export function CaseSearchPanel({ matterId, matterCategory, defaultCauseName }: 
               className="mt-1"
             />
           </div>
-          <div>
-            <Label className="text-[11px]">全文关键词（空格 AND 拼接）</Label>
-            <Input
-              value={qw}
-              onChange={(e) => setQw(e.target.value)}
-              placeholder="如：违约金 逾期"
-              className="mt-1"
-            />
-          </div>
+          {mode === "keyword" && (
+            <div>
+              <Label className="text-[11px]">全文关键词（空格 AND 拼接）</Label>
+              <Input
+                value={qw}
+                onChange={(e) => setQw(e.target.value)}
+                placeholder="如：违约金 逾期"
+                className="mt-1"
+              />
+            </div>
+          )}
         </div>
 
         <div>
-          <Label className="text-[11px]">省级法院（多选）</Label>
+          <Label className="text-[11px]">
+            {mode === "vector" ? "省份过滤（取第一个，语义接口单值）" : "省级法院（多选）"}
+          </Label>
           <div className="mt-1.5 flex flex-wrap gap-1">
             {PROVINCES.map((p) => (
               <button
@@ -253,19 +327,16 @@ export function CaseSearchPanel({ matterId, matterCategory, defaultCauseName }: 
         </div>
       )}
 
-      {result && (
+      {keywordResult && (
         <div className="space-y-2">
           <p className="text-[11px] text-muted-foreground">
-            命中 <span className="font-mono text-foreground">{result.total}</span> 条，
-            已返回 <span className="font-mono text-foreground">{result.items.length}</span> 条，
-            本次扣 <span className="font-mono text-foreground">{result.pointsCharged}</span> POINT
+            命中 <span className="font-mono text-foreground">{keywordResult.total}</span> 条，
+            已返回 <span className="font-mono text-foreground">{keywordResult.items.length}</span> 条，
+            本次扣 <span className="font-mono text-foreground">{keywordResult.pointsCharged}</span> POINT
           </p>
           <ul className="space-y-2">
-            {result.items.map((c) => (
-              <li
-                key={c.id}
-                className="rounded-lg border border-border bg-card p-3"
-              >
+            {keywordResult.items.map((c) => (
+              <li key={c.id} className="rounded-lg border border-border bg-card p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 overflow-hidden">
                     <div className="text-sm font-medium leading-snug">{c.title}</div>
@@ -331,6 +402,74 @@ export function CaseSearchPanel({ matterId, matterCategory, defaultCauseName }: 
           </ul>
         </div>
       )}
+
+      {vectorResult && (
+        <div className="space-y-2">
+          <p className="text-[11px] text-muted-foreground">
+            语义检索返回 <span className="font-mono text-foreground">{vectorResult.items.length}</span> 条（按相似度评分排序），
+            本次扣 <span className="font-mono text-foreground">{vectorResult.pointsCharged}</span> POINT
+          </p>
+          <ul className="space-y-2">
+            {vectorResult.items.map((c) => (
+              <li key={c.scid} className="rounded-lg border border-border bg-card p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 overflow-hidden">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-sm font-medium leading-snug">{c.title}</span>
+                      <span className="shrink-0 rounded border border-violet-300 bg-violet-50 px-1 py-0.5 text-[10px] text-violet-700">
+                        相似度 {c.score.toFixed(2)}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                      {c.ah && <span className="font-mono">{c.ah}</span>}
+                      {c.jbdw && (
+                        <>
+                          <span>·</span>
+                          <span>{c.jbdw}</span>
+                        </>
+                      )}
+                      <span>·</span>
+                      <span>{c.jaDate ? formatJaDate(c.jaDate) : c.jand}</span>
+                      <span className="rounded border border-border bg-muted/30 px-1 py-0.5 text-[10px]">
+                        {c.wszl}
+                      </span>
+                      {(c.anyou ?? []).map((y) => (
+                        <span
+                          key={y}
+                          className="rounded border border-primary/30 bg-primary/5 px-1 py-0.5 text-[10px] text-primary"
+                        >
+                          {y}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <a
+                    href={c.detailUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="shrink-0 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-primary hover:bg-popover"
+                  >
+                    全文
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+                {c.content && (
+                  <p className="mt-2 line-clamp-5 whitespace-pre-line text-[12px] leading-relaxed text-foreground/75">
+                    {c.content}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
+}
+
+function formatJaDate(n: number): string {
+  // 20191223 → 2019-12-23
+  const s = String(n);
+  if (s.length !== 8) return s;
+  return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
 }
