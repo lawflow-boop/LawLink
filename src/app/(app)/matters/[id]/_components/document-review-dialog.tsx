@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Sparkles, AlertTriangle, AlertCircle, Lightbulb, FileWarning } from "lucide-react";
+import {
+  Loader2,
+  Sparkles,
+  AlertTriangle,
+  AlertCircle,
+  Lightbulb,
+  FileWarning,
+  BookmarkPlus,
+  Check
+} from "lucide-react";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -11,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { reviewDocument, type ReviewResult } from "@/server/ai/review-document";
+import { saveReviewToMatter } from "@/server/ai/save-review";
 import type {
   ReviewItem,
   ReviewType,
@@ -21,6 +32,7 @@ import { cn } from "@/lib/utils";
 type Props = {
   open: boolean;
   documentId: string | null;
+  matterId: string;
   onOpenChange: (open: boolean) => void;
 };
 
@@ -39,10 +51,17 @@ const sevStyle: Record<ReviewSeverity, { label: string; cls: string }> = {
 
 const TYPE_ORDER: ReviewType[] = ["MISSING", "RISK", "ISSUE", "SUGGESTION"];
 
-export function DocumentReviewDialog({ open, documentId, onOpenChange }: Props) {
+export function DocumentReviewDialog({
+  open,
+  documentId,
+  matterId,
+  onOpenChange
+}: Props) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ReviewResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (!open || !documentId) return;
@@ -50,6 +69,7 @@ export function DocumentReviewDialog({ open, documentId, onOpenChange }: Props) 
     setLoading(true);
     setError(null);
     setResult(null);
+    setSaved(false);
     reviewDocument({ documentId })
       .then((r) => {
         if (!cancelled) setResult(r);
@@ -66,6 +86,27 @@ export function DocumentReviewDialog({ open, documentId, onOpenChange }: Props) 
       cancelled = true;
     };
   }, [open, documentId]);
+
+  async function handleSave() {
+    if (!result || !documentId) return;
+    setSaving(true);
+    try {
+      const res = await saveReviewToMatter({
+        matterId,
+        reviewedDocId: documentId,
+        reviewedDocName: result.documentName,
+        items: result.items
+      });
+      setSaved(true);
+      toast.success("已保存审查结果到本案", { description: res.documentName });
+    } catch (err) {
+      toast.error("保存失败", {
+        description: err instanceof Error ? err.message : ""
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const grouped = result
     ? TYPE_ORDER.map((t) => ({
@@ -136,9 +177,35 @@ export function DocumentReviewDialog({ open, documentId, onOpenChange }: Props) 
           <span className="text-[11px] text-muted-foreground">
             {result ? `分析字符数：${result.textPreviewChars}` : ""}
           </span>
-          <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-            关闭
-          </Button>
+          <div className="flex items-center gap-2">
+            {result && result.items.length > 0 && (
+              saved ? (
+                <span className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-700">
+                  <Check className="h-3 w-3" />
+                  已存到本案
+                </span>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="gap-1"
+                >
+                  {saving ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <BookmarkPlus className="h-3 w-3" />
+                  )}
+                  存到本案
+                </Button>
+              )
+            )}
+            <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+              关闭
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

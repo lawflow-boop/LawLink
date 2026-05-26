@@ -284,6 +284,7 @@ export function DocumentsPanel({
       <DocumentReviewDialog
         open={reviewDocId !== null}
         documentId={reviewDocId}
+        matterId={matterId}
         onOpenChange={(o) => {
           if (!o) setReviewDocId(null);
         }}
