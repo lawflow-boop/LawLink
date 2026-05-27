@@ -10,6 +10,7 @@ import {
   Clock,
   Plus,
   Scale,
+  Building2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { matterStatusLabel, procedureTypeLabel } from "@/lib/enums";
@@ -24,6 +25,7 @@ import { FoldersPanel } from "./folders-panel";
 import { LifecycleActions } from "./lifecycle-actions";
 import { MatterPreservationPanel } from "./matter-preservation-panel";
 import { CaseSearchPanel } from "./case-search-panel";
+import { OpposingCompaniesPanel } from "./opposing-companies-panel";
 import { ApprovalsPanel } from "./approvals-panel";
 import { ExpressMiniCard, type SealContractItem, type ExpressItem } from "./info-extras";
 import { ArchiveStatusBanner } from "./archive-status-banner";
@@ -109,7 +111,7 @@ export type NotePayload = {
   createdAt: Date;
 };
 
-type TabKey = "info" | "documents" | "preservation" | "cases" | "timeline" | `proc:${string}`;
+type TabKey = "info" | "documents" | "preservation" | "cases" | "companies" | "timeline" | `proc:${string}`;
 
 export function MatterDetailTabs({
   matter,
@@ -273,6 +275,19 @@ export function MatterDetailTabs({
             类案
           </TabButton>
 
+          <TabButton active={tab === "companies"} onClick={() => setTab("companies")}>
+            <Building2 className="h-3.5 w-3.5" strokeWidth={1.8} />
+            对方公司
+            {(() => {
+              const n = matter.parties.filter((p) => p.role === "OPPOSING_PARTY").length;
+              return n > 0 ? (
+                <span className="ml-1 font-mono text-[10px] tabular text-muted-foreground">
+                  {n}
+                </span>
+              ) : null;
+            })()}
+          </TabButton>
+
           <div className="flex-1" />
 
           <TabButton active={tab === "timeline"} onClick={() => setTab("timeline")}>
@@ -335,6 +350,20 @@ export function MatterDetailTabs({
               matterId={matter.id}
               matterCategory={matter.category}
               defaultCauseName={matter.cause?.name ?? null}
+            />
+          )}
+          {tab === "companies" && (
+            <OpposingCompaniesPanel
+              parties={matter.parties
+                .filter((p) => p.role === "OPPOSING_PARTY")
+                .map((p) => ({
+                  id: p.id,
+                  name: p.name,
+                  enterpriseId: p.enterpriseId,
+                  enterpriseSocialCode: p.enterpriseSocialCode,
+                  enterpriseName: p.enterpriseName,
+                  enterpriseBoundAt: p.enterpriseBoundAt
+                }))}
             />
           )}
           {tab === "timeline" && <TimelinePanel events={matter.timelineEvents} />}

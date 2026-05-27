@@ -691,12 +691,18 @@ model Party {
   address   String?
   legalRep  String?
   notes     String?
+  // v0.26: 对方公司风险查询 — 绑定元典企业后，可一键拉取风险总览
+  enterpriseId         String?
+  enterpriseSocialCode String?
+  enterpriseName       String?
+  enterpriseBoundAt    DateTime?
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
 
   @@index([matterId, role, ordinal])
   @@index([name])
   @@index([idNumber])
+  @@index([enterpriseSocialCode])
 }
 
 model RelatedEntity {
