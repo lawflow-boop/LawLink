@@ -17,6 +17,7 @@ export const clientCreateSchema = z.object({
   type: clientTypeSchema,
   idNumber: z.string().max(50).optional().or(z.literal("")),
   address: z.string().max(200).optional().or(z.literal("")),
+  legalRep: z.string().max(40).optional().or(z.literal("")),
   phone: z.string().max(30).optional().or(z.literal("")),
   email: z.string().email("邮箱格式不正确").optional().or(z.literal("")),
   source: z.string().max(80).optional().or(z.literal("")),

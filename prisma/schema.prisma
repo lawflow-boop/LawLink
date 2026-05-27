@@ -345,6 +345,7 @@ model Client {
   source      String?
   tags        String[]
   notes       String?
+  legalRep    String?
   contacts    Contact[]
   intakes     Intake[]
   matterLinks MatterClient[]

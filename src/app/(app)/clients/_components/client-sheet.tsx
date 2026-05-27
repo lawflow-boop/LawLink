@@ -41,6 +41,7 @@ const emptyDefaults: ClientCreateInput = {
   type: "INDIVIDUAL",
   idNumber: "",
   address: "",
+  legalRep: "",
   phone: "",
   email: "",
   source: "",
@@ -79,6 +80,7 @@ export function ClientSheet({ open, onOpenChange, editingClient }: Props) {
         type: editingClient.type,
         idNumber: editingClient.idNumber ?? "",
         address: editingClient.address ?? "",
+        legalRep: (editingClient as any).legalRep ?? "",
         phone: editingClient.phone ?? "",
         email: editingClient.email ?? "",
         source: editingClient.source ?? "",
@@ -205,6 +207,12 @@ export function ClientSheet({ open, onOpenChange, editingClient }: Props) {
               <Field label="地址">
                 <Input placeholder="详细地址" {...register("address")} />
               </Field>
+
+              {watchedType !== "INDIVIDUAL" && (
+                <Field label="法定代表人">
+                  <Input placeholder="法定代表人姓名" {...register("legalRep")} />
+                </Field>
+              )}
 
               <Field label="案源">
                 <Input placeholder="介绍人 / 公开来源 / 老客户复购" {...register("source")} />

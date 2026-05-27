@@ -146,6 +146,9 @@ export async function createIntake(input: IntakeCreateInput) {
       data: {
         name,
         type: data.clientType ?? "INDIVIDUAL",
+        idNumber: data.clientIdNumber || null,
+        address: data.clientAddress || null,
+        legalRep: data.clientLegalRep || null,
         phone: data.contactPhone || null,
         // 同步建一个主联系人
         contacts:

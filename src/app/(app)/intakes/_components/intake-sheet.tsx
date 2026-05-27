@@ -68,6 +68,7 @@ import {
   recommendCause,
   type CauseRecommendation
 } from "@/server/ai/recommend-cause";
+import { getEnterpriseDetail, type EnterpriseSearchItem } from "@/server/yuandian/enterprise";
 import { cn } from "@/lib/utils";
 import { CauseCombobox } from "@/app/(app)/matters/_components/cause-combobox";
 import { CauseAiManualDialog } from "@/app/(app)/matters/_components/cause-ai-manual-dialog";
@@ -392,6 +393,35 @@ export function IntakeSheet({
     setValue("coUserIds", next, { shouldDirty: true });
   }
 
+  async function handlePickYuandian(candidate: EnterpriseSearchItem) {
+    setValue("clientId", "", { shouldDirty: true });
+    setValue("clientName", candidate.name, { shouldDirty: true });
+    setValue("clientType", "COMPANY", { shouldDirty: true });
+    setValue("clientIdNumber", candidate.creditCode, { shouldDirty: true });
+
+    const tid = toast.loading("正在获取企业详细信息…", { duration: 10_000 });
+    try {
+      const res = await getEnterpriseDetail(candidate.id);
+      if (res.info) {
+        setValue("clientAddress", res.info.address, { shouldDirty: true });
+        setValue("clientLegalRep", res.info.legalRep, { shouldDirty: true });
+        if (res.info.legalRep && !watch("contactName")) {
+          setValue("contactName", res.info.legalRep, { shouldDirty: true });
+        }
+        toast.success(
+          res.info.legalRep
+            ? `已填充：法定代表人 ${res.info.legalRep}`
+            : "已填充企业信息",
+          { id: tid }
+        );
+      } else {
+        toast.info("未查到详细信息，已填充基础信息", { id: tid });
+      }
+    } catch {
+      toast.error("获取企业详情失败，请手动补充", { id: tid });
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[88vh] w-[92vw] max-w-3xl flex-col gap-0 p-0">
@@ -497,6 +527,7 @@ export function IntakeSheet({
                   <ClientCombobox
                     clientId={clientId}
                     clientName={clientName}
+                    clientType={clientType ?? "INDIVIDUAL"}
                     options={clientOptions}
                     onPickExisting={(id, name) => {
                       setValue("clientId", id, { shouldDirty: true });
@@ -506,9 +537,13 @@ export function IntakeSheet({
                       setValue("clientId", "", { shouldDirty: true });
                       setValue("clientName", name, { shouldDirty: true });
                     }}
+                    onPickYuandian={handlePickYuandian}
                     onClear={() => {
                       setValue("clientId", "", { shouldDirty: true });
                       setValue("clientName", "", { shouldDirty: true });
+                      setValue("clientIdNumber", "", { shouldDirty: true });
+                      setValue("clientAddress", "", { shouldDirty: true });
+                      setValue("clientLegalRep", "", { shouldDirty: true });
                     }}
                   />
                 </Field>
@@ -522,6 +557,27 @@ export function IntakeSheet({
                   <Input placeholder="如：13800138000" {...register("contactPhone")} />
                 </Field>
               </div>
+
+              <input type="hidden" {...register("clientIdNumber")} />
+              <input type="hidden" {...register("clientAddress")} />
+              <input type="hidden" {...register("clientLegalRep")} />
+
+              {(watch("clientIdNumber") || watch("clientAddress") || watch("clientLegalRep")) && (
+                <div className="rounded-md border border-blue-200 bg-blue-50/50 p-2.5 text-xs text-blue-800 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
+                  <div className="mb-1 font-medium">已自动填充企业信息：</div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {watch("clientIdNumber") && (
+                      <div>信用代码：{watch("clientIdNumber")}</div>
+                    )}
+                    {watch("clientLegalRep") && (
+                      <div>法定代表人：{watch("clientLegalRep")}</div>
+                    )}
+                    {watch("clientAddress") && (
+                      <div>注册地址：{watch("clientAddress")}</div>
+                    )}
+                  </div>
+                </div>
+              )}
             </Section>
 
             {/* 4. 其他案件当事人（紧挨委托方/联系人，便于一并核对） */}

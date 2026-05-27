@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
-import { Check, ChevronsUpDown, Plus, Users } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, useTransition } from "react";
+import { Check, ChevronsUpDown, Plus, Users, Building2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/popover";
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -18,30 +17,37 @@ import {
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
 import type { ClientOption } from "@/app/(app)/matters/_components/matters-view";
+import { searchEnterpriseCandidates, type EnterpriseSearchItem } from "@/server/yuandian/enterprise";
 
-/**
- * 委托方 Combobox：
- * - 选已有客户 → onPickExisting(id, name)，clientName/clientId 二选一
- * - 自由输入名字（不在选项里）→ onTypeNew(name)，由提交时自动建档
- */
+type YuandianCandidate = EnterpriseSearchItem;
+
 export function ClientCombobox({
   clientId,
   clientName,
+  clientType,
   options,
   onPickExisting,
   onTypeNew,
+  onPickYuandian,
   onClear
 }: {
   clientId: string;
   clientName: string;
+  clientType: string;
   options: ClientOption[];
   onPickExisting: (id: string, name: string) => void;
   onTypeNew: (name: string) => void;
+  onPickYuandian: (candidate: YuandianCandidate) => void;
   onClear: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const [yuandianResults, setYuandianResults] = useState<YuandianCandidate[]>([]);
+  const [yuandianLoading, setYuandianLoading] = useState(false);
+  const [yuandianConfigured, setYuandianConfigured] = useState(true);
+  const [isPending, startTransition] = useTransition();
+  const searchVersionRef = useRef(0);
 
   const display = clientId
     ? options.find((o) => o.id === clientId)?.name ?? clientName ?? ""
@@ -55,9 +61,50 @@ export function ClientCombobox({
     (o) => o.name.toLowerCase() === query.trim().toLowerCase()
   );
 
+  const searchYuandian = useCallback((q: string, version: number) => {
+    startTransition(async () => {
+      try {
+        const res = await searchEnterpriseCandidates(q);
+        if (version !== searchVersionRef.current) return;
+        setYuandianConfigured(res.configured);
+        setYuandianResults(res.items);
+      } catch {
+        if (version !== searchVersionRef.current) return;
+        setYuandianResults([]);
+      } finally {
+        if (version === searchVersionRef.current) {
+          setYuandianLoading(false);
+        }
+      }
+    });
+  }, []);
+
   useEffect(() => {
-    if (!open) setQuery("");
+    if (!open) {
+      setQuery("");
+      setYuandianResults([]);
+      setYuandianLoading(false);
+      return;
+    }
   }, [open]);
+
+  useEffect(() => {
+    const isCompany = clientType === "COMPANY" || clientType === "ORGANIZATION";
+    if (!isCompany || !open || query.trim().length < 2 || !yuandianConfigured) {
+      setYuandianResults([]);
+      setYuandianLoading(false);
+      return;
+    }
+
+    setYuandianLoading(true);
+    const version = ++searchVersionRef.current;
+    const timer = setTimeout(() => searchYuandian(query.trim(), version), 300);
+    return () => {
+      clearTimeout(timer);
+      // bump version so in-flight response is ignored
+      searchVersionRef.current = version + 1;
+    };
+  }, [query, clientType, open, yuandianConfigured, searchYuandian]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -119,7 +166,7 @@ export function ClientCombobox({
               </CommandGroup>
             )}
 
-            {filtered.length > 0 ? (
+            {filtered.length > 0 && (
               <CommandGroup heading="已有客户">
                 {filtered.map((o) => (
                   <CommandItem
@@ -140,11 +187,43 @@ export function ClientCombobox({
                   </CommandItem>
                 ))}
               </CommandGroup>
-            ) : !query ? (
-              <CommandEmpty className="py-4 text-xs text-muted-foreground">
+            )}
+
+            {(yuandianLoading || yuandianResults.length > 0) && yuandianConfigured && (
+              <CommandGroup heading="企业信息库（元典）">
+                {yuandianLoading && yuandianResults.length === 0 && (
+                  <div className="flex items-center gap-2 px-2 py-3 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    搜索中…
+                  </div>
+                )}
+                {yuandianResults.map((c) => (
+                  <CommandItem
+                    key={`yd-${c.id}`}
+                    value={`yd-${c.name}`}
+                    onSelect={() => {
+                      onPickYuandian(c);
+                      setOpen(false);
+                    }}
+                    className="gap-2"
+                  >
+                    <Building2 className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+                    <span className="truncate">{c.name}</span>
+                    {c.creditCode && (
+                      <span className="ml-auto shrink-0 text-[10px] font-mono text-muted-foreground">
+                        {c.creditCode}
+                      </span>
+                    )}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+
+            {!query && filtered.length === 0 && (
+              <div className="py-4 text-center text-xs text-muted-foreground">
                 开始输入以搜索 / 新建
-              </CommandEmpty>
-            ) : null}
+              </div>
+            )}
 
             {display && (
               <CommandGroup>

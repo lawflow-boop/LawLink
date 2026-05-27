@@ -86,6 +86,11 @@ export default async function ClientDetailPage({ params }: { params: { id: strin
           >
             {client.idNumber ?? "—"}
           </InfoItem>
+          {client.type !== "INDIVIDUAL" && (
+            <InfoItem icon={<User className="h-3.5 w-3.5" />} label="法定代表人">
+              {client.legalRep ?? "—"}
+            </InfoItem>
+          )}
         </dl>
 
         {client.notes && (

@@ -61,6 +61,11 @@ export const intakeCreateSchema = z.object({
   contactName: z.string().max(40).optional().or(z.literal("")),
   contactPhone: z.string().max(30).optional().or(z.literal("")),
 
+  // 企业自动填充（元典查询结果，透传到 Client 创建）
+  clientIdNumber: z.string().max(50).optional().or(z.literal("")),
+  clientAddress: z.string().max(200).optional().or(z.literal("")),
+  clientLegalRep: z.string().max(40).optional().or(z.literal("")),
+
   // 律师费
   feeType: feeTypeSchema.optional(),
   feeAmount: z.coerce.number().nonnegative().optional(), // FIXED: 总金额；CONTINGENCY: 基础办案费
