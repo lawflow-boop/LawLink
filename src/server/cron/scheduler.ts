@@ -12,16 +12,52 @@
  * 当前任务：
  * - 每周一 09:00 推送本周报告
  * - 每天 09:00 扫描归档逾期 30 天的案件
+ * - 每天 03:00 清理超过 N 天的 AuditLog
  *
  * 时区：所有 cron 用 Asia/Shanghai（避免容器 UTC 跑出来 8 小时偏差）。
+ *
+ * v0.26 cron 可观测性：
+ * - 成功路径由各 job 内部自己写 *_CRON audit（已有）
+ * - 失败路径在此处统一捕获 + 写 *_FAILED_CRON audit，避免 cron 静默失败
  */
 import cron from "node-cron";
 import { runWeeklyReportPush } from "@/server/reports/push-weekly";
 import { scanArchiveOverdue } from "./jobs/archive-overdue";
 import { runAuditCleanup } from "./jobs/audit-cleanup";
+import { audit } from "@/server/audit";
 
 const TIMEZONE = "Asia/Shanghai";
 let started = false;
+
+async function runWithFailureAudit(
+  jobName: string,
+  failureAction: string,
+  fn: () => Promise<unknown>
+) {
+  const startedAt = Date.now();
+  const triggeredAt = new Date().toISOString();
+  console.log(`[cron] ${triggeredAt} 触发：${jobName}`);
+  try {
+    const result = await fn();
+    const durationMs = Date.now() - startedAt;
+    console.log(`[cron] ${jobName} 完成（${durationMs}ms）`, result);
+  } catch (err) {
+    const durationMs = Date.now() - startedAt;
+    const message = err instanceof Error ? err.message : String(err);
+    const stack =
+      err instanceof Error
+        ? err.stack?.split("\n").slice(0, 5).join("\n")
+        : undefined;
+    console.error(`[cron] ${jobName} 异常（${durationMs}ms）：`, err);
+    await audit({
+      userId: null,
+      action: failureAction,
+      targetType: "Cron",
+      targetId: jobName,
+      detail: { error: message, stack, durationMs, triggeredAt }
+    });
+  }
+}
 
 export function registerCronJobs() {
   if (started) {
@@ -33,56 +69,40 @@ export function registerCronJobs() {
   // 每周一 09:00 推周报
   cron.schedule(
     "0 9 * * 1",
-    async () => {
-      const now = new Date().toISOString();
-      console.log(`[cron] ${now} 触发：周报推送`);
-      try {
-        const r = await runWeeklyReportPush(null);
-        console.log(
-          `[cron] 周报推送完成：${r.succeeded} 成功 / ${r.failed.length} 失败`
-        );
-      } catch (err) {
-        console.error("[cron] 周报推送异常：", err);
-      }
-    },
+    () =>
+      runWithFailureAudit(
+        "周报推送",
+        "WEEKLY_REPORT_PUSH_FAILED_CRON",
+        () => runWeeklyReportPush(null)
+      ),
     { timezone: TIMEZONE }
   );
 
   // 每天 09:00 扫归档逾期
   cron.schedule(
     "0 9 * * *",
-    async () => {
-      const now = new Date().toISOString();
-      console.log(`[cron] ${now} 触发：归档逾期扫描`);
-      try {
-        const r = await scanArchiveOverdue();
-        console.log(
-          `[cron] 归档逾期扫描完成：${r.scanned} 候选 / ${r.notified} 通知 / ${r.suppressed} 抑制`
-        );
-      } catch (err) {
-        console.error("[cron] 归档逾期扫描异常：", err);
-      }
-    },
+    () =>
+      runWithFailureAudit(
+        "归档逾期扫描",
+        "ARCHIVE_OVERDUE_SCAN_FAILED_CRON",
+        () => scanArchiveOverdue()
+      ),
     { timezone: TIMEZONE }
   );
 
   // 每天 03:00 清理超过 N 天的 AuditLog（默认 365 天，AUDIT_RETENTION_DAYS 可覆盖）
   cron.schedule(
     "0 3 * * *",
-    async () => {
-      const now = new Date().toISOString();
-      console.log(`[cron] ${now} 触发：AuditLog 清理`);
-      try {
-        const r = await runAuditCleanup();
-        console.log(
-          `[cron] AuditLog 清理完成：保留 ${r.retentionDays} 天，删除 ${r.deleted} 条`
-        );
-      } catch (err) {
-        console.error("[cron] AuditLog 清理异常：", err);
-      }
-    },
+    () =>
+      runWithFailureAudit(
+        "AuditLog 清理",
+        "AUDIT_CLEANUP_FAILED_CRON",
+        () => runAuditCleanup()
+      ),
     { timezone: TIMEZONE }
   );
 
-  console.log("[cron] 已注册 3 个定时任务（周报推送 / 归档逾期扫描 / AuditLog 清理），时区 Asia/Shanghai");
+  console.log(
+    "[cron] 已注册 3 个定时任务（周报推送 / 归档逾期扫描 / AuditLog 清理），时区 Asia/Shanghai"
+  );
 }
