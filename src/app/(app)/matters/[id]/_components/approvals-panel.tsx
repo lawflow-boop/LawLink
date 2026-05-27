@@ -2,9 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Stamp, Plus } from "lucide-react";
+import { Loader2, Stamp, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { SealRequestSheet } from "@/app/(app)/approvals/seals/_components/seal-request-sheet";
+import type { SealTypeConfigRow } from "@/app/(app)/approvals/seals/_components/seal-types";
+import { listSealTypeConfigs } from "@/server/seals/actions";
 import type { SealContractItem } from "./info-extras";
 
 type Filter = "all" | "pending" | "done";
@@ -19,9 +22,11 @@ const FILTERS: { value: Filter; label: string }[] = [
  * v0.13: 案件详情"审批"板块（不再独立 tab，嵌入基本信息内）
  * - 仅显示用印审批（开票申请入口已收口到财务区，此处不重复）
  * - 顶部三分类切换：全部 / 审批中 / 已审批
- * - 顶部右侧"发起用印"入口
+ * - v0.23: 顶部"发起审批"改为弹窗，自动锁定当前案件 + 支持"+ 法定代表人章"
  */
 export function ApprovalsPanel({
+  matterId,
+  matterTitle,
   sealContracts
 }: {
   matterId: string;
@@ -29,12 +34,30 @@ export function ApprovalsPanel({
   sealContracts: SealContractItem[];
 }) {
   const [filter, setFilter] = useState<Filter>("all");
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [configs, setConfigs] = useState<SealTypeConfigRow[] | null>(null);
+  const [loadingConfigs, setLoadingConfigs] = useState(false);
 
   const filtered = sealContracts.filter((s) => {
     if (filter === "all") return true;
     if (filter === "pending") return s.status === "PENDING";
     return s.status === "APPROVED" || s.status === "STAMPED" || s.status === "REJECTED" || s.status === "CANCELLED";
   });
+
+  async function handleOpenSheet() {
+    if (configs) {
+      setSheetOpen(true);
+      return;
+    }
+    setLoadingConfigs(true);
+    try {
+      const list = await listSealTypeConfigs();
+      setConfigs(list);
+      setSheetOpen(true);
+    } finally {
+      setLoadingConfigs(false);
+    }
+  }
 
   return (
     <section className="rounded-lg border border-border bg-card">
@@ -70,13 +93,19 @@ export function ApprovalsPanel({
             ))}
           </div>
         </div>
-        <Link
-          href="/approvals/seals"
-          className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-[12px] text-foreground transition-colors hover:bg-muted/50"
+        <button
+          type="button"
+          onClick={handleOpenSheet}
+          disabled={loadingConfigs}
+          className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-[12px] text-foreground transition-colors hover:bg-muted/50 disabled:opacity-60"
         >
-          <Plus className="h-3 w-3" />
+          {loadingConfigs ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <Plus className="h-3 w-3" />
+          )}
           发起审批
-        </Link>
+        </button>
       </header>
 
       {filtered.length === 0 ? (
@@ -102,6 +131,16 @@ export function ApprovalsPanel({
             </li>
           ))}
         </ul>
+      )}
+
+      {configs && (
+        <SealRequestSheet
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+          configs={configs}
+          matters={[{ id: matterId, internalCode: "", title: matterTitle }]}
+          preset={{ matterId, documentTitle: matterTitle }}
+        />
       )}
     </section>
   );

@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { deleteFirmFile } from "@/server/firm-files/actions";
 import { cn } from "@/lib/utils";
 import { UploadDialog } from "./upload-dialog";
+import { PreviewDialog } from "./preview-dialog";
 
 type FileEntry = {
   id: string;
@@ -67,6 +68,7 @@ export function FirmFilesView({
   const sp = useSearchParams();
   const [search, setSearch] = useState(currentSearch);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [previewFile, setPreviewFile] = useState<FileEntry | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -203,7 +205,7 @@ export function FirmFilesView({
           </p>
         </div>
       ) : (
-        <ul className="grid grid-cols-1 gap-2 md:grid-cols-2">
+        <ul className="flex flex-col gap-2">
           {files.map((f) => {
             const meta = CATEGORY_META[f.category];
             return (
@@ -216,10 +218,18 @@ export function FirmFilesView({
                     : "border-border"
                 )}
               >
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start justify-between gap-3">
                   <div className="flex-1 overflow-hidden">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium">{f.name}</span>
+                    {/* 第一行：文件名 + 标签 + 大小 / 时间 */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setPreviewFile(f)}
+                        className="truncate text-left text-sm font-medium text-foreground transition-colors hover:text-primary hover:underline"
+                        title="点击预览"
+                      >
+                        {f.name}
+                      </button>
                       <span
                         className="shrink-0 rounded border px-1.5 py-0.5 text-[10px]"
                         style={{
@@ -243,25 +253,32 @@ export function FirmFilesView({
                           <History className="h-2.5 w-2.5" />v{f.supersedesCount + 1}
                         </span>
                       )}
+                      <span className="ml-auto flex shrink-0 items-center gap-1.5 text-[10px] text-muted-foreground">
+                        <span className="font-mono tabular">{formatBytes(f.size)}</span>
+                        <span className="opacity-50">·</span>
+                        <span>{new Date(f.createdAt).toLocaleDateString("zh-CN")}</span>
+                        <span className="opacity-50">·</span>
+                        <span>{f.uploadedBy.name}</span>
+                        {f.tags.length > 0 && (
+                          <>
+                            <span className="opacity-50">·</span>
+                            <span className="flex items-center gap-0.5">
+                              <Tag className="h-2.5 w-2.5" />
+                              {f.tags.join(" / ")}
+                            </span>
+                          </>
+                        )}
+                      </span>
                     </div>
-                    {f.description && (
-                      <p className="mt-1 line-clamp-2 text-[11px] text-muted-foreground">
-                        {f.description}
-                      </p>
-                    )}
-                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground">
-                      {f.tags.length > 0 && (
-                        <span className="flex items-center gap-0.5">
-                          <Tag className="h-2.5 w-2.5" />
-                          {f.tags.join(" · ")}
-                        </span>
+                    {/* 第二行：简介；没填时给个 placeholder，避免视觉空缺 */}
+                    <p
+                      className={cn(
+                        "mt-1.5 line-clamp-2 text-[11.5px] leading-relaxed",
+                        f.description ? "text-muted-foreground" : "text-muted-foreground/50"
                       )}
-                      <span className="font-mono">{formatBytes(f.size)}</span>
-                      <span>·</span>
-                      <span>{f.uploadedBy.name}</span>
-                      <span>·</span>
-                      <span>{new Date(f.createdAt).toLocaleDateString("zh-CN")}</span>
-                    </div>
+                    >
+                      {f.description || "（未填写简介）"}
+                    </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     <a
@@ -301,6 +318,14 @@ export function FirmFilesView({
           existingFiles={files}
         />
       )}
+
+      <PreviewDialog
+        open={!!previewFile}
+        file={previewFile}
+        onOpenChange={(o) => {
+          if (!o) setPreviewFile(null);
+        }}
+      />
     </div>
   );
 }

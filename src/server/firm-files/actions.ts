@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { storage } from "@/lib/storage";
 import { sha256 } from "@/lib/storage/crypto";
+import { ensureExt } from "@/lib/storage/mime-ext";
 import { audit } from "@/server/audit";
 import { revalidatePath } from "next/cache";
 import type { FirmFileCategory, Prisma } from "@prisma/client";
@@ -189,10 +190,20 @@ export async function uploadFirmFile(formData: FormData): Promise<{
   const path = await storage.writeFile("firm-files", buf);
   const hash = sha256(buf);
 
+  // 用户填的 name 可能不含扩展名（如"员工手册 v2.4"），下载时浏览器要靠扩展名识别程序，
+  // 这里优先取原始文件名的扩展名兜底，其次用 mimeType 推断
+  const trimmedName = name.trim().slice(0, 200);
+  const userHasExt = /\.[A-Za-z0-9]{1,5}$/.test(trimmedName);
+  let nameWithFileExt = trimmedName;
+  if (!userHasExt) {
+    const m = file.name.match(/\.[A-Za-z0-9]{1,5}$/);
+    nameWithFileExt = m ? trimmedName + m[0] : ensureExt(trimmedName, file.type || null);
+  }
+
   const created = await prisma.$transaction(async (tx) => {
     const doc = await tx.firmFile.create({
       data: {
-        name: name.trim().slice(0, 200),
+        name: nameWithFileExt,
         description:
           typeof description === "string" && description.trim()
             ? description.trim().slice(0, 1000)

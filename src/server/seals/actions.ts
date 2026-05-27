@@ -200,6 +200,11 @@ export async function createSealRequest(formData: FormData) {
   };
   const data = sealCreateSchema.parse(raw);
 
+  // "同时加盖法定代表人章"：主章不是法人章时附带创建一个 LEGAL_REP_SEAL 子请求，
+  // 共用同一份文件副本，便于两条审批线分别走（公章/合同章走对应审批人，法人章走法定代表人）
+  const alsoLegalRep =
+    formData.get("alsoLegalRep") === "true" && data.sealType !== "LEGAL_REP_SEAL";
+
   const existingDraftDocId = formData.get("existingDraftDocId");
   const draftFile = formData.get("draftDoc");
 
@@ -214,6 +219,8 @@ export async function createSealRequest(formData: FormData) {
   }
 
   // 准备 draftDocId：要么复制现有文档（卷宗联动），要么上传新文件
+  // plainBuf 保留明文，便于"同时加盖法人章"时复制副本
+  let plainBuf: Buffer;
   let draftDocPrepare: {
     name: string;
     mimeType: string;
@@ -232,11 +239,11 @@ export async function createSealRequest(formData: FormData) {
     });
     if (!src) throw new Error("待盖章文档不存在");
     const srcCt = await storage.readFile(src.path);
-    const plain =
+    plainBuf =
       src.encrypted && src.iv && src.authTag
         ? decryptBuffer(srcCt, src.iv, src.authTag)
         : srcCt;
-    const enc = encryptBuffer(plain);
+    const enc = encryptBuffer(plainBuf);
     const newPath = await storage.writeFile(
       data.matterId ? `m_${data.matterId}` : "seals",
       enc.ciphertext
@@ -244,8 +251,8 @@ export async function createSealRequest(formData: FormData) {
     draftDocPrepare = {
       name: src.name,
       mimeType: src.mimeType ?? "application/octet-stream",
-      size: src.size ?? plain.length,
-      sha: sha256(plain),
+      size: src.size ?? plainBuf.length,
+      sha: sha256(plainBuf),
       path: newPath,
       algorithm: enc.algorithm,
       iv: enc.iv.toString("base64"),
@@ -253,8 +260,8 @@ export async function createSealRequest(formData: FormData) {
     };
   } else if (draftFile instanceof File && draftFile.size > 0) {
     validateUploadedFile(draftFile, { purpose: "seal", maxBytes: MAX_FILE_SIZE });
-    const buf = Buffer.from(await draftFile.arrayBuffer());
-    const enc = encryptBuffer(buf);
+    plainBuf = Buffer.from(await draftFile.arrayBuffer());
+    const enc = encryptBuffer(plainBuf);
     const newPath = await storage.writeFile(
       data.matterId ? `m_${data.matterId}` : "seals",
       enc.ciphertext
@@ -263,7 +270,7 @@ export async function createSealRequest(formData: FormData) {
       name: draftFile.name,
       mimeType: draftFile.type || "application/octet-stream",
       size: draftFile.size,
-      sha: sha256(buf),
+      sha: sha256(plainBuf),
       path: newPath,
       algorithm: enc.algorithm,
       iv: enc.iv.toString("base64"),
@@ -274,6 +281,28 @@ export async function createSealRequest(formData: FormData) {
   }
 
   const code = await generateSealCode();
+  // 子请求（法人章）也要预生成 code，否则不能在事务内调用 generateSealCode（嵌套事务）
+  const legalRepCode = alsoLegalRep ? await generateSealCode() : null;
+
+  // 子请求复制一份独立加密副本（draftDocId 是 unique）
+  let legalRepDocPrepare: typeof draftDocPrepare | null = null;
+  if (alsoLegalRep) {
+    const enc2 = encryptBuffer(plainBuf);
+    const path2 = await storage.writeFile(
+      data.matterId ? `m_${data.matterId}` : "seals",
+      enc2.ciphertext
+    );
+    legalRepDocPrepare = {
+      name: draftDocPrepare.name,
+      mimeType: draftDocPrepare.mimeType,
+      size: draftDocPrepare.size,
+      sha: draftDocPrepare.sha,
+      path: path2,
+      algorithm: enc2.algorithm,
+      iv: enc2.iv.toString("base64"),
+      authTag: enc2.authTag.toString("base64")
+    };
+  }
 
   const created = await prisma.$transaction(async (tx) => {
     const draftDoc = await tx.document.create({
@@ -313,20 +342,79 @@ export async function createSealRequest(formData: FormData) {
       }
     });
 
-    return seal;
+    let legalRepSealId: string | null = null;
+    if (legalRepDocPrepare && legalRepCode) {
+      const legalRepDoc = await tx.document.create({
+        data: {
+          matterId: data.matterId ?? undefined,
+          name: legalRepDocPrepare.name,
+          category: "OTHER",
+          path: legalRepDocPrepare.path,
+          mimeType: legalRepDocPrepare.mimeType,
+          size: legalRepDocPrepare.size,
+          sha256: legalRepDocPrepare.sha,
+          encrypted: true,
+          algorithm: legalRepDocPrepare.algorithm,
+          iv: legalRepDocPrepare.iv,
+          authTag: legalRepDocPrepare.authTag,
+          tags: ["用章申请", "待盖章稿", "法人章副本"],
+          uploadedById: session.user.id
+        }
+      });
+      const legalRepSeal = await tx.sealRequest.create({
+        data: {
+          code: legalRepCode,
+          sealType: "LEGAL_REP_SEAL",
+          matterId: data.matterId ?? undefined,
+          purpose: `${data.purpose.trim()}（与 ${code} 同时加盖）`,
+          documentTitle: data.documentTitle.trim(),
+          pageCount: data.pageCount,
+          requireCrossPageSeal: data.requireCrossPageSeal,
+          copies: data.copies,
+          urgency: data.urgency,
+          requestNote: (data.requestNote || "").trim() || null,
+          draftDocId: legalRepDoc.id,
+          requestedById: session.user.id,
+          status: "PENDING",
+          parentSealRequestId: seal.id
+        }
+      });
+      legalRepSealId = legalRepSeal.id;
+    }
+
+    return { seal, legalRepSealId };
   });
 
   await audit({
     userId: session.user.id,
     action: "SEAL_REQUEST_CREATE",
     targetType: "SealRequest",
-    targetId: created.id,
-    detail: { code, sealType: data.sealType, matterId: data.matterId }
+    targetId: created.seal.id,
+    detail: {
+      code,
+      sealType: data.sealType,
+      matterId: data.matterId,
+      alsoLegalRep: !!created.legalRepSealId
+    }
   });
+  if (created.legalRepSealId && legalRepCode) {
+    await audit({
+      userId: session.user.id,
+      action: "SEAL_REQUEST_CREATE",
+      targetType: "SealRequest",
+      targetId: created.legalRepSealId,
+      detail: {
+        code: legalRepCode,
+        sealType: "LEGAL_REP_SEAL",
+        matterId: data.matterId,
+        parentCode: code
+      }
+    });
+  }
 
   revalidatePath("/approvals/seals");
   if (data.matterId) revalidatePath(`/matters/${data.matterId}`);
-  return { ok: true, id: created.id, code };
+  return { ok: true, id: created.seal.id, code };
 }
 
 // ============================================================

@@ -180,7 +180,12 @@ export async function AlertsList() {
   return (
     <section className="ll-surface flex h-full flex-col">
       <header className="flex items-center justify-between px-5 pb-3 pt-4">
-        <h2 className="text-lg font-medium tracking-tight">待我处理</h2>
+        <div>
+          <h2 className="text-lg font-medium tracking-tight">待我处理</h2>
+          <p className="mt-0.5 text-[10.5px] text-muted-foreground">
+            按紧急度排序 · 保全到期 / 临期开庭 / 未读法院短信
+          </p>
+        </div>
         <Link
           href="/schedule"
           className="group inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"

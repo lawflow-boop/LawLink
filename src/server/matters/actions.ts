@@ -59,7 +59,11 @@ export async function listMatters(input: Partial<MatterListQuery> = {}) {
   const [items, total] = await Promise.all([
     prisma.matter.findMany({
       where,
-      orderBy: { updatedAt: "desc" },
+      // 默认按收案时间倒序（用户偏好）；intakeDate 为空的旧数据回落到 updatedAt
+      orderBy: [
+        { intakeDate: { sort: "desc", nulls: "last" } },
+        { updatedAt: "desc" }
+      ],
       skip: (query.page - 1) * query.pageSize,
       take: query.pageSize,
       include: {

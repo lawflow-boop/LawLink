@@ -192,6 +192,10 @@ async function main() {
   await seedV08SealConfigs(prisma);
   await seedV08Templates(prisma);
 
+  // v0.23: 三个演示案件（待审批 / 进行中 / 已归档）
+  const { seedV23DemoMatters } = await import("./seeds/v23-demo-matters");
+  await seedV23DemoMatters(prisma);
+
   console.log("\n✓ Seed 完成");
 }
 

@@ -197,7 +197,7 @@ export function UploadDialog({
 
           <div>
             <Label className="text-[11px]">
-              替代哪个旧版？（可选；选了之后旧版会被标"旧版"）
+              替代哪个旧版？（可选；选了之后旧版会被标&ldquo;旧版&rdquo;）
             </Label>
             <Select value={supersedesId} onValueChange={setSupersedesId}>
               <SelectTrigger className="mt-1 h-9 text-xs">

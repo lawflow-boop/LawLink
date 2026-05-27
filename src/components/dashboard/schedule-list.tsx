@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { AlertTriangle, Calendar, Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,14 +30,20 @@ export function ScheduleList({ data }: { data: ScheduleItem[] }) {
       <header className="flex items-center justify-between px-5 pb-3 pt-4">
         <div>
           <h2 className="text-lg font-medium tracking-tight">近期日程</h2>
+          <p className="mt-0.5 text-[10.5px] text-muted-foreground">
+            按时间排序 · 开庭 / 期限 / 任务
+          </p>
         </div>
-        <button className="group inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
+        <Link
+          href="/schedule"
+          className="group inline-flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
           完整日历
           <ArrowRight
             className="h-3 w-3 transition-transform group-hover:translate-x-0.5"
             strokeWidth={1.8}
           />
-        </button>
+        </Link>
       </header>
 
       <div className="border-t border-border flex-1 space-y-4 overflow-y-auto px-5 py-3">

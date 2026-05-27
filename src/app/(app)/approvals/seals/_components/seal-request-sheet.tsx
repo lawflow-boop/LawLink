@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { FileText, Loader2, Paperclip, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -62,7 +63,9 @@ export function SealRequestSheet({
   const [urgency, setUrgency] = useState<"NORMAL" | "URGENT">("NORMAL");
   const [requestNote, setRequestNote] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [alsoLegalRep, setAlsoLegalRep] = useState(false);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   // 卷宗联动预填
   useEffect(() => {
@@ -82,6 +85,7 @@ export function SealRequestSheet({
     setUrgency("NORMAL");
     setRequestNote("");
     setFile(null);
+    setAlsoLegalRep(false);
   };
 
   // 拼出实际入库的 purpose 字符串
@@ -127,6 +131,9 @@ export function SealRequestSheet({
     fd.set("copies", String(copies));
     fd.set("urgency", urgency);
     fd.set("requestNote", requestNote.trim());
+    if (alsoLegalRep && sealType !== "LEGAL_REP_SEAL") {
+      fd.set("alsoLegalRep", "true");
+    }
     if (hasExisting && preset?.draftDocId) {
       fd.set("existingDraftDocId", preset.draftDocId);
     } else if (file) {
@@ -136,9 +143,10 @@ export function SealRequestSheet({
     startTransition(async () => {
       try {
         const res = await createSealRequest(fd);
-        toast.success(`已提交 ${res.code}`);
+        toast.success(`已提交 ${res.code}${alsoLegalRep && sealType !== "LEGAL_REP_SEAL" ? "（含法人章配套申请）" : ""}`);
         reset();
         onOpenChange(false);
+        router.refresh();
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "提交失败");
       }
@@ -186,17 +194,39 @@ export function SealRequestSheet({
                 {enabledConfigs.find((c) => c.type === sealType)?.description}
               </p>
             )}
+            {sealType && sealType !== "LEGAL_REP_SEAL" && (
+              <label className="mt-2 flex cursor-pointer items-center gap-2 rounded-md border border-dashed border-border bg-background px-2.5 py-1.5 text-[12px]">
+                <Checkbox
+                  checked={alsoLegalRep}
+                  onCheckedChange={(v) => setAlsoLegalRep(v === true)}
+                />
+                <span>同时加盖 <strong className="text-foreground">法定代表人章</strong></span>
+                <span className="text-[10px] text-muted-foreground">
+                  会自动建一条配套的法人章审批，与本章并行
+                </span>
+              </label>
+            )}
           </div>
 
           <div>
             <Label className="text-[11px]">关联案件 (可选)</Label>
             <div className="mt-1">
-              <MatterCombobox
-                matters={matters}
-                value={matterId}
-                onChange={setMatterId}
-                placeholder="不关联案件"
-              />
+              {preset?.matterId ? (
+                // 从案件详情页发起时，case 已锁定，不展示可切换的下拉
+                <div className="flex h-9 items-center gap-2 rounded-md border border-border bg-muted/40 px-2.5 text-[12px]">
+                  <span className="text-[10px] text-muted-foreground">已关联</span>
+                  <span className="truncate">
+                    {matters.find((m) => m.id === preset.matterId)?.title ?? "当前案件"}
+                  </span>
+                </div>
+              ) : (
+                <MatterCombobox
+                  matters={matters}
+                  value={matterId}
+                  onChange={setMatterId}
+                  placeholder="不关联案件"
+                />
+              )}
             </div>
           </div>
 

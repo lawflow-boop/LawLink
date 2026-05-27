@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useTransition } from "react";
-import { ChevronRight, ChevronsUpDown, Loader2, X } from "lucide-react";
+import { Check, ChevronRight, ChevronsUpDown, Loader2, X } from "lucide-react";
 import type { MatterCategory } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -189,16 +189,19 @@ export function CauseCombobox({ value, onChange, category, disabled }: Props) {
           </div>
         ) : (
           // 级联模式：渐进展开（选了上一级才出现下一列）
+          // 行点 = 展开下一级；行尾 ✓ = 直接选用本级（允许在任意层级落点）
           <div className="flex divide-x divide-border">
             <Column
               title="一级"
               items={l1Nodes}
               activeId={pickedL1}
+              hasChildren={(n) => allNodes.some((x) => x.level === 2 && x.parentId === n.id)}
               onPick={(n) => {
                 setPickedL1(n.id);
                 setPickedL2(null);
                 setPickedL3(null);
               }}
+              onSelect={pickNode}
             />
             {pickedL1 && (
               <Column
@@ -206,6 +209,7 @@ export function CauseCombobox({ value, onChange, category, disabled }: Props) {
                 items={l2Nodes}
                 activeId={pickedL2}
                 empty="该一级下无二级"
+                hasChildren={(n) => allNodes.some((x) => x.level === 3 && x.parentId === n.id)}
                 onPick={(n) => {
                   // 没有三级 → 直接选中
                   const hasChildren = allNodes.some(
@@ -218,7 +222,7 @@ export function CauseCombobox({ value, onChange, category, disabled }: Props) {
                     pickNode(n);
                   }
                 }}
-                onDouble={pickNode}
+                onSelect={pickNode}
               />
             )}
             {pickedL2 && (
@@ -227,6 +231,7 @@ export function CauseCombobox({ value, onChange, category, disabled }: Props) {
                 items={l3Nodes}
                 activeId={pickedL3}
                 empty="该二级下无三级"
+                hasChildren={(n) => allNodes.some((x) => x.level === 4 && x.parentId === n.id)}
                 onPick={(n) => {
                   const hasChildren = allNodes.some(
                     (x) => x.level === 4 && x.parentId === n.id
@@ -237,7 +242,7 @@ export function CauseCombobox({ value, onChange, category, disabled }: Props) {
                     pickNode(n);
                   }
                 }}
-                onDouble={pickNode}
+                onSelect={pickNode}
               />
             )}
             {pickedL3 && l4Nodes.length > 0 && (
@@ -245,6 +250,7 @@ export function CauseCombobox({ value, onChange, category, disabled }: Props) {
                 title="四级"
                 items={l4Nodes}
                 activeId={null}
+                hasChildren={() => false}
                 onPick={pickNode}
               />
             )}
@@ -260,16 +266,19 @@ function Column({
   items,
   activeId,
   empty = "—",
+  hasChildren,
   onPick,
-  onDouble,
+  onSelect,
   className
 }: {
   title: string;
   items: Node[];
   activeId: string | null;
   empty?: string;
+  hasChildren: (n: Node) => boolean;
   onPick: (n: Node) => void;
-  onDouble?: (n: Node) => void;
+  // 有子级的节点显示"✓"按钮 → 直接选用本级，跳过下一级
+  onSelect?: (n: Node) => void;
   className?: string;
 }) {
   return (
@@ -281,28 +290,52 @@ function Column({
         {items.length === 0 ? (
           <p className="px-2 py-3 text-[11px] text-muted-foreground/60">{empty}</p>
         ) : (
-          items.map((n) => (
-            <button
-              key={n.id}
-              type="button"
-              onClick={() => onPick(n)}
-              onDoubleClick={() => onDouble?.(n)}
-              className={cn(
-                "flex w-full items-center justify-between gap-1 rounded px-2 py-1.5 text-left text-[12.5px] transition-colors",
-                activeId === n.id
-                  ? "bg-primary/15 text-primary"
-                  : "hover:bg-muted/60"
-              )}
-            >
-              <span className="truncate">{n.name}</span>
-              <ChevronRight
+          items.map((n) => {
+            const branching = hasChildren(n);
+            const isActive = activeId === n.id;
+            return (
+              <div
+                key={n.id}
                 className={cn(
-                  "h-3 w-3 shrink-0 text-muted-foreground/50",
-                  activeId === n.id && "text-primary"
+                  "group/row flex items-stretch rounded transition-colors",
+                  isActive ? "bg-primary/15 text-primary" : "hover:bg-muted/60"
                 )}
-              />
-            </button>
-          ))
+              >
+                <button
+                  type="button"
+                  onClick={() => onPick(n)}
+                  title={branching ? "展开下一级" : "选用"}
+                  className="flex flex-1 items-center justify-between gap-1 px-2 py-1.5 text-left text-[12.5px]"
+                >
+                  <span className="truncate">{n.name}</span>
+                  <ChevronRight
+                    className={cn(
+                      "h-3 w-3 shrink-0 text-muted-foreground/50",
+                      isActive && "text-primary",
+                      !branching && "invisible"
+                    )}
+                  />
+                </button>
+                {branching && onSelect && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelect(n);
+                    }}
+                    title="直接选用本级（不下钻）"
+                    className={cn(
+                      "flex items-center justify-center rounded-r px-1.5 text-[10px] text-muted-foreground transition-colors",
+                      "opacity-0 hover:bg-primary/20 hover:text-primary",
+                      "group-hover/row:opacity-100 focus-visible:opacity-100"
+                    )}
+                  >
+                    <Check className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            );
+          })
         )}
       </div>
     </div>
