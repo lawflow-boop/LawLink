@@ -18,6 +18,7 @@ import {
   type ReviewType,
   type ReviewSeverity
 } from "@/lib/ai/review-parser";
+import { selectReviewPrompt, reviewPromptLabel } from "@/lib/ai/review-prompts";
 import { extractText, getDocumentProxy } from "unpdf";
 import mammoth from "mammoth";
 
@@ -32,25 +33,7 @@ export type ReviewResult = {
   recordId: string | null;
 };
 
-const SYSTEM_PROMPT = `你是中国资深执业律师，正在审查一份法律文书（可能是合同、起诉状、申请书、协议、内部备忘、客户提供的书证等）。
-请基于文书全文内容，挑出**律师应当关注的问题**，每条按下方分类：
-
-- MISSING（缺失要素）：典型条款 / 必备字段 / 关键事实没有写入（如合同未约定违约责任、起诉状无明确诉讼请求）
-- RISK（法律风险）：内容存在违反法律强制性规定 / 显失公平 / 对己方不利的安排
-- ISSUE（条款问题）：表述不规范 / 概念混淆 / 逻辑矛盾 / 数字或日期错误
-- SUGGESTION（优化建议）：可改进但非必须，仅作律师工作提示
-
-严格按下方 JSON 数组返回（仅 JSON，不要任何解释）：
-[
-  {"type": "MISSING" | "RISK" | "ISSUE" | "SUGGESTION", "severity": "HIGH" | "MEDIUM" | "LOW", "title": "10 字内简述", "detail": "60 字内具体说明，可引用原文片段"},
-  ...
-]
-
-规则：
-- 总条数控制在 4-10 条，按 severity 从高到低排
-- 不要泛泛而谈，必须针对本文书的具体内容
-- 找不到值得提的问题时返回空数组 []
-- title 写"违约责任缺失"而不是"问题 1"`;
+// v0.26: prompt 按 Document.category 分流（src/lib/ai/review-prompts.ts）
 
 const MAX_CHARS_FOR_AI = 6000;
 
@@ -114,14 +97,18 @@ export async function reviewDocument(input: {
   const truncated = raw.length > MAX_CHARS_FOR_AI;
   const text = truncated ? raw.slice(0, MAX_CHARS_FOR_AI) : raw;
 
+  // v0.26: 按 Document.category 选 prompt（合同/诉状/证据/裁判 4 套专项 + 通用兜底）
+  const systemPrompt = selectReviewPrompt(doc.category);
+  const promptLabel = reviewPromptLabel(doc.category);
+
   let content = "";
   try {
     const res = await aiChat({
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         {
           role: "user",
-          content: `文书名称：${doc.name}\n\n文书正文：\n${text}${truncated ? "\n\n（注：原文较长，已截断前部分内容供审查）" : ""}`
+          content: `文书名称：${doc.name}\n审查类型：${promptLabel}\n\n文书正文：\n${text}${truncated ? "\n\n（注：原文较长，已截断前部分内容供审查）" : ""}`
         }
       ],
       maxTokens: 2000,
