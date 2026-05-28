@@ -109,7 +109,7 @@ export function InfoPanel({
               className="h-6 gap-1 text-[11px] text-muted-foreground hover:text-primary"
             >
               <Pencil className="h-3 w-3" strokeWidth={1.8} />
-              编辑团队
+              编辑
             </Button>
           </header>
           <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 px-4 py-3 text-[12.5px] md:grid-cols-2">
@@ -232,6 +232,19 @@ export function InfoPanel({
         open={teamEditorOpen}
         onOpenChange={setTeamEditorOpen}
         matterId={matter.id}
+        matterMeta={{
+          internalCode: matter.internalCode,
+          intakeDate: matter.intakeDate ?? null,
+          category: matter.category,
+          title: matter.title,
+          causeId: matter.causeId ?? null,
+          causeFreeText: matter.causeFreeText ?? null,
+          claimAmount:
+            matter.claimAmount === null || matter.claimAmount === undefined
+              ? null
+              : Number(matter.claimAmount),
+          ourStanding: matter.ourStanding ?? null
+        }}
         currentOwnerId={matter.ownerId}
         currentMembers={matter.members.map((m) => ({
           userId: m.userId,

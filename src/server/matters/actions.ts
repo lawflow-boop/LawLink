@@ -12,8 +12,10 @@ import { seedDefaultFolders } from "@/lib/default-folders";
 import {
   matterCreateSchema,
   matterListQuerySchema,
+  matterUpdateBasicSchema,
   type MatterCreateInput,
-  type MatterListQuery
+  type MatterListQuery,
+  type MatterUpdateBasicInput
 } from "./schemas";
 
 function emptyToNull<T extends Record<string, unknown>>(obj: T): T {
@@ -319,6 +321,50 @@ export async function updateMatterTeam(input: {
   });
 
   revalidatePath(`/matters/${input.matterId}`);
+  return { ok: true };
+}
+
+// v0.27: 编辑案件基本信息（系统编号 + 收案日期 readonly，状态走 lifecycle）
+export async function updateMatterBasicInfo(input: MatterUpdateBasicInput) {
+  const session = await requireSession();
+  const data = matterUpdateBasicSchema.parse(input);
+
+  const matter = await prisma.matter.findUnique({
+    where: { id: data.id, deletedAt: null },
+    select: { id: true, ownerId: true, title: true }
+  });
+  if (!matter) throw new Error("案件不存在");
+  await assertMatterWritable(data.id);
+
+  const canEdit =
+    session.user.role === "ADMIN" ||
+    session.user.role === "PRINCIPAL_LAWYER" ||
+    matter.ownerId === session.user.id;
+  if (!canEdit) throw new Error("无权编辑案件基本信息");
+
+  await prisma.matter.update({
+    where: { id: data.id },
+    data: {
+      title: data.title,
+      causeId: data.causeId ? data.causeId : null,
+      causeFreeText: data.causeFreeText ? data.causeFreeText : null,
+      claimAmount:
+        data.claimAmount === null || data.claimAmount === undefined
+          ? null
+          : new Prisma.Decimal(data.claimAmount),
+      ourStanding: data.ourStanding ?? null
+    }
+  });
+
+  await audit({
+    userId: session.user.id,
+    action: "MATTER_BASIC_UPDATE",
+    targetType: "Matter",
+    targetId: data.id,
+    detail: { titleBefore: matter.title, titleAfter: data.title }
+  });
+
+  revalidatePath(`/matters/${data.id}`);
   return { ok: true };
 }
 

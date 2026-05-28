@@ -158,6 +158,21 @@ export const matterCreateSchema = z.object({
 export type MatterCreateInput = z.infer<typeof matterCreateSchema>;
 export type PartyInput = z.infer<typeof partyInputSchema>;
 
+// v0.27: 案件基本信息编辑（系统编号 / 收案日期 readonly，不在此处）
+export const matterUpdateBasicSchema = z.object({
+  id: z.string().cuid(),
+  title: z.preprocess(
+    (v) => (typeof v === "string" ? v.replace(/\s+/g, "") : v),
+    z.string().min(1, "案件名称必填").max(200)
+  ),
+  causeId: z.string().cuid().optional().or(z.literal("")),
+  causeFreeText: z.string().max(200).optional().or(z.literal("")),
+  claimAmount: z.coerce.number().nonnegative().optional().nullable(),
+  ourStanding: litigationStandingSchema.optional().nullable()
+});
+
+export type MatterUpdateBasicInput = z.infer<typeof matterUpdateBasicSchema>;
+
 export const matterListQuerySchema = z.object({
   search: z.string().optional(),
   category: matterCategorySchema.optional(),

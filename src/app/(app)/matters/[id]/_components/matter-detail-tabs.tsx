@@ -19,6 +19,7 @@ import { InfoPanel } from "./info-panel";
 import { DocumentsPanel, type DocumentPayload } from "./documents-panel";
 import { FinancePanel } from "./finance-panel";
 import { ProcedureContent } from "./procedure-content";
+import { ProcedureDocumentsSection } from "./procedure-documents-section";
 import { TimelinePanel } from "./timeline-panel";
 import { AddProcedureSheet } from "./procedure-forms";
 import { FoldersPanel } from "./folders-panel";
@@ -250,15 +251,21 @@ export function MatterDetailTabs({
 
           <span className="mb-3.5 h-3 w-px bg-border" />
 
-          <TabButton active={tab === "documents"} onClick={() => setTab("documents")}>
-            <FolderArchive className="h-3.5 w-3.5" strokeWidth={1.8} />
-            案卷材料
-            {documents.length > 0 && (
-              <span className="ml-1 font-mono text-[10px] tabular text-muted-foreground">
-                {documents.length}
-              </span>
-            )}
-          </TabButton>
+          {/*
+            v0.27: 案卷材料 tab 取消，材料合并到各程序下的"案件材料"区。
+            DocumentsPanel 代码保留（供后续可能的"全部材料"视图用），UI 入口隐藏。
+          */}
+          {false && (
+            <TabButton active={tab === "documents"} onClick={() => setTab("documents")}>
+              <FolderArchive className="h-3.5 w-3.5" strokeWidth={1.8} />
+              案卷材料
+              {documents.length > 0 && (
+                <span className="ml-1 font-mono text-[10px] tabular text-muted-foreground">
+                  {documents.length}
+                </span>
+              )}
+            </TabButton>
+          )}
 
           <TabButton active={tab === "preservation"} onClick={() => setTab("preservation")}>
             <Shield className="h-3.5 w-3.5" strokeWidth={1.8} />
@@ -316,12 +323,13 @@ export function MatterDetailTabs({
                   <FinancePanel matterId={matter.id} finance={finance} userOptions={userOptions} />
                 </div>
                 <div className="lg:col-span-4">
-                  <ExpressMiniCard expresses={expresses} />
+                  <ExpressMiniCard expresses={expresses} matterId={matter.id} />
                 </div>
               </div>
             </div>
           )}
-          {tab === "documents" && (
+          {/* v0.27: 案卷材料 tab 内容不再渲染（材料挪到各程序下） */}
+          {false && tab === "documents" && (
             <div className="space-y-4">
               <FoldersPanel
                 matterId={matter.id}
@@ -377,7 +385,28 @@ export function MatterDetailTabs({
 
           {engagedProcedures.map((p) => {
             if (tab !== `proc:${p.id}`) return null;
-            return <ProcedureContent key={p.id} procedure={p} />;
+            const procDocs = documents
+              .filter((d) => d.procedureId === p.id)
+              .map((d) => ({
+                id: d.id,
+                name: d.name,
+                category: d.category,
+                mimeType: d.mimeType,
+                size: d.size,
+                createdAt: d.createdAt,
+                path: d.path
+              }));
+            return (
+              <div key={p.id} className="space-y-4">
+                <ProcedureContent procedure={p} />
+                {/* v0.27: 程序下"案件材料"区，替代原全局案卷材料 tab */}
+                <ProcedureDocumentsSection
+                  matterId={matter.id}
+                  procedureId={p.id}
+                  documents={procDocs}
+                />
+              </div>
+            );
           })}
         </div>
       </motion.div>
