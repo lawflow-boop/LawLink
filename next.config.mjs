@@ -8,7 +8,10 @@ const nextConfig = {
       bodySizeLimit: "25mb"
     },
     // v0.22: 启用 instrumentation.ts（进程启动时注册 cron）
-    instrumentationHook: true
+    instrumentationHook: true,
+    // v0.27: @napi-rs/canvas 是原生 .node 二进制，必须交给 Node 运行时 require
+    // 否则 webpack 会试图 parse 二进制文件，让整个依赖链上的路由 (/matters) 500
+    serverComponentsExternalPackages: ["@napi-rs/canvas", "unpdf"]
   }
 };
 
