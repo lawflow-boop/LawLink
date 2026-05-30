@@ -29,6 +29,12 @@ import {
 import { clientCreateSchema, type ClientCreateInput } from "@/server/clients/schemas";
 import { createClient, updateClient } from "@/server/clients/actions";
 import {
+  cooperationStatusLabel,
+  COOPERATION_STATUS_OPTIONS,
+  genderLabel,
+  GENDER_OPTIONS
+} from "@/lib/enums";
+import {
   searchEnterpriseCandidates,
   getEnterpriseDetail,
   type EnterpriseSearchItem
@@ -50,6 +56,10 @@ const emptyDefaults: ClientCreateInput = {
   phone: "",
   email: "",
   source: "",
+  cooperationStatus: "SIGNED",
+  industry: "",
+  gender: "",
+  ethnicity: "",
   tags: [],
   notes: "",
   contacts: [{ name: "", title: "", phone: "", email: "", wechat: "", isPrimary: true, notes: "" }]
@@ -89,6 +99,10 @@ export function ClientSheet({ open, onOpenChange, editingClient }: Props) {
         phone: editingClient.phone ?? "",
         email: editingClient.email ?? "",
         source: editingClient.source ?? "",
+        cooperationStatus: (editingClient as any).cooperationStatus ?? "SIGNED",
+        industry: (editingClient as any).industry ?? "",
+        gender: (editingClient as any).gender ?? "",
+        ethnicity: (editingClient as any).ethnicity ?? "",
         tags: editingClient.tags,
         notes: editingClient.notes ?? "",
         contacts:
@@ -332,6 +346,65 @@ export function ClientSheet({ open, onOpenChange, editingClient }: Props) {
               <Field label="案源">
                 <Input placeholder="介绍人 / 公开来源 / 老客户复购" {...register("source")} />
               </Field>
+
+              <Field label="合作状态">
+                <Select
+                  value={watch("cooperationStatus")}
+                  onValueChange={(v) =>
+                    setValue("cooperationStatus", v as ClientCreateInput["cooperationStatus"], {
+                      shouldDirty: true
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COOPERATION_STATUS_OPTIONS.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {cooperationStatusLabel[s]}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              <Field label="所属行业">
+                <Input placeholder="如 制造业 / 互联网 / 房地产" {...register("industry")} />
+              </Field>
+
+              {watchedType === "INDIVIDUAL" && (
+                <>
+                  <Field label="性别">
+                    <Select
+                      value={watch("gender") || "UNSET"}
+                      onValueChange={(v) =>
+                        setValue(
+                          "gender",
+                          v === "UNSET" ? "" : (v as "MALE" | "FEMALE"),
+                          { shouldDirty: true }
+                        )
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="未填" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="UNSET">未填</SelectItem>
+                        {GENDER_OPTIONS.map((g) => (
+                          <SelectItem key={g} value={g}>
+                            {genderLabel[g]}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field label="民族">
+                    <Input placeholder="如 汉族" {...register("ethnicity")} />
+                  </Field>
+                </>
+              )}
 
               <Field label="标签">
                 <TagInput

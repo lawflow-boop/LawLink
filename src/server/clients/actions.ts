@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { clientVisibilityFilter, isManager } from "@/lib/permissions";
+import { generateClientCode } from "./code-generator";
 import {
   clientCreateSchema,
   clientUpdateSchema,
@@ -168,6 +169,7 @@ export async function createClient(input: ClientCreateInput) {
   const session = await requireSession();
   const data = clientCreateSchema.parse(input);
 
+  const internalCode = await generateClientCode();
   const created = await prisma.client.create({
     data: {
       ...emptyToNull({
@@ -178,8 +180,13 @@ export async function createClient(input: ClientCreateInput) {
         phone: data.phone,
         email: data.email,
         source: data.source,
-        notes: data.notes
+        notes: data.notes,
+        industry: data.industry,
+        ethnicity: data.ethnicity
       }),
+      internalCode,
+      cooperationStatus: data.cooperationStatus,
+      gender: data.gender || null,
       tags: data.tags,
       contacts: {
         create: data.contacts.map((c) =>
@@ -215,7 +222,7 @@ export async function updateClient(input: ClientUpdateInput) {
     throw new Error("仅管理员或主办律师可编辑客户信息");
   }
   const data = clientUpdateSchema.parse(input);
-  const { id, contacts, ...rest } = data;
+  const { id, contacts, gender, ...rest } = data;
 
   // 简单策略：删除所有联系人 + 重新创建。后续可优化为 diff
   await prisma.$transaction([
@@ -224,6 +231,7 @@ export async function updateClient(input: ClientUpdateInput) {
       where: { id },
       data: {
         ...emptyToNull(rest),
+        gender: gender || null,
         tags: data.tags,
         contacts: {
           create: contacts.map((c) =>

@@ -34,7 +34,7 @@ import {
 } from "./matters-table";
 import { IntakesTable, type IntakeRow } from "./intakes-table";
 
-const COLUMN_PREF_KEY = "lawlink:matters:columns:v1";
+const COLUMN_PREF_KEY = "lawlink:matters:columns:v2";
 
 function defaultColumns(): ColumnVisibility {
   return MATTER_COLUMNS.reduce((acc, c) => {

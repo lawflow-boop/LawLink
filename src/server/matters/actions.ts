@@ -97,7 +97,25 @@ export async function listMatters(input: Partial<MatterListQuery> = {}) {
     prisma.matter.count({ where })
   ]);
 
-  return { items, total, page: query.page, pageSize: query.pageSize };
+  // v0.39: 本页案件回款金额（FeeEntry RECEIVED 聚合，一次查询）
+  const receivedByMatter = new Map<string, number>();
+  if (items.length > 0) {
+    const grouped = await prisma.feeEntry.groupBy({
+      by: ["matterId"],
+      where: { type: "RECEIVED", matterId: { in: items.map((m) => m.id) } },
+      _sum: { amount: true }
+    });
+    for (const g of grouped) {
+      receivedByMatter.set(g.matterId, Number(g._sum.amount ?? 0));
+    }
+  }
+
+  const itemsWithReceived = items.map((m) => ({
+    ...m,
+    receivedAmount: receivedByMatter.get(m.id) ?? 0
+  }));
+
+  return { items: itemsWithReceived, total, page: query.page, pageSize: query.pageSize };
 }
 
 // v0.32: 程序级基本信息编辑

@@ -3,6 +3,8 @@
  */
 import type {
   ClientType,
+  ClientCooperationStatus,
+  ClientGender,
   MatterCategory,
   MatterStatus,
   IntakeStatus,
@@ -20,6 +22,29 @@ export const clientTypeLabel: Record<ClientType, string> = {
   COMPANY: "公司",
   ORGANIZATION: "其他组织"
 };
+
+// v0.39: 客户合作状态
+export const cooperationStatusLabel: Record<ClientCooperationStatus, string> = {
+  POTENTIAL: "潜在",
+  NEGOTIATING: "洽谈中",
+  SIGNED: "已签约",
+  TERMINATED: "已终止"
+};
+
+export const COOPERATION_STATUS_OPTIONS: ClientCooperationStatus[] = [
+  "POTENTIAL",
+  "NEGOTIATING",
+  "SIGNED",
+  "TERMINATED"
+];
+
+// v0.39: 客户性别（个人客户）
+export const genderLabel: Record<ClientGender, string> = {
+  MALE: "男",
+  FEMALE: "女"
+};
+
+export const GENDER_OPTIONS: ClientGender[] = ["MALE", "FEMALE"];
 
 // v0.30: 当事人主体类型。自然人填身份证号，其余主体填统一社会信用代码。
 export const partyTypeLabel: Record<PartyType, string> = {

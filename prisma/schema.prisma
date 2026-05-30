@@ -213,6 +213,20 @@ enum ClientType {
   ORGANIZATION
 }
 
+// v0.39: 客户合作状态（生命周期）
+enum ClientCooperationStatus {
+  POTENTIAL    // 潜在
+  NEGOTIATING  // 洽谈中
+  SIGNED       // 已签约
+  TERMINATED   // 已终止
+}
+
+// v0.39: 客户性别（个人客户）
+enum ClientGender {
+  MALE
+  FEMALE
+}
+
 enum ConflictSeverity {
   LOW
   MEDIUM
@@ -375,6 +389,12 @@ model Client {
   tags        String[]
   notes       String?
   legalRep    String?
+  // v0.39: 案件云式补充字段
+  internalCode      String?                 @unique // 客户编号 KH-{YYYY}-{4位}
+  cooperationStatus ClientCooperationStatus @default(SIGNED) // 合作状态
+  industry          String? // 所属行业
+  gender            ClientGender? // 性别（个人客户）
+  ethnicity         String? // 民族（个人客户）
   contacts    Contact[]
   intakes     Intake[]
   matterLinks MatterClient[]
