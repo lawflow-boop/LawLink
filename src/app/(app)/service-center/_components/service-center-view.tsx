@@ -185,9 +185,9 @@ export function ServiceCenterView({
         })}
       </nav>
 
-      {tab === "tools" && <CalcView />}
+      {tab === "tools" && <CalcView hideHeader />}
 
-      {tab === "express" && <ExpressView {...express} />}
+      {tab === "express" && <ExpressView {...express} hideHeader />}
 
       {tab === "firm-files" && (
         <FirmFilesView
@@ -198,6 +198,7 @@ export function ServiceCenterView({
           includeSuperseded={includeSuperseded}
           basePath="/service-center"
           preservedParams={["tab"]}
+          hideHeader
         />
       )}
 
@@ -209,7 +210,7 @@ export function ServiceCenterView({
         />
       )}
 
-      {/* 制度规范 = 律所文书里的「制度(POLICY)」分类 */}
+      {/* 制度规范 = 律所文书里的「制度(POLICY)」分类，只列文件、不显分类 */}
       {tab === "policy" && (
         <FirmFilesView
           files={firmFiles.filter((f) => f.category === "POLICY")}
@@ -219,6 +220,8 @@ export function ServiceCenterView({
           includeSuperseded={includeSuperseded}
           basePath="/service-center"
           preservedParams={["tab"]}
+          hideHeader
+          hideCategoryNav
         />
       )}
 

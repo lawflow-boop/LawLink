@@ -58,7 +58,9 @@ export function FirmFilesView({
   currentSearch,
   includeSuperseded,
   basePath = "/firm-resources",
-  preservedParams = []
+  preservedParams = [],
+  hideHeader,
+  hideCategoryNav
 }: {
   files: FileEntry[];
   canUpload: boolean;
@@ -68,6 +70,10 @@ export function FirmFilesView({
   /** v0.27: 让 service-center 复用同一组件且保留 ?tab= */
   basePath?: string;
   preservedParams?: string[];
+  /** v0.37: 应用页内嵌——隐藏标题/介绍（tab 已标注）*/
+  hideHeader?: boolean;
+  /** v0.37: 隐藏分类筛选条（如「制度规范」tab 只列 POLICY）*/
+  hideCategoryNav?: boolean;
 }) {
   const router = useRouter();
   const sp = useSearchParams();
@@ -128,27 +134,39 @@ export function FirmFilesView({
 
   return (
     <div className="space-y-4">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl">
-            <FolderArchive className="h-5 w-5 text-primary" strokeWidth={1.8} />
-            律所资料
-          </h1>
-          <p className="mt-0.5 text-[12px] text-muted-foreground">
-            制度 · 指引 · 参考模板 · 其他文件。全所共享，
-            {canUpload ? "管理员可上传与版本替代" : "管理员上传"}
-          </p>
-        </div>
-        {canUpload && (
-          <Button size="sm" onClick={() => setUploadOpen(true)} className="gap-1.5">
-            <Upload className="h-3.5 w-3.5" />
-            上传资料
-          </Button>
-        )}
-      </header>
+      {!hideHeader ? (
+        <header className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="flex items-center gap-2 text-xl">
+              <FolderArchive className="h-5 w-5 text-primary" strokeWidth={1.8} />
+              律所资料
+            </h1>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">
+              制度 · 指引 · 参考模板 · 其他文件。全所共享，
+              {canUpload ? "管理员可上传与版本替代" : "管理员上传"}
+            </p>
+          </div>
+          {canUpload && (
+            <Button size="sm" onClick={() => setUploadOpen(true)} className="gap-1.5">
+              <Upload className="h-3.5 w-3.5" />
+              上传资料
+            </Button>
+          )}
+        </header>
+      ) : (
+        canUpload && (
+          <div className="flex justify-end">
+            <Button size="sm" onClick={() => setUploadOpen(true)} className="gap-1.5">
+              <Upload className="h-3.5 w-3.5" />
+              上传资料
+            </Button>
+          </div>
+        )
+      )}
 
       {/* 筛选条 */}
       <div className="space-y-3">
+        {!hideCategoryNav && (
         <div className="flex flex-wrap items-center gap-1.5">
           <CategoryChip
             label="全部"
@@ -179,6 +197,7 @@ export function FirmFilesView({
             包含旧版
           </label>
         </div>
+        )}
 
         <form onSubmit={handleSearch} className="flex items-center gap-1.5">
           <div className="relative flex-1 max-w-md">

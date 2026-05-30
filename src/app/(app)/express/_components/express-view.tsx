@@ -64,11 +64,13 @@ const STATE_TONE: Record<string, "danger" | "ok" | "warn" | "muted"> = {
 export function ExpressView({
   items,
   matters,
-  configured
+  configured,
+  hideHeader
 }: {
   items: Row[];
   matters: MatterOption[];
   configured: boolean;
+  hideHeader?: boolean;
 }) {
   const [direction, setDirection] = useState<DirectionFilter>("ALL");
   const [search, setSearch] = useState("");
@@ -92,15 +94,19 @@ export function ExpressView({
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl">
-            <Package className="h-5 w-5 text-primary" />
-            快递追踪
-          </h1>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            寄出 / 收到的法院文书、当事人材料统一登记 + 自动刷新物流
-          </p>
-        </div>
+        {hideHeader ? (
+          <div />
+        ) : (
+          <div>
+            <h1 className="flex items-center gap-2 text-2xl">
+              <Package className="h-5 w-5 text-primary" />
+              快递追踪
+            </h1>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              寄出 / 收到的法院文书、当事人材料统一登记 + 自动刷新物流
+            </p>
+          </div>
+        )}
         <Button onClick={() => setNewOpen(true)} className="gap-1.5">
           <Plus className="h-3.5 w-3.5" />
           新建追踪

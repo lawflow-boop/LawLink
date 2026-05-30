@@ -16,21 +16,23 @@ const TABS: { key: Tab; label: string; icon: typeof Scale }[] = [
   { key: "days", label: "天数计算", icon: CalendarDays }
 ];
 
-export function CalcView() {
+export function CalcView({ hideHeader }: { hideHeader?: boolean } = {}) {
   const [tab, setTab] = useState<Tab>("courtFee");
 
   return (
     <div className="space-y-5">
-      {/* 标题 */}
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl">
-          <Calculator className="h-5 w-5 text-primary" strokeWidth={1.6} />
-          律师工具箱
-        </h1>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">
-          诉讼费 / 迟延履行金 / 天数 —— 纯前端速算，无需联网
-        </p>
-      </div>
+      {/* 标题（应用页内嵌时由 tab 标注，隐藏）*/}
+      {!hideHeader && (
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl">
+            <Calculator className="h-5 w-5 text-primary" strokeWidth={1.6} />
+            律师工具箱
+          </h1>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            诉讼费 / 迟延履行金 / 天数 —— 纯前端速算，无需联网
+          </p>
+        </div>
+      )}
 
       {/* Tab */}
       <div className="border-b border-border">

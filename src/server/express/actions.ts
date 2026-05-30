@@ -123,7 +123,7 @@ export async function createExpress(input: z.infer<typeof expressCreateSchema>) 
     detail: { trackingNo: data.trackingNo, direction: data.direction }
   });
 
-  revalidatePath("/express");
+  revalidatePath("/service-center");
   if (created.matterId) revalidatePath(`/matters/${created.matterId}`);
   return { ok: true, id: created.id, firstState: lastState };
 }
@@ -165,7 +165,7 @@ export async function refreshExpress(input: z.infer<typeof expressIdSchema>) {
     detail: { state: r.state, provider: r.provider }
   });
 
-  revalidatePath("/express");
+  revalidatePath("/service-center");
   if (e.matterId) revalidatePath(`/matters/${e.matterId}`);
   return { ok: true, state: r.state, provider: r.provider, traces: r.traces };
 }
@@ -192,7 +192,7 @@ export async function deleteExpress(input: z.infer<typeof expressIdSchema>) {
     targetId: data.id
   });
 
-  revalidatePath("/express");
+  revalidatePath("/service-center");
   if (e.matterId) revalidatePath(`/matters/${e.matterId}`);
   return { ok: true };
 }
