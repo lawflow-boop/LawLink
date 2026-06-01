@@ -866,18 +866,19 @@ export function IntakeSheet({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[92vh] w-[92vw] max-w-[1040px] flex-col gap-0 overflow-hidden border-border bg-background p-0 shadow-2xl">
+      <DialogContent className="flex max-h-[92vh] w-[92vw] max-w-[780px] flex-col gap-0 overflow-hidden border-border bg-background p-0 shadow-2xl">
         <DialogHeader className="border-b border-border bg-card px-6 py-4">
-          <div className="flex items-start justify-between gap-4 pr-8">
-            <div className="space-y-1">
+          <div className="pr-8">
+            {/* 标题与「待审批」同行齐平 */}
+            <div className="flex items-center justify-between gap-4">
               <DialogTitle className="text-xl">新建收案</DialogTitle>
-              <DialogDescription className="text-sm">
-                提交后进入&ldquo;待审批&rdquo;，由管理员/主任律师确认后转为正式案件
-              </DialogDescription>
+              <span className="rounded-sm border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                待审批
+              </span>
             </div>
-            <span className="mt-0.5 rounded-sm border border-primary/20 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-              待审批
-            </span>
+            <DialogDescription className="mt-1 text-sm">
+              提交后进入&ldquo;待审批&rdquo;，由管理员/主任律师确认后转为正式案件
+            </DialogDescription>
           </div>
         </DialogHeader>
 
