@@ -141,6 +141,38 @@ export function InvoiceManagementSection({
                       })}
                       {r.requestNote && <> · 备注：{r.requestNote}</>}
                     </div>
+                    {/* v0.42 开票信息（专票六要素供财务直接开票） */}
+                    {(r.buyerName || r.invoiceType) && (
+                      <div className="mt-1 rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+                        <div>
+                          <span className="text-foreground/70">
+                            {r.invoiceType === "SPECIAL"
+                              ? "增值税专用发票"
+                              : r.invoiceType === "PLAIN"
+                                ? "普通发票"
+                                : "发票"}
+                          </span>
+                          {r.buyerName && <> · 抬头：{r.buyerName}</>}
+                          {r.buyerTaxNo && (
+                            <> · 税号：<span className="font-mono">{r.buyerTaxNo}</span></>
+                          )}
+                        </div>
+                        {r.invoiceType === "SPECIAL" &&
+                          (r.buyerBank ||
+                            r.buyerBankAccount ||
+                            r.buyerAddress ||
+                            r.buyerPhone) && (
+                            <div className="mt-0.5">
+                              {r.buyerAddress && <>地址：{r.buyerAddress}　</>}
+                              {r.buyerPhone && <>电话：{r.buyerPhone}　</>}
+                              {r.buyerBank && <>开户行：{r.buyerBank}　</>}
+                              {r.buyerBankAccount && (
+                                <>账号：<span className="font-mono">{r.buyerBankAccount}</span></>
+                              )}
+                            </div>
+                          )}
+                      </div>
+                    )}
                     {r.processNote && (
                       <div className="mt-1 text-[11px] text-destructive/80">
                         财务备注：{r.processNote}

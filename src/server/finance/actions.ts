@@ -322,10 +322,49 @@ export async function getMatterInvoiceContext(matterId: string) {
           client: { select: { name: true } }
         }
       },
-      primaryClient: { select: { id: true, name: true } }
+      primaryClientId: true,
+      primaryClient: { select: { id: true, name: true, idNumber: true } },
+      clientLinks: {
+        select: {
+          isPrimary: true,
+          client: { select: { id: true, name: true, idNumber: true } }
+        }
+      }
     }
   });
   if (!m) throw new Error("案件不存在");
+
+  // v0.42 项3：开票抬头下拉 = 本案关联的全部客户（去重，主要客户置顶）
+  const clientMap = new Map<
+    string,
+    { id: string; name: string; taxNo: string | null; isPrimary: boolean }
+  >();
+  if (m.primaryClient) {
+    clientMap.set(m.primaryClient.id, {
+      id: m.primaryClient.id,
+      name: m.primaryClient.name,
+      taxNo: m.primaryClient.idNumber ?? null,
+      isPrimary: true
+    });
+  }
+  for (const link of m.clientLinks) {
+    if (!link.client) continue;
+    const existing = clientMap.get(link.client.id);
+    if (existing) {
+      existing.isPrimary = existing.isPrimary || link.isPrimary;
+    } else {
+      clientMap.set(link.client.id, {
+        id: link.client.id,
+        name: link.client.name,
+        taxNo: link.client.idNumber ?? null,
+        isPrimary: link.isPrimary
+      });
+    }
+  }
+  const clientOptions = Array.from(clientMap.values()).sort(
+    (a, b) => Number(b.isPrimary) - Number(a.isPrimary)
+  );
+
   return {
     matterId: m.id,
     matterTitle: m.title,
@@ -338,6 +377,7 @@ export async function getMatterInvoiceContext(matterId: string) {
           clientName: m.intake.client?.name ?? null
         }
       : null,
+    clientOptions,
     defaultBuyerName:
       m.primaryClient?.name ?? m.intake?.client?.name ?? null
   };
@@ -353,6 +393,11 @@ export async function createInvoiceRequest(input: {
   invoiceItem: "LAWYER_FEE" | "CONSULTING_FEE" | "AGENCY_FEE" | "OTHER";
   buyerName: string;
   buyerTaxNo?: string | null;
+  // v0.42 项4：增值税专用发票购方六要素（专票必填）
+  buyerAddress?: string | null;
+  buyerPhone?: string | null;
+  buyerBank?: string | null;
+  buyerBankAccount?: string | null;
   evidenceDocIds: string[];
   requestNote?: string | null;
 }) {
@@ -360,14 +405,23 @@ export async function createInvoiceRequest(input: {
   await assertCanAccessMatter(session.user.id, session.user.role, input.matterId);
 
   if (input.amount <= 0) throw new Error("金额必须大于 0");
+  if (input.invoiceType !== "PLAIN" && input.invoiceType !== "SPECIAL") {
+    throw new Error("请选择开票类型");
+  }
   if (!input.buyerName.trim()) throw new Error("请填写开票抬头");
-  if (input.invoiceType === "SPECIAL" && !input.buyerTaxNo?.trim()) {
-    throw new Error("增值税专用发票必须填写客户税号");
+  // 专票合规校验（《增值税专用发票使用与管理通知》第一条 + 购方六要素）
+  if (input.invoiceType === "SPECIAL") {
+    if (!input.buyerTaxNo?.trim()) throw new Error("增值税专用发票必须填写纳税人识别号");
+    if (!input.buyerAddress?.trim()) throw new Error("增值税专用发票必须填写购方地址");
+    if (!input.buyerPhone?.trim()) throw new Error("增值税专用发票必须填写购方电话");
+    if (!input.buyerBank?.trim()) throw new Error("增值税专用发票必须填写开户银行");
+    if (!input.buyerBankAccount?.trim()) throw new Error("增值税专用发票必须填写银行账号");
   }
   if (input.evidenceDocIds.length === 0) {
-    throw new Error("请上传至少一份开票依据（合同 / 缴费记录等）");
+    throw new Error("请上传至少一份开票依据（扫描版委托合同等）");
   }
 
+  const isSpecial = input.invoiceType === "SPECIAL";
   return prisma.invoiceRequest.create({
     data: {
       matterId: input.matterId,
@@ -376,6 +430,10 @@ export async function createInvoiceRequest(input: {
       invoiceItem: input.invoiceItem,
       buyerName: input.buyerName.trim(),
       buyerTaxNo: input.buyerTaxNo?.trim() || null,
+      buyerAddress: isSpecial ? input.buyerAddress?.trim() || null : null,
+      buyerPhone: isSpecial ? input.buyerPhone?.trim() || null : null,
+      buyerBank: isSpecial ? input.buyerBank?.trim() || null : null,
+      buyerBankAccount: isSpecial ? input.buyerBankAccount?.trim() || null : null,
       evidenceDocIds: input.evidenceDocIds,
       title: input.buyerName.trim(),
       requestNote: input.requestNote?.trim() || null,

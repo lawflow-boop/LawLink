@@ -1001,6 +1001,11 @@ model InvoiceRequest {
   invoiceItem    InvoiceItem?
   buyerName      String? // 开票抬头（客户名，可编辑）
   buyerTaxNo     String? // 客户税号（专票必填）
+  // v0.42: 增值税专用发票购方"六要素"补全（税法：开户行/账号/地址/电话必填）
+  buyerAddress     String? // 购方地址（专票必填）
+  buyerPhone       String? // 购方电话（专票必填）
+  buyerBank        String? // 购方开户银行（专票必填）
+  buyerBankAccount String? // 购方银行账号（专票必填）
   evidenceDocIds String[] @default([]) // 开票依据 Document id 列表
 
   // v0.14: 真实发票号（财务开票完成时回填）

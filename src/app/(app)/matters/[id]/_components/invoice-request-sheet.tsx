@@ -15,6 +15,13 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
 import { RadioChips } from "@/components/ui/radio-chips";
 import {
   createInvoiceRequest,
@@ -50,10 +57,18 @@ export function InvoiceRequestSheet({
 
   // 表单状态
   const [amount, setAmount] = useState<string>("");
-  const [invoiceType, setInvoiceType] = useState<InvoiceType>("PLAIN");
+  // v0.42 项5：开票类型无默认值，必须主动选择一次
+  const [invoiceType, setInvoiceType] = useState<InvoiceType | null>(null);
   const [invoiceItem, setInvoiceItem] = useState<InvoiceItem>("LAWYER_FEE");
+  // v0.42 项3：开票抬头改下拉（本案客户）
+  const [buyerClientId, setBuyerClientId] = useState<string>("");
   const [buyerName, setBuyerName] = useState("");
   const [buyerTaxNo, setBuyerTaxNo] = useState("");
+  // v0.42 项4：专票购方六要素
+  const [buyerAddress, setBuyerAddress] = useState("");
+  const [buyerPhone, setBuyerPhone] = useState("");
+  const [buyerBank, setBuyerBank] = useState("");
+  const [buyerBankAccount, setBuyerBankAccount] = useState("");
   const [requestNote, setRequestNote] = useState("");
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -65,20 +80,39 @@ export function InvoiceRequestSheet({
     getMatterInvoiceContext(matterId)
       .then((data) => {
         setCtx(data);
-        setBuyerName(data.defaultBuyerName ?? "");
+        // 只有一个客户时默认选中，多客户强制选择
+        if (data.clientOptions.length === 1) {
+          const only = data.clientOptions[0];
+          setBuyerClientId(only.id);
+          setBuyerName(only.name);
+          setBuyerTaxNo(only.taxNo ?? "");
+        }
       })
-      .catch(() => {
-        setCtx(null);
-        setBuyerName("");
-      })
-      .finally(() => setCtxLoading(false));
+      .catch(() => setCtx(null));
+    setCtxLoading(false);
     setAmount("");
-    setInvoiceType("PLAIN");
+    setInvoiceType(null);
     setInvoiceItem("LAWYER_FEE");
+    setBuyerClientId("");
+    setBuyerName("");
     setBuyerTaxNo("");
+    setBuyerAddress("");
+    setBuyerPhone("");
+    setBuyerBank("");
+    setBuyerBankAccount("");
     setRequestNote("");
     setEvidenceFiles([]);
   }, [open, matterId]);
+
+  function handlePickClient(id: string) {
+    setBuyerClientId(id);
+    const c = ctx?.clientOptions.find((o) => o.id === id);
+    if (c) {
+      setBuyerName(c.name);
+      // 选中客户时预填税号（专票可直接复用，律师可改）
+      if (c.taxNo) setBuyerTaxNo(c.taxNo);
+    }
+  }
 
   function handleFiles(list: FileList | null) {
     if (!list) return;
@@ -94,16 +128,38 @@ export function InvoiceRequestSheet({
       toast.warning("请填写金额");
       return;
     }
-    if (!buyerName.trim()) {
-      toast.warning("请填写开票抬头");
+    if (!invoiceType) {
+      toast.warning("请选择开票类型");
       return;
     }
-    if (invoiceType === "SPECIAL" && !buyerTaxNo.trim()) {
-      toast.warning("增值税专用发票必须填写客户税号");
+    if (!buyerName.trim()) {
+      toast.warning("请选择开票抬头");
       return;
+    }
+    if (invoiceType === "SPECIAL") {
+      if (!buyerTaxNo.trim()) {
+        toast.warning("增值税专用发票必须填写纳税人识别号");
+        return;
+      }
+      if (!buyerAddress.trim()) {
+        toast.warning("增值税专用发票必须填写购方地址");
+        return;
+      }
+      if (!buyerPhone.trim()) {
+        toast.warning("增值税专用发票必须填写购方电话");
+        return;
+      }
+      if (!buyerBank.trim()) {
+        toast.warning("增值税专用发票必须填写开户银行");
+        return;
+      }
+      if (!buyerBankAccount.trim()) {
+        toast.warning("增值税专用发票必须填写银行账号");
+        return;
+      }
     }
     if (evidenceFiles.length === 0) {
-      toast.warning("请上传至少一份开票依据（合同 / 缴费记录等）");
+      toast.warning("请上传开票依据（扫描版委托合同等）");
       return;
     }
 
@@ -124,13 +180,18 @@ export function InvoiceRequestSheet({
         }
 
         // 2. 创建开票申请
+        const isSpecial = invoiceType === "SPECIAL";
         await createInvoiceRequest({
           matterId,
           amount: amt,
           invoiceType,
           invoiceItem,
           buyerName,
-          buyerTaxNo: invoiceType === "SPECIAL" ? buyerTaxNo : null,
+          buyerTaxNo: isSpecial ? buyerTaxNo : null,
+          buyerAddress: isSpecial ? buyerAddress : null,
+          buyerPhone: isSpecial ? buyerPhone : null,
+          buyerBank: isSpecial ? buyerBank : null,
+          buyerBankAccount: isSpecial ? buyerBankAccount : null,
           evidenceDocIds: docIds,
           requestNote
         });
@@ -144,6 +205,8 @@ export function InvoiceRequestSheet({
       }
     });
   }
+
+  const clientOptions = ctx?.clientOptions ?? [];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -163,30 +226,34 @@ export function InvoiceRequestSheet({
         </DialogHeader>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          {/* 金额 */}
-          <Field label="开票金额（元）" required>
-            <Input
-              type="number"
-              step="0.01"
-              inputMode="decimal"
-              className="font-mono"
-              placeholder="0.00"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-          </Field>
-
-          {/* 开票类型 */}
-          <Field label="开票类型" required>
-            <RadioChips
-              items={[
-                { value: "PLAIN", label: "普通发票" },
-                { value: "SPECIAL", label: "增值税专用发票" }
-              ]}
-              value={invoiceType}
-              onChange={(v) => setInvoiceType(v as InvoiceType)}
-            />
-          </Field>
+          {/* v0.42 项5：金额 + 开票类型 同一行 */}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="开票金额（元）" required>
+              <Input
+                type="number"
+                step="0.01"
+                inputMode="decimal"
+                className="font-mono"
+                placeholder="0.00"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </Field>
+            <Field label="开票类型" required>
+              <Select
+                value={invoiceType ?? undefined}
+                onValueChange={(v) => setInvoiceType(v as InvoiceType)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="请选择" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="PLAIN">普通发票</SelectItem>
+                  <SelectItem value="SPECIAL">增值税专用发票</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
 
           {/* 开票名目 */}
           <Field label="开票名目" required>
@@ -197,40 +264,96 @@ export function InvoiceRequestSheet({
             />
           </Field>
 
-          {/* 客户抬头 */}
+          {/* v0.42 项3：客户抬头下拉（本案客户） */}
           <Field
-            label="开票抬头（客户名称）"
+            label="开票抬头（客户）"
             required
             hint={
-              ctx?.defaultBuyerName
-                ? `已自动填入"${ctx.defaultBuyerName}"，可编辑`
-                : undefined
+              clientOptions.length === 0
+                ? "本案暂无关联客户，请先在案件当事人中登记客户"
+                : "选项为本案关联的客户"
             }
           >
-            <Input
-              placeholder="如：上海某某科技有限公司 / 张三"
-              value={buyerName}
-              onChange={(e) => setBuyerName(e.target.value)}
-            />
+            {clientOptions.length > 0 ? (
+              <Select value={buyerClientId} onValueChange={handlePickClient}>
+                <SelectTrigger>
+                  <SelectValue placeholder="请选择开票抬头" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientOptions.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                      {c.isPrimary ? "（主要客户）" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                placeholder="如：上海某某科技有限公司 / 张三"
+                value={buyerName}
+                onChange={(e) => setBuyerName(e.target.value)}
+              />
+            )}
           </Field>
 
-          {/* 税号（专票必填） */}
+          {/* 专票购方六要素（v0.42 项4，税法合规） */}
           {invoiceType === "SPECIAL" && (
-            <Field label="客户税号（统一社会信用代码）" required>
-              <Input
-                className="font-mono"
-                placeholder="91310000XXXXXXXXXX"
-                value={buyerTaxNo}
-                onChange={(e) => setBuyerTaxNo(e.target.value)}
-              />
-            </Field>
+            <div className="space-y-3 rounded-md border border-primary/30 bg-primary/5 p-3">
+              <p className="text-[11px] text-muted-foreground">
+                增值税专用发票需提供购方完整信息（依《增值税专用发票使用与管理通知》，开户行 /
+                账号 / 地址 / 电话均必填）
+              </p>
+              <Field label="纳税人识别号（统一社会信用代码）" required>
+                <Input
+                  className="font-mono"
+                  placeholder="91310000XXXXXXXXXX"
+                  value={buyerTaxNo}
+                  onChange={(e) => setBuyerTaxNo(e.target.value)}
+                />
+              </Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="开户银行" required>
+                  <Input
+                    placeholder="如：中国银行上海分行"
+                    value={buyerBank}
+                    onChange={(e) => setBuyerBank(e.target.value)}
+                  />
+                </Field>
+                <Field label="银行账号" required>
+                  <Input
+                    className="font-mono"
+                    placeholder="62XXXXXXXXXXXXXXXX"
+                    value={buyerBankAccount}
+                    onChange={(e) => setBuyerBankAccount(e.target.value)}
+                  />
+                </Field>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="购方地址" required>
+                  <Input
+                    placeholder="营业执照登记地址"
+                    value={buyerAddress}
+                    onChange={(e) => setBuyerAddress(e.target.value)}
+                  />
+                </Field>
+                <Field label="购方电话" required>
+                  <Input
+                    className="font-mono"
+                    placeholder="021-XXXXXXXX"
+                    value={buyerPhone}
+                    onChange={(e) => setBuyerPhone(e.target.value)}
+                  />
+                </Field>
+              </div>
+            </div>
           )}
 
           {/* 开票依据 */}
           <Field
-            label="开票依据（至少一项）"
+            label="开票依据"
             required
-            hint="如：扫描版委托合同 / 缴费记录 / 银行回单等，单文件 ≤ 20MB"
+            hint="正常情况下必须上传扫描版委托合同，支付凭证可选；特殊情况请提交情况说明，单文件 ≤ 20MB"
           >
             <div className="space-y-2">
               <input
