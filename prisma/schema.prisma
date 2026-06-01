@@ -371,6 +371,8 @@ model User {
   // v0.27: 服务中心 - 公告发布者 / 外部联系人录入者
   publishedAnnouncements Announcement[]       @relation("AnnouncementAuthor")
   createdExternalContacts ExternalContact[]   @relation("ExternalContactCreator")
+  // v0.44: 程序主办律师
+  leadProcedures         MatterProcedure[]     @relation("ProcedureLeadLawyer")
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
 }
@@ -692,6 +694,11 @@ model MatterProcedure {
   judgeAssistant        String? // 法官助理 / 仲裁庭助理
   judgeAssistantContact String? // 助理联系方式
   ourStanding           LitigationStanding? // 我方地位（按程序确定可选项）
+
+  // v0.44: 主办律师
+  leadLawyerId   String? // 主办律师（所内律师）
+  leadLawyer     User?   @relation("ProcedureLeadLawyer", fields: [leadLawyerId], references: [id], onDelete: SetNull)
+  isExternalLead Boolean @default(false) // 是否非本所代理
 
   acceptedAt  DateTime? // 立案时间
   concludedAt DateTime? // 裁决 / 结案时间
@@ -1594,6 +1601,10 @@ enum FirmFileCategory {
   GUIDE      // 指引（办案指引、客户接待指引等）
   TEMPLATE   // 参考模板（律师下载手动改的样本，区别于 docxtemplater 生成型）
   REFERENCE  // 其他文件（营业执照、执业证扫描件等）
+  CONTRACT   // 合同
+  LETTER     // 函件
+  LICENSE    // 证照
+  OTHER_FIRM // 其他
 }
 
 model FirmFile {

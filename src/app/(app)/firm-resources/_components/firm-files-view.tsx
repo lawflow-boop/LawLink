@@ -40,10 +40,17 @@ const CATEGORY_META: Record<FirmFileCategory, { label: string; color: string }> 
   POLICY: { label: "制度", color: "#9B7BF7" },
   GUIDE: { label: "指引", color: "#5B8DEF" },
   TEMPLATE: { label: "参考模板", color: "#48BB78" },
-  REFERENCE: { label: "其他文件", color: "#F5A742" }
+  REFERENCE: { label: "其他文件", color: "#F5A742" },
+  CONTRACT: { label: "合同", color: "#5B8DEF" },
+  LETTER: { label: "函件", color: "#48BB78" },
+  LICENSE: { label: "证照", color: "#F5A742" },
+  OTHER_FIRM: { label: "其他", color: "#9B7BF7" }
 };
 
-const CATEGORIES: FirmFileCategory[] = ["POLICY", "GUIDE", "TEMPLATE", "REFERENCE"];
+/** 律所文书页展示的分类 */
+const FIRM_DOC_CATEGORIES: FirmFileCategory[] = ["CONTRACT", "LETTER", "LICENSE", "OTHER_FIRM"];
+/** 旧分类（兼容已有数据） */
+const LEGACY_CATEGORIES: FirmFileCategory[] = ["POLICY", "GUIDE", "TEMPLATE", "REFERENCE"];
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n}B`;
@@ -63,7 +70,8 @@ export function FirmFilesView({
   hideCategoryNav,
   headerTitle,
   headerSubtitle,
-  headerIcon
+  headerIcon,
+  categorySet
 }: {
   files: FileEntry[];
   canUpload: boolean;
@@ -81,6 +89,8 @@ export function FirmFilesView({
   headerTitle?: string;
   headerSubtitle?: string;
   headerIcon?: React.ReactNode;
+  /** v0.44: 分类集合（"firm"=律所文书新分类，默认旧分类） */
+  categorySet?: "firm" | "legacy";
 }) {
   const router = useRouter();
   const sp = useSearchParams();
@@ -89,6 +99,8 @@ export function FirmFilesView({
   const [previewFile, setPreviewFile] = useState<FileEntry | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  const activeCategories = categorySet === "firm" ? FIRM_DOC_CATEGORIES : LEGACY_CATEGORIES;
 
   function navigate(patch: Record<string, string | undefined>) {
     const next = new URLSearchParams();
@@ -131,12 +143,13 @@ export function FirmFilesView({
     });
   }
 
-  const counts = CATEGORIES.reduce<Record<FirmFileCategory, number>>(
+  const counts = activeCategories.reduce<Record<FirmFileCategory, number>>(
     (acc, c) => {
       acc[c] = files.filter((f) => f.category === c).length;
       return acc;
     },
-    { POLICY: 0, GUIDE: 0, TEMPLATE: 0, REFERENCE: 0 }
+    // Initialize all to 0
+    [...FIRM_DOC_CATEGORIES, ...LEGACY_CATEGORIES].reduce((acc, c) => { acc[c] = 0; return acc; }, {} as Record<FirmFileCategory, number>)
   );
 
   return (
@@ -146,12 +159,12 @@ export function FirmFilesView({
           <div>
             <h1 className="flex items-center gap-2 text-xl">
               {headerIcon ?? <FolderArchive className="h-5 w-5 text-primary" strokeWidth={1.8} />}
-              {headerTitle ?? "律所资料"}
+              {headerTitle ?? "律所文书"}
             </h1>
             <p className="mt-0.5 text-[12px] text-muted-foreground">
               {headerSubtitle ?? (
                 <>
-                  制度 · 指引 · 参考模板 · 其他文件。全所共享，
+                  合同 · 函件 · 证照 · 其他。全所共享，
                   {canUpload ? "管理员可上传与版本替代" : "管理员上传"}
                 </>
               )}
@@ -186,7 +199,7 @@ export function FirmFilesView({
             active={!currentCategory}
             onClick={() => navigate({ category: undefined })}
           />
-          {CATEGORIES.map((c) => (
+          {activeCategories.map((c) => (
             <CategoryChip
               key={c}
               label={CATEGORY_META[c].label}

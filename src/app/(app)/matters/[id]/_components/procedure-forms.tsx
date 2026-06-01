@@ -26,6 +26,14 @@ import {
   SheetFooter
 } from "@/components/ui/sheet";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from "@/components/ui/dialog";
+import {
   procedureCreateSchema,
   deadlineCreateSchema,
   hearingCreateSchema,
@@ -53,13 +61,16 @@ export function AddProcedureSheet({
   onOpenChange,
   matterId,
   category,
-  nextOrder
+  nextOrder,
+  colleagues
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   matterId: string;
   category: MatterCategory;
   nextOrder: number;
+  /** v0.44: 所内律师列表（主办律师下拉） */
+  colleagues?: { id: string; name: string }[];
 }) {
   const [isPending, startTransition] = useTransition();
   const procedureOptions = proceduresByCategory[category];
@@ -82,12 +93,15 @@ export function AddProcedureSheet({
       handlingAgency: "",
       panel: "",
       handler: "",
-      acceptedAt: undefined
+      acceptedAt: undefined,
+      leadLawyerId: null,
+      isExternalLead: false
     }
   });
 
   const procedureType = watch("type");
-  const engagement = watch("engagement");
+  const leadLawyerId = watch("leadLawyerId");
+  const isExternalLead = watch("isExternalLead");
 
   function onSubmit(values: ProcedureCreateInput) {
     startTransition(async () => {
@@ -105,46 +119,17 @@ export function AddProcedureSheet({
   }
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full max-w-xl flex-col gap-0 p-0">
-        <SheetHeader className="border-b border-border bg-background px-6 py-4">
-          <SheetTitle>添加程序（第 {nextOrder} 个）</SheetTitle>
-          <SheetDescription className="text-xs">
-            一审/二审/再审都可串接；如果是别人代理的前序程序，选 <span className="text-foreground">前序参考</span>
-          </SheetDescription>
-        </SheetHeader>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-xl max-h-[85vh] flex flex-col gap-0 p-0">
+        <DialogHeader className="border-b border-border px-6 py-4">
+          <DialogTitle>添加程序（第 {nextOrder} 个）</DialogTitle>
+          <DialogDescription className="text-xs">
+            填写程序基本信息和主办律师
+          </DialogDescription>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 space-y-5 overflow-y-auto px-6 py-5">
-            {/* 参与方式 */}
-            <div className="space-y-2">
-              <Label className="text-xs">参与方式</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {(["ENGAGED", "INFORMATIONAL"] as const).map((e) => (
-                  <button
-                    key={e}
-                    type="button"
-                    onClick={() => setValue("engagement", e)}
-                    className={cn(
-                      "rounded-md border px-3 py-2 text-left text-sm transition-colors",
-                      engagement === e
-                        ? "border-primary bg-primary/15 text-primary"
-                        : "border-border bg-background text-muted-foreground hover:border-input"
-                    )}
-                  >
-                    <div className="font-medium">
-                      {e === "ENGAGED" ? "我方代理" : "前序参考"}
-                    </div>
-                    <div className="mt-0.5 text-[11px] text-muted-foreground">
-                      {e === "ENGAGED"
-                        ? "完整工作流：阶段、期限、开庭"
-                        : "仅录元数据，不进日程聚合"}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* 程序类型 */}
             <div className="space-y-2">
               <Label className="text-xs">程序类型 *</Label>
@@ -166,6 +151,44 @@ export function AddProcedureSheet({
                 ))}
               </div>
             </div>
+
+            {/* 主办律师 */}
+            {colleagues && colleagues.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs">主办律师</Label>
+                <div className="flex items-center gap-3">
+                  <Select
+                    value={isExternalLead ? "__external__" : (leadLawyerId ?? "__none__")}
+                    onValueChange={(v) => {
+                      if (v === "__external__") {
+                        setValue("isExternalLead", true);
+                        setValue("leadLawyerId", null);
+                      } else if (v === "__none__") {
+                        setValue("isExternalLead", false);
+                        setValue("leadLawyerId", null);
+                      } else {
+                        setValue("isExternalLead", false);
+                        setValue("leadLawyerId", v);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="选择主办律师" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">未指定</SelectItem>
+                      {colleagues.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                      <SelectItem value="__external__">非本所代理</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {isExternalLead && (
+                    <span className="text-xs text-muted-foreground">此程序由外部律师代理</span>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="案号">
@@ -199,7 +222,7 @@ export function AddProcedureSheet({
             </div>
           </div>
 
-          <SheetFooter className="border-t border-border bg-background px-6 py-4">
+          <DialogFooter className="border-t border-border px-6 py-4">
             <Button
               type="button"
               variant="outline"
@@ -212,10 +235,10 @@ export function AddProcedureSheet({
               {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               添加程序
             </Button>
-          </SheetFooter>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
 

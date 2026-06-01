@@ -49,6 +49,8 @@ export async function addProcedure(input: ProcedureCreateInput) {
       panel: data.panel || null,
       handler: data.handler || null,
       acceptedAt: data.acceptedAt,
+      leadLawyerId: data.isExternalLead ? null : (data.leadLawyerId || null),
+      isExternalLead: data.isExternalLead,
       status: data.engagement === "INFORMATIONAL" ? "CONCLUDED" : "IN_PROGRESS"
     }
   });

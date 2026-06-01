@@ -445,6 +445,7 @@ export function MatterDetailTabs({
         matterId={matter.id}
         category={matter.category}
         nextOrder={matter.procedures.length + 1}
+        colleagues={colleagues}
       />
       <ArchiveWizardDialog
         matterId={matter.id}

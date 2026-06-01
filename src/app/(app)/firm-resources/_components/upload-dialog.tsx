@@ -27,6 +27,10 @@ import {
 import { uploadFirmFile } from "@/server/firm-files/actions";
 
 const CATEGORY_OPTIONS: { value: FirmFileCategory; label: string }[] = [
+  { value: "CONTRACT", label: "合同" },
+  { value: "LETTER", label: "函件" },
+  { value: "LICENSE", label: "证照" },
+  { value: "OTHER_FIRM", label: "其他" },
   { value: "POLICY", label: "制度" },
   { value: "GUIDE", label: "指引" },
   { value: "TEMPLATE", label: "参考模板" },
@@ -55,7 +59,7 @@ export function UploadDialog({
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<FirmFileCategory>("POLICY");
+  const [category, setCategory] = useState<FirmFileCategory>("CONTRACT");
   const [tags, setTags] = useState("");
   const [supersedesId, setSupersedesId] = useState<string>(NONE_VALUE);
   const [isPending, startTransition] = useTransition();
@@ -64,7 +68,7 @@ export function UploadDialog({
     setFile(null);
     setName("");
     setDescription("");
-    setCategory("POLICY");
+    setCategory("CONTRACT");
     setTags("");
     setSupersedesId(NONE_VALUE);
     if (fileRef.current) fileRef.current.value = "";

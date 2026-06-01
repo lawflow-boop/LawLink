@@ -26,7 +26,10 @@ export const procedureCreateSchema = z.object({
   handlingAgency: z.string().max(120).optional().or(z.literal("")),
   panel: z.string().max(80).optional().or(z.literal("")),
   handler: z.string().max(40).optional().or(z.literal("")),
-  acceptedAt: z.coerce.date().optional()
+  acceptedAt: z.coerce.date().optional(),
+  // v0.44: 主办律师
+  leadLawyerId: z.string().cuid().optional().nullable(),
+  isExternalLead: z.boolean().default(false)
 });
 
 export const procedureUpdateSchema = z.object({
