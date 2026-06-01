@@ -921,6 +921,8 @@ model Document {
   procedure   MatterProcedure? @relation(fields: [procedureId], references: [id])
   name        String
   category    DocumentCategory @default(OTHER)
+  // v0.42: 材料来源方（我方/对方/第三人 等，取自本案当事人，可空）
+  sourceParty String?
   // v0.10: 文书审批流程
   status      DocumentStatus   @default(DRAFT)
   reviewedById String?

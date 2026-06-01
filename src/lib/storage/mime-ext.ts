@@ -43,3 +43,35 @@ export function isInlinePreviewable(mimeType: string | null | undefined): boolea
     m === "text/html"
   );
 }
+
+const DOCX_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const XLSX_MIME =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const XLS_MIME = "application/vnd.ms-excel";
+
+/**
+ * v0.42: 服务端可转 HTML 预览的 Office 文档类型。
+ * docx → mammoth；xlsx/xls → exceljs。
+ * 老 .doc(application/msword) 无法可靠转换 → 归 null（降级下载）。
+ * mime 可能不准，故同时看文件名扩展。
+ */
+export function officePreviewKind(
+  mimeType: string | null | undefined,
+  name?: string | null
+): "docx" | "xlsx" | null {
+  const m = (mimeType ?? "").toLowerCase();
+  const n = (name ?? "").toLowerCase();
+  if (m === DOCX_MIME || n.endsWith(".docx")) return "docx";
+  if (m === XLSX_MIME || m === XLS_MIME || n.endsWith(".xlsx") || n.endsWith(".xls"))
+    return "xlsx";
+  return null;
+}
+
+/** 能在线打开查阅（内嵌 inline 或服务端转 HTML），用于前端决定是否给"打开"入口 */
+export function canPreview(
+  mimeType: string | null | undefined,
+  name?: string | null
+): boolean {
+  return isInlinePreviewable(mimeType) || officePreviewKind(mimeType, name) !== null;
+}

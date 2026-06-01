@@ -408,6 +408,7 @@ export function MatterDetailTabs({
                 mimeType: d.mimeType,
                 size: d.size,
                 createdAt: d.createdAt,
+                sourceParty: d.sourceParty,
                 path: d.path
               }));
             return (
@@ -419,6 +420,7 @@ export function MatterDetailTabs({
                   matterId={matter.id}
                   procedureId={p.id}
                   documents={procDocs}
+                  parties={matter.parties}
                 />
               </div>
             );

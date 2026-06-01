@@ -2,13 +2,13 @@
 
 /**
  * v0.27: 程序下"案件材料"区
+ * v0.42: 分类切换 tab + 来源方 + 一行两列 + docx/xlsx 在线预览
  *
- * - 替代原 "案卷材料" 全局 tab
- * - 每个程序（一审/二审/再审/执行 等）独立呈现自己关联的 Document
- * - 上传时必选 category（起诉状/答辩状/证据/判决书 等映射 DocumentCategory）
- * - 复用 server/documents/actions 的 uploadDocument，传 procedureId 绑定
+ * - 每个程序独立呈现自己关联的 Document
+ * - 上传时必选 category；诉辩/证据类可标注来源方（取本案当事人）
+ * - 预览：pdf/图片/文本走 download?inline=1；docx/xlsx 走 /preview 转 HTML
  */
-import { useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import {
   File as FileIcon,
   FileImage,
@@ -18,7 +18,8 @@ import {
   Loader2,
   Plus,
   Trash2,
-  Download
+  Download,
+  Eye
 } from "lucide-react";
 import type { DocumentCategory } from "@prisma/client";
 import { toast } from "sonner";
@@ -42,15 +43,17 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { uploadDocument, deleteDocument } from "@/server/documents/actions";
+import { canPreview, officePreviewKind } from "@/lib/storage/mime-ext";
 import { cn, formatDate } from "@/lib/utils";
 
+// v0.42: 类别标签按律师习惯改名
 const categoryLabel: Record<DocumentCategory, string> = {
-  EVIDENCE: "证据材料",
-  PLEADING: "起诉状 / 答辩状 / 申请书",
-  PROCEDURE: "程序文书（含财产保全等）",
-  JUDGMENT: "裁判文书",
+  PLEADING: "诉辩文件",
+  EVIDENCE: "证据文件",
+  PROCEDURE: "程序文件",
+  JUDGMENT: "裁判文件",
   CONTRACT: "合同 / 协议",
-  OTHER: "其他"
+  OTHER: "其他文件"
 };
 const CATEGORY_OPTIONS: DocumentCategory[] = [
   "PLEADING",
@@ -60,6 +63,20 @@ const CATEGORY_OPTIONS: DocumentCategory[] = [
   "CONTRACT",
   "OTHER"
 ];
+// 需要标注来源方的类别（诉辩 / 证据）
+const SOURCE_CATEGORIES: DocumentCategory[] = ["PLEADING", "EVIDENCE"];
+
+const ROLE_LABEL: Record<string, string> = {
+  CLIENT_PARTY: "我方",
+  OPPOSING_PARTY: "对方",
+  THIRD_PARTY: "第三人",
+  CO_LITIGANT: "共同当事人",
+  AGENT: "代理人",
+  WITNESS: "证人",
+  OTHER: "其他"
+};
+
+type Party = { id: string; name: string; role: string };
 
 type DocItem = {
   id: string;
@@ -68,6 +85,7 @@ type DocItem = {
   mimeType: string | null;
   size: number | null;
   createdAt: Date;
+  sourceParty: string | null;
   path: string;
 };
 
@@ -81,22 +99,59 @@ function iconFor(mimeType: string | null) {
   return FileIcon;
 }
 
+// 预览 URL：office 文档走转 HTML，其余走 inline
+function previewUrl(d: DocItem): string | null {
+  if (officePreviewKind(d.mimeType, d.name)) {
+    return `/api/documents/${d.id}/preview`;
+  }
+  if (canPreview(d.mimeType, d.name)) {
+    return `/api/documents/${d.id}/download?inline=1`;
+  }
+  return null;
+}
+
 export function ProcedureDocumentsSection({
   matterId,
   procedureId,
-  documents
+  documents,
+  parties
 }: {
   matterId: string;
   procedureId: string;
   documents: DocItem[];
+  parties: Party[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [picked, setPicked] = useState<File | null>(null);
   const [category, setCategory] = useState<DocumentCategory>("PLEADING");
+  const [sourceParty, setSourceParty] = useState<string>("");
   const [customName, setCustomName] = useState("");
   const [isPending, startTransition] = useTransition();
+  // 当前分类筛选（全部 = null）
+  const [filter, setFilter] = useState<DocumentCategory | null>(null);
+
+  // 来源方选项：本案当事人（角色·名称）
+  const sourceOptions = useMemo(
+    () =>
+      parties
+        .filter((p) => p.name?.trim())
+        .map((p) => `${ROLE_LABEL[p.role] ?? "其他"}·${p.name}`),
+    [parties]
+  );
+
+  const filtered = useMemo(
+    () => (filter ? documents.filter((d) => d.category === filter) : documents),
+    [documents, filter]
+  );
+
+  // 各类别计数（给 tab 显示）
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const d of documents) c[d.category] = (c[d.category] ?? 0) + 1;
+    return c;
+  }, [documents]);
 
   function handleSubmit() {
     if (!picked) {
@@ -110,13 +165,16 @@ export function ProcedureDocumentsSection({
         fd.set("procedureId", procedureId);
         fd.set("file", picked);
         fd.set("category", category);
-        // 文件本身带名称：未自定义时默认用文件名（修复"名称必填却无处填"）
+        if (SOURCE_CATEGORIES.includes(category) && sourceParty) {
+          fd.set("sourceParty", sourceParty);
+        }
         fd.set("name", customName.trim() || picked.name);
         await uploadDocument(fd);
         toast.success("上传成功");
         setOpen(false);
         setPicked(null);
         setCustomName("");
+        setSourceParty("");
         if (fileRef.current) fileRef.current.value = "";
         router.refresh();
       } catch (err) {
@@ -145,9 +203,7 @@ export function ProcedureDocumentsSection({
       <header className="mb-3 flex items-center justify-between">
         <div>
           <h3 className="text-sm font-medium">案件材料</h3>
-          <p className="text-[11px] text-muted-foreground">
-            共 {documents.length} 份 · 上传时按类别归档（起诉状 / 证据 / 保全 等）
-          </p>
+          <p className="text-[11px] text-muted-foreground">共 {documents.length} 份</p>
         </div>
         <Button size="sm" onClick={() => setOpen(true)} className="gap-1.5">
           <Plus className="h-3.5 w-3.5" />
@@ -155,33 +211,75 @@ export function ProcedureDocumentsSection({
         </Button>
       </header>
 
-      {documents.length === 0 ? (
+      {/* v0.42 分类切换 tab */}
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        <CategoryTab
+          active={filter === null}
+          label="全部"
+          count={documents.length}
+          onClick={() => setFilter(null)}
+        />
+        {CATEGORY_OPTIONS.map((c) => (
+          <CategoryTab
+            key={c}
+            active={filter === c}
+            label={categoryLabel[c]}
+            count={counts[c] ?? 0}
+            onClick={() => setFilter(c)}
+          />
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
         <p className="rounded-md border border-dashed border-border bg-background py-6 text-center text-xs text-muted-foreground">
-          本程序还没有材料，点击上方上传按钮添加
+          {filter ? "该分类下暂无材料" : "本程序还没有材料，点击上方上传按钮添加"}
         </p>
       ) : (
-        <ul className="space-y-1.5">
-          {documents.map((d) => {
+        // v0.42 一行两列
+        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {filtered.map((d) => {
             const Icon = iconFor(d.mimeType);
+            const pUrl = previewUrl(d);
             return (
               <li
                 key={d.id}
                 className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm"
               >
                 <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <a
-                  href={`/api/documents/${d.id}/download?inline=1`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="min-w-0 flex-1"
-                  title="点击打开查看"
-                >
-                  <div className="truncate hover:text-primary hover:underline">{d.name}</div>
+                <div className="min-w-0 flex-1">
+                  {pUrl ? (
+                    <a
+                      href={pUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block truncate hover:text-primary hover:underline"
+                      title="点击打开查看"
+                    >
+                      {d.name}
+                    </a>
+                  ) : (
+                    <div className="truncate" title={d.name}>
+                      {d.name}
+                    </div>
+                  )}
+                  {/* v0.42 不再显示分类（已有 tab），改显时间/大小/来源 */}
                   <div className="text-[10px] text-muted-foreground">
-                    {categoryLabel[d.category]} · {formatDate(d.createdAt)}
-                    {d.size && ` · ${(d.size / 1024).toFixed(0)} KB`}
+                    {formatDate(d.createdAt)}
+                    {d.size ? ` · ${(d.size / 1024).toFixed(0)} KB` : ""}
+                    {d.sourceParty ? ` · 来源：${d.sourceParty}` : ""}
                   </div>
-                </a>
+                </div>
+                {pUrl && (
+                  <a
+                    href={pUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
+                    title="预览"
+                  >
+                    <Eye className="h-3 w-3" />
+                  </a>
+                )}
                 <a
                   href={`/api/documents/${d.id}/download`}
                   target="_blank"
@@ -231,6 +329,29 @@ export function ProcedureDocumentsSection({
               </Select>
             </div>
 
+            {/* v0.42 来源方：诉辩/证据类才出现，选项=本案当事人 */}
+            {SOURCE_CATEGORIES.includes(category) && sourceOptions.length > 0 && (
+              <div className="space-y-1.5">
+                <Label className="text-xs">来源方（可选）</Label>
+                <Select
+                  value={sourceParty || "__none__"}
+                  onValueChange={(v) => setSourceParty(v === "__none__" ? "" : v)}
+                >
+                  <SelectTrigger className="h-10 bg-background">
+                    <SelectValue placeholder="选择来源方" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">不标注</SelectItem>
+                    {sourceOptions.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label className="text-xs">文件 *</Label>
               <Input
@@ -267,5 +388,33 @@ export function ProcedureDocumentsSection({
         </DialogContent>
       </Dialog>
     </section>
+  );
+}
+
+function CategoryTab({
+  active,
+  label,
+  count,
+  onClick
+}: {
+  active: boolean;
+  label: string;
+  count: number;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "rounded-full border px-2.5 py-1 text-[11px] transition-colors",
+        active
+          ? "border-primary bg-primary/10 text-primary"
+          : "border-border bg-background text-muted-foreground hover:border-input hover:text-foreground"
+      )}
+    >
+      {label}
+      <span className="ml-1 opacity-60">{count}</span>
+    </button>
   );
 }

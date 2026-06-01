@@ -39,6 +39,7 @@ export async function uploadDocument(formData: FormData) {
   const encrypted = formData.get("encrypted") === "true";
   const tagsRaw = formData.get("tags");
   const archiveChecklistItemIdRaw = formData.get("archiveChecklistItemId");
+  const sourcePartyRaw = formData.get("sourceParty");
   const file = formData.get("file");
 
   if (!(file instanceof File)) throw new Error("缺少文件");
@@ -133,6 +134,10 @@ export async function uploadDocument(formData: FormData) {
       folderId,
       name,
       category: parsedCategory,
+      sourceParty:
+        typeof sourcePartyRaw === "string" && sourcePartyRaw.trim()
+          ? sourcePartyRaw.trim()
+          : null,
       path,
       mimeType: file.type || "application/octet-stream",
       size: file.size,
