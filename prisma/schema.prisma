@@ -1011,8 +1011,10 @@ model Document {
 
 model InvoiceRequest {
   id          String               @id @default(cuid())
-  matterId    String
-  matter      Matter               @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  // v0.43 项5：matterId 可空——支持「无关联案件」开票（须填 noMatterReason）
+  matterId    String?
+  matter      Matter?              @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  noMatterReason String? // 无关联案件时的原因说明（matterId 为空时必填）
   amount      Decimal              @db.Decimal(14, 2)
   title       String? // 备注 / 客户称谓（仅做兼容，新字段用 buyerName）
   status      InvoiceRequestStatus @default(PENDING)

@@ -123,14 +123,20 @@ export function InvoiceManagementSection({
                         <span className="text-sm text-muted-foreground">· {r.title}</span>
                       )}
                     </div>
-                    <Link
-                      href={`/matters/${r.matter.id}`}
-                      className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary"
-                    >
-                      <span className="font-mono">{r.matter.internalCode}</span>
-                      <span>·</span>
-                      <span className="truncate">{r.matter.title}</span>
-                    </Link>
+                    {r.matter ? (
+                      <Link
+                        href={`/matters/${r.matter.id}`}
+                        className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-primary"
+                      >
+                        <span className="font-mono">{r.matter.internalCode}</span>
+                        <span>·</span>
+                        <span className="truncate">{r.matter.title}</span>
+                      </Link>
+                    ) : (
+                      <div className="mt-0.5 text-xs text-amber-600" title={r.noMatterReason ?? ""}>
+                        无关联案件{r.noMatterReason ? ` · ${r.noMatterReason}` : ""}
+                      </div>
+                    )}
                     <div className="mt-1 text-[11px] text-muted-foreground">
                       申请：{r.requestedBy.name} ·{" "}
                       {new Date(r.requestedAt).toLocaleString("zh-CN", {
@@ -308,7 +314,7 @@ function ProcessDialog({
             处理开票申请
           </DialogTitle>
           <DialogDescription className="text-xs">
-            {request.matter.internalCode} · {formatCurrency(Number(request.amount))}
+            {request.matter?.internalCode ?? "无关联案件"} · {formatCurrency(Number(request.amount))}
           </DialogDescription>
         </DialogHeader>
 
@@ -455,7 +461,7 @@ function RejectDialog({
         <DialogHeader>
           <DialogTitle>驳回开票申请</DialogTitle>
           <DialogDescription className="text-xs">
-            {request.matter.internalCode} · {formatCurrency(Number(request.amount))}
+            {request.matter?.internalCode ?? "无关联案件"} · {formatCurrency(Number(request.amount))}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-1.5">

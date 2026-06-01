@@ -387,7 +387,9 @@ export async function getMatterInvoiceContext(matterId: string) {
  * v0.12: 创建开票申请（带类型/名目/抬头/依据）
  */
 export async function createInvoiceRequest(input: {
-  matterId: string;
+  // v0.43 项5：matterId 可空——无关联案件开票须填 noMatterReason
+  matterId: string | null;
+  noMatterReason?: string | null;
   amount: number;
   invoiceType: "PLAIN" | "SPECIAL";
   invoiceItem: "LAWYER_FEE" | "CONSULTING_FEE" | "AGENCY_FEE" | "OTHER";
@@ -402,7 +404,17 @@ export async function createInvoiceRequest(input: {
   requestNote?: string | null;
 }) {
   const session = await requireSession();
-  await assertCanAccessMatter(session.user.id, session.user.role, input.matterId);
+  if (input.matterId) {
+    await assertCanAccessMatter(session.user.id, session.user.role, input.matterId);
+  } else {
+    // 无关联案件开票仅财务 / 管理员 / 主任可发起，且必须说明原因
+    if (!isManager(session.user.role) && session.user.role !== "FINANCE") {
+      throw new Error("无关联案件开票仅财务 / 管理员 / 主任律师可发起");
+    }
+    if (!input.noMatterReason?.trim()) {
+      throw new Error("无关联案件时必须填写原因说明");
+    }
+  }
 
   if (input.amount <= 0) throw new Error("金额必须大于 0");
   if (input.invoiceType !== "PLAIN" && input.invoiceType !== "SPECIAL") {
@@ -417,7 +429,8 @@ export async function createInvoiceRequest(input: {
     if (!input.buyerBank?.trim()) throw new Error("增值税专用发票必须填写开户银行");
     if (!input.buyerBankAccount?.trim()) throw new Error("增值税专用发票必须填写银行账号");
   }
-  if (input.evidenceDocIds.length === 0) {
+  // 关联案件时必须上传开票依据（委托合同等）；无关联案件以原因说明替代，依据可选
+  if (input.matterId && input.evidenceDocIds.length === 0) {
     throw new Error("请上传至少一份开票依据（扫描版委托合同等）");
   }
 
@@ -425,6 +438,7 @@ export async function createInvoiceRequest(input: {
   return prisma.invoiceRequest.create({
     data: {
       matterId: input.matterId,
+      noMatterReason: input.matterId ? null : input.noMatterReason?.trim() || null,
       amount: input.amount,
       invoiceType: input.invoiceType,
       invoiceItem: input.invoiceItem,
@@ -440,6 +454,30 @@ export async function createInvoiceRequest(input: {
       requestedById: session.user.id
     },
     select: { id: true }
+  });
+}
+
+/** v0.43 项5：财务页开票弹窗用——搜索可见案件（轻量，返回编号+标题） */
+export async function searchMattersForInvoice(q: string) {
+  const session = await requireSession();
+  const query = q.trim();
+  return prisma.matter.findMany({
+    where: {
+      deletedAt: null,
+      ...matterVisibilityFilter(session.user.id, session.user.role),
+      ...(query
+        ? {
+            OR: [
+              { title: { contains: query, mode: "insensitive" } },
+              { internalCode: { contains: query, mode: "insensitive" } },
+              { firmCaseNo: { contains: query, mode: "insensitive" } }
+            ]
+          }
+        : {})
+    },
+    select: { id: true, internalCode: true, title: true },
+    orderBy: { createdAt: "desc" },
+    take: 10
   });
 }
 

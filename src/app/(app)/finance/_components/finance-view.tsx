@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
 import {
   Wallet,
   Coins,
@@ -61,6 +62,7 @@ type Entry = {
 
 import type { InvoiceRequestStatus } from "@prisma/client";
 import { InvoiceManagementSection } from "./invoice-management";
+import { InvoiceCreateDialog } from "./invoice-create-dialog";
 
 export type InvoiceRequestRow = {
   id: string;
@@ -79,7 +81,9 @@ export type InvoiceRequestRow = {
   buyerPhone: string | null;
   buyerBank: string | null;
   buyerBankAccount: string | null;
-  matter: { id: string; internalCode: string; title: string };
+  // v0.43 项5：matter 可空（无关联案件开票）
+  matter: { id: string; internalCode: string; title: string } | null;
+  noMatterReason: string | null;
   requestedBy: { id: string; name: string };
   processedBy: { id: string; name: string } | null;
   contractScan: { id: string; name: string } | null;
@@ -120,6 +124,7 @@ export function FinanceView({
 }: Props) {
   const [typeFilter, setTypeFilter] = useState<"ALL" | keyof typeof feeTypeLabel>("ALL");
   const [tab, setTab] = useState<"overview" | "invoices">("overview");
+  const [invoiceCreateOpen, setInvoiceCreateOpen] = useState(false);
 
   const filtered = entries.filter((e) => typeFilter === "ALL" || e.type === typeFilter);
 
@@ -162,10 +167,21 @@ export function FinanceView({
       </div>
 
       {tab === "invoices" ? (
-        <InvoiceManagementSection
-          requests={invoiceRequests}
-          canApprove={canApproveInvoice}
-        />
+        <div className="space-y-3">
+          {canApproveInvoice && (
+            <div className="flex justify-end">
+              <Button size="sm" className="gap-1.5" onClick={() => setInvoiceCreateOpen(true)}>
+                <Receipt className="h-3.5 w-3.5" />
+                申请开票
+              </Button>
+            </div>
+          )}
+          <InvoiceManagementSection
+            requests={invoiceRequests}
+            canApprove={canApproveInvoice}
+          />
+          <InvoiceCreateDialog open={invoiceCreateOpen} onOpenChange={setInvoiceCreateOpen} />
+        </div>
       ) : (
         <>
       {/* KPI */}
