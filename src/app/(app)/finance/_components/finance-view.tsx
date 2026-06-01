@@ -71,6 +71,14 @@ export type InvoiceRequestRow = {
   requestedAt: Date;
   processedAt: Date | null;
   processNote: string | null;
+  // v0.42 开票类型 + 抬头 + 专票六要素（来自 InvoiceRequest 标量字段）
+  invoiceType: "PLAIN" | "SPECIAL" | null;
+  buyerName: string | null;
+  buyerTaxNo: string | null;
+  buyerAddress: string | null;
+  buyerPhone: string | null;
+  buyerBank: string | null;
+  buyerBankAccount: string | null;
   matter: { id: string; internalCode: string; title: string };
   requestedBy: { id: string; name: string };
   processedBy: { id: string; name: string } | null;
