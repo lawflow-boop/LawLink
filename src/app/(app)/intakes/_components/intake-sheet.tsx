@@ -696,9 +696,9 @@ export function IntakeSheet({
             <span>主体类型</span>
             <span>姓名 / 名称</span>
             <span>证件号 / 信用代码</span>
+            {showStanding && <span>诉讼地位</span>}
             <span>联系人</span>
             <span>联系电话</span>
-            {showStanding && <span>诉讼地位</span>}
             <span className="text-right">操作</span>
           </div>
 
@@ -944,7 +944,7 @@ export function IntakeSheet({
                 <>
                 {/* 案由 | 当前程序 | 管辖地 | 争议解决机构 */}
                 <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
-                  <Field label="案由">
+                  <Field label="案由" required>
                     <CauseCombobox
                       category={category}
                       value={watch("causeId") || ""}

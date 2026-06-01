@@ -144,7 +144,7 @@ export function CauseCombobox({ value, onChange, category, disabled }: Props) {
           {value && selectedName ? (
             <span className="truncate">{selectedName}</span>
           ) : (
-            <span className="text-muted-foreground">点击展开案由分级选择</span>
+            <span className="text-muted-foreground">点击选择</span>
           )}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>

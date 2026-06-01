@@ -13,9 +13,9 @@
  *
  * 校验落在 zod superRefine（partyInputSchema）；本组件只负责 UI + 字段联动。
  */
-import { useState, useTransition, type ReactNode } from "react";
+import { useRef, useState, useTransition, type ReactNode } from "react";
 import { useFormContext, type FieldErrors } from "react-hook-form";
-import { ChevronDown, Loader2, Search, Sparkles, Trash2 } from "lucide-react";
+import { ChevronDown, Loader2, Search, Trash2 } from "lucide-react";
 import type { PartyType } from "@prisma/client";
 import { toast } from "sonner";
 import { partyTypeLabel, PARTY_TYPE_OPTIONS } from "@/lib/enums";
@@ -36,9 +36,9 @@ import {
   type EnterpriseSearchItem
 } from "@/server/yuandian/enterprise";
 
-/** 表头与每一行共用，保证列对齐。诉讼/仲裁类含「诉讼地位」列 */
+/** 表头与每一行共用，保证列对齐。诉讼/仲裁类含「诉讼地位」列（置于联系人前） */
 export const PARTY_GRID =
-  "grid grid-cols-[78px_104px_minmax(180px,1.25fr)_minmax(210px,1.35fr)_104px_126px_116px_40px] items-center gap-2";
+  "grid grid-cols-[78px_104px_minmax(180px,1.25fr)_minmax(210px,1.35fr)_116px_104px_126px_40px] items-center gap-2";
 /** 非诉/顾问/专项：无「诉讼地位」列 */
 export const PARTY_GRID_NO_STANDING =
   "grid grid-cols-[78px_104px_minmax(180px,1.25fr)_minmax(210px,1.35fr)_104px_126px_40px] items-center gap-2";
@@ -80,6 +80,7 @@ export function PartyCard({
   const [searching, startSearch] = useTransition();
   const [filling, startFill] = useTransition();
   const [expanded, setExpanded] = useState(false);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 次要字段是否已有内容（折叠态给个小提示）
   const secondaryFilled = [
@@ -99,32 +100,25 @@ export function PartyCard({
     }
   }
 
-  function handleAILookup() {
-    const name = (watch(`${p}.name`) as string | undefined)?.trim();
-    if (!name) {
-      toast.warning("请先填写公司名称再点击 AI 查找");
+  // v0.43：输入单位名称时自动匹配元典企业（防抖），无需 AI 按钮
+  function scheduleSearch(value: string) {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    const q = value.trim();
+    if (q.length < 2) {
+      setCandidates(null);
       return;
     }
-    startSearch(async () => {
-      try {
-        const r = await searchEnterpriseCandidates(name);
-        if (!r.configured) {
-          toast.error("元典 API 未配置，无法 AI 查找", {
-            description: "请在 设置 → AI 与元典 中配置 API Key"
-          });
-          return;
+    searchTimer.current = setTimeout(() => {
+      startSearch(async () => {
+        try {
+          const r = await searchEnterpriseCandidates(q);
+          // 未配置元典 / 无结果 → 静默不打扰（信用代码仍可手填）
+          setCandidates(r.configured && r.items.length > 0 ? r.items : null);
+        } catch {
+          setCandidates(null);
         }
-        if (r.items.length === 0) {
-          toast.info("未找到候选企业", { description: "试试更完整的名称或简称" });
-          return;
-        }
-        setCandidates(r.items);
-      } catch (err) {
-        toast.error("查找失败", {
-          description: err instanceof Error ? err.message : ""
-        });
-      }
-    });
+      });
+    }, 400);
   }
 
   function handlePickCandidate(item: EnterpriseSearchItem) {
@@ -155,6 +149,7 @@ export function PartyCard({
 
   const fieldErr = (errors as any)?.[fieldPrefix]?.[index] ?? {};
   const idErr = partyType === "NATURAL_PERSON" ? fieldErr.idNumber : fieldErr.enterpriseSocialCode;
+  const nameReg = register(`${p}.name`);
 
   const grid = showStanding ? PARTY_GRID : PARTY_GRID_NO_STANDING;
 
@@ -178,32 +173,16 @@ export function PartyCard({
           </SelectContent>
         </Select>
 
-        {/* 姓名 / 名称 */}
+        {/* 姓名 / 名称（单位类型：输入自动匹配元典企业） */}
         <div className="min-w-0">
           {nameSlot ?? (
-            <Input
-              className="h-9 text-sm"
-              placeholder={isOrg ? "单位 / 组织名称" : "姓名"}
-              {...register(`${p}.name`)}
-            />
-          )}
-        </div>
-
-        {/* 证件号 / 信用代码 */}
-        <div className="flex min-w-0 items-center gap-1">
-          {!isOrg ? (
-            <Input
-              placeholder="身份证号（必填）"
-              className={cn("h-9 font-mono text-xs", idErr && "border-destructive")}
-              {...register(`${p}.idNumber`)}
-            />
-          ) : (
-            <>
+            !isOrg ? (
               <Input
-                placeholder="统一社会信用代码（必填）"
-                className={cn("h-9 flex-1 font-mono text-xs", idErr && "border-destructive")}
-                {...register(`${p}.enterpriseSocialCode`)}
+                className="h-9 text-sm"
+                placeholder="姓名"
+                {...register(`${p}.name`)}
               />
+            ) : (
               <Popover
                 open={!!candidates && candidates.length > 0}
                 onOpenChange={(o) => {
@@ -211,25 +190,28 @@ export function PartyCard({
                 }}
               >
                 <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleAILookup}
-                    disabled={searching || filling}
-                    className="h-9 w-9 shrink-0 p-0 text-primary"
-                    title="按公司名称在元典搜索 → 自动回填信用代码 + 法代 + 地址"
-                  >
-                    {searching ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Sparkles className="h-3.5 w-3.5" />
+                  <div className="relative">
+                    <Input
+                      className="h-9 pr-7 text-sm"
+                      placeholder="单位 / 组织名称（输入自动匹配）"
+                      {...nameReg}
+                      onChange={(e) => {
+                        nameReg.onChange(e);
+                        scheduleSearch(e.target.value);
+                      }}
+                    />
+                    {searching && (
+                      <Loader2 className="absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
                     )}
-                  </Button>
+                  </div>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="w-72 p-1.5">
+                <PopoverContent
+                  align="start"
+                  className="w-72 p-1.5"
+                  onOpenAutoFocus={(e) => e.preventDefault()}
+                >
                   <div className="mb-1 flex items-center gap-1 px-1 text-[10px] text-muted-foreground">
-                    <Search className="h-3 w-3" />共 {candidates?.length ?? 0} 条候选，点击回填
+                    <Search className="h-3 w-3" />元典匹配，点击回填名称 + 信用代码
                   </div>
                   <ul className="max-h-64 space-y-1 overflow-y-auto">
                     {candidates?.map((c) => (
@@ -248,9 +230,29 @@ export function PartyCard({
                   </ul>
                 </PopoverContent>
               </Popover>
-            </>
+            )
           )}
         </div>
+
+        {/* 证件号 / 信用代码（自动匹配后回填，亦可手填） */}
+        <div className="min-w-0">
+          {!isOrg ? (
+            <Input
+              placeholder="身份证号（必填）"
+              className={cn("h-9 font-mono text-xs", idErr && "border-destructive")}
+              {...register(`${p}.idNumber`)}
+            />
+          ) : (
+            <Input
+              placeholder="统一社会信用代码（必填）"
+              className={cn("h-9 font-mono text-xs", idErr && "border-destructive")}
+              {...register(`${p}.enterpriseSocialCode`)}
+            />
+          )}
+        </div>
+
+        {/* 诉讼地位（仅诉讼/仲裁类）—— 移到联系人前 */}
+        {showStanding && <div className="min-w-0">{standingSlot}</div>}
 
         {/* 联系人 */}
         <Input
@@ -265,9 +267,6 @@ export function PartyCard({
           placeholder="联系电话"
           {...register(`${p}.phone`)}
         />
-
-        {/* 诉讼地位（仅诉讼/仲裁类）*/}
-        {showStanding && <div className="min-w-0">{standingSlot}</div>}
 
         {/* 操作：更多 + 删除 */}
         <div className="flex items-center justify-end gap-0.5">
