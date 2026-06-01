@@ -34,7 +34,7 @@ import { ExpressMiniCard, type SealContractItem, type ExpressItem } from "./info
 import { ArchiveStatusBanner } from "./archive-status-banner";
 import { ArchiveWizardDialog } from "./archive-wizard";
 import type { FolderPayload, FolderDocument, TemplateSummary } from "./folder-types";
-import type { PreservationRow, UserOption as PresUserOption } from "@/app/(app)/preservation/_components/preservation-types";
+import type { PreservationCaseRow, UserOption as PresUserOption } from "@/app/(app)/preservation/_components/preservation-types";
 
 type MatterPayload = Prisma.MatterGetPayload<{
   include: {
@@ -152,7 +152,7 @@ export function MatterDetailTabs({
   folders: FolderPayload[];
   folderDocuments: FolderDocument[];
   templates: TemplateSummary[];
-  preservations: PreservationRow[];
+  preservations: PreservationCaseRow[];
   colleagues: PresUserOption[];
   currentUserRole: string | null;
   sealContracts: SealContractItem[];

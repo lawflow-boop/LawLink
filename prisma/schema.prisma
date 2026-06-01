@@ -361,6 +361,9 @@ model User {
   receivedSmsMessages   SmsMessage[]          @relation("SmsReceiver")
   ownedPreservations    Preservation[]        @relation("PreservationOwner")
   preservationRenewals  PreservationRenewal[] @relation("RenewalPerformer")
+  // v0.44: 保全三层重构
+  ownedPreservationCases PreservationCase[]      @relation("PreservationCaseOwner")
+  propertyRenewals        PreservationPropertyRenewal[] @relation("PropertyRenewalPerformer")
   createdExpress        ExpressTracking[]     @relation("ExpressCreator")
   // v0.10: 通知
   notifications         Notification[]
@@ -595,6 +598,7 @@ model Matter {
   // v0.9: 法院短信 + 财产保全 + 快递追踪
   smsMessages      SmsMessage[]
   preservations    Preservation[]
+  preservationCases PreservationCase[]
   expressTrackings ExpressTracking[]
   // v0.21: AI 文书审查历史
   reviewRecords    ReviewRecord[]
@@ -1494,6 +1498,90 @@ model PreservationRenewal {
   createdAt     DateTime @default(now())
 
   @@index([preservationId])
+}
+
+// ============================================================
+// v0.44: 保全三层重构（案件 → 被保全人 → 财产）
+// ============================================================
+
+model PreservationCase {
+  id       String  @id @default(cuid())
+  matterId String?
+  matter   Matter? @relation(fields: [matterId], references: [id], onDelete: SetNull)
+
+  type          PreservationType
+  status        PreservationStatus @default(ACTIVE)
+  court         String?
+  rulingNumber  String?
+  guaranteeType GuaranteeType?
+  appliedAt     DateTime?
+  note          String?
+
+  ownerId String?
+  owner   User?   @relation("PreservationCaseOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  remindDays Int[] @default([30, 15, 7, 3, 1])
+
+  targets   PreservationTarget[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([matterId])
+  @@index([status])
+}
+
+model PreservationTarget {
+  id     String @id @default(cuid())
+  caseId String
+  case   PreservationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  name String // 被保全人名称
+  note String?
+
+  properties PreservationProperty[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([caseId])
+}
+
+model PreservationProperty {
+  id       String @id @default(cuid())
+  targetId String
+  target   PreservationTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  propertyType   PropertyType
+  propertyDetail String?
+  amount         Decimal?           @db.Decimal(18, 2)
+  startDate      DateTime
+  duration       Int
+  expiryDate     DateTime
+  status         PreservationStatus @default(ACTIVE)
+
+  renewals  PreservationPropertyRenewal[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([targetId])
+  @@index([status, expiryDate])
+}
+
+model PreservationPropertyRenewal {
+  id         String @id @default(cuid())
+  propertyId String
+  property   PreservationProperty @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  renewedAt       DateTime
+  oldExpiryDate   DateTime
+  newExpiryDate   DateTime
+  renewalDuration Int
+  note            String?
+
+  performedById String
+  performedBy   User @relation("PropertyRenewalPerformer", fields: [performedById], references: [id], onDelete: Restrict)
+  createdAt     DateTime @default(now())
+
+  @@index([propertyId])
 }
 
 // ============================================================

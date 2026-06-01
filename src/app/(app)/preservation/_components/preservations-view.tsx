@@ -4,31 +4,21 @@ import { useState, useMemo, useTransition } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  Shield,
-  Plus,
-  Search,
-  AlertTriangle,
-  CheckCircle2,
-  Briefcase,
-  Pencil,
-  RotateCw,
-  Unlock,
-  Trash2,
-  Calendar
+  Shield, Plus, Search, ChevronDown, ChevronRight,
+  Pencil, RotateCw, Trash2, UserPlus, Landmark
 } from "lucide-react";
-import { buildIcs, downloadIcs, type IcsEvent } from "@/lib/ics";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RadioChips } from "@/components/ui/radio-chips";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/utils";
-import { deletePreservation } from "@/server/preservations/actions";
+import { deletePreservationCase } from "@/server/preservations/actions-v2";
 import {
-  PreservationDialog,
-  RenewPreservationDialog,
-  LiftPreservationDialog
+  PreservationCaseDialog,
+  AddTargetDialog,
+  AddPropertyDialog,
+  RenewPropertyDialog
 } from "./preservation-dialog";
 import {
   PRES_TYPE_CN,
@@ -36,402 +26,208 @@ import {
   PRES_STATUS_CN,
   PRES_STATUS_COLOR,
   classifyExpiry,
-  type PreservationRow,
+  type PreservationCaseRow,
   type MatterOption,
   type UserOption
 } from "./preservation-types";
-import type { PreservationStatus } from "@prisma/client";
 
-type StatusFilter = PreservationStatus | "ALL";
+const STATUS_FILTERS = [
+  { value: "ALL", label: "全部" },
+  { value: "ACTIVE", label: "生效中" },
+  { value: "RENEWED", label: "已续保" },
+  { value: "EXPIRED", label: "已到期" },
+  { value: "LIFTED", label: "已解除" }
+];
 
 export function PreservationsView({
   items,
   matters,
   users
 }: {
-  items: PreservationRow[];
+  items: PreservationCaseRow[];
   matters: MatterOption[];
   users: UserOption[];
 }) {
-  const [status, setStatus] = useState<StatusFilter>("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [search, setSearch] = useState("");
-  const [newDialogOpen, setNewDialogOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<PreservationRow | null>(null);
-  const [renewTarget, setRenewTarget] = useState<PreservationRow | null>(null);
-  const [liftTarget, setLiftTarget] = useState<PreservationRow | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // KPI
-  const stats = useMemo(() => {
-    let active = 0;
-    let total = 0;
-    let expiring30 = 0;
-    let overdue = 0;
-    const now = new Date();
-    for (const p of items) {
-      if (p.status === "ACTIVE" || p.status === "RENEWED") {
-        active++;
-        total += p.amount ? Number(p.amount) : 0;
-        const days = Math.ceil((p.expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        if (days < 0) overdue++;
-        else if (days <= 30) expiring30++;
-      }
-    }
-    return { active, total, expiring30, overdue };
-  }, [items]);
+  const allProperties = useMemo(
+    () => items.flatMap((c) => c.targets.flatMap((t) => t.properties)),
+    [items]
+  );
+  const activeCount = allProperties.filter((p) => p.status === "ACTIVE" || p.status === "RENEWED").length;
+  const totalAmount = allProperties.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+  const expiring30 = allProperties.filter((p) => {
+    if (p.status !== "ACTIVE" && p.status !== "RENEWED") return false;
+    const days = Math.ceil((p.expiryDate.getTime() - Date.now()) / 86400000);
+    return days <= 30;
+  }).length;
+  const expiredCount = allProperties.filter((p) => p.status === "EXPIRED").length;
 
-  // 过滤
   const filtered = useMemo(() => {
-    const kw = search.trim().toLowerCase();
-    return items.filter((p) => {
-      if (status !== "ALL" && p.status !== status) return false;
-      if (!kw) return true;
-      return (
-        p.respondent.toLowerCase().includes(kw) ||
-        (p.matter?.title ?? "").toLowerCase().includes(kw) ||
-        (p.matter?.internalCode ?? "").toLowerCase().includes(kw) ||
-        (p.rulingNumber ?? "").toLowerCase().includes(kw)
-      );
-    });
-  }, [items, status, search]);
-
-  // 导出全部活跃保全的 ICS
-  const exportAllIcs = () => {
-    const actives = items.filter((p) => p.status === "ACTIVE" || p.status === "RENEWED");
-    if (actives.length === 0) {
-      toast.warning("无活跃保全可导出");
-      return;
-    }
-    const events: IcsEvent[] = [];
-    for (const p of actives) {
-      const expiry = new Date(p.expiryDate);
-      const title = `【保全到期】${p.respondent} · ${PROPERTY_TYPE_CN[p.propertyType]}`;
-      const desc = [
-        p.matter ? `案件：${p.matter.internalCode} ${p.matter.title}` : "诉前保全（未关联案件）",
-        `类型：${PRES_TYPE_CN[p.type]}`,
-        p.amount ? `金额：${Number(p.amount).toLocaleString()} 元` : null,
-        p.court ? `保全法院：${p.court}` : null,
-        p.rulingNumber ? `裁定书：${p.rulingNumber}` : null
-      ]
-        .filter(Boolean)
-        .join("\n");
-      events.push({
-        uid: `preservation-${p.id}`,
-        title,
-        start: expiry,
-        allDay: true,
-        description: desc,
-        reminderMinutes: (p.remindDays ?? [30, 15, 7, 3, 1]).map((d) => d * 24 * 60)
+    let list = items;
+    if (statusFilter !== "ALL") {
+      list = list.filter((c) => {
+        const ps = c.targets.flatMap((t) => t.properties);
+        if (statusFilter === "ACTIVE") return ps.some((p) => p.status === "ACTIVE");
+        if (statusFilter === "RENEWED") return ps.some((p) => p.status === "RENEWED");
+        if (statusFilter === "EXPIRED") return ps.some((p) => p.status === "EXPIRED");
+        if (statusFilter === "LIFTED") return c.status === "LIFTED";
+        return true;
       });
     }
-    const ics = buildIcs({ calendarName: "LawLink 保全到期提醒", events });
-    downloadIcs(`保全提醒_${new Date().toISOString().slice(0, 10)}.ics`, ics);
-    toast.success(`已导出 ${actives.length} 条到期提醒`);
-  };
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(
+        (c) =>
+          c.court?.toLowerCase().includes(q) ||
+          c.rulingNumber?.toLowerCase().includes(q) ||
+          c.targets.some((t) => t.name.toLowerCase().includes(q)) ||
+          c.matter?.title?.toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [items, statusFilter, search]);
 
   return (
     <div className="space-y-5">
-      {/* 标题 */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl">财产保全</h1>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            到期自动分级预警 30/15/7/3/1 天 · 续保留痕
-          </p>
+      <header>
+        <h1 className="flex items-center gap-2 text-xl">
+          <Shield className="h-5 w-5 text-primary" strokeWidth={1.8} />
+          财产保全
+        </h1>
+        <p className="mt-0.5 text-[12px] text-muted-foreground">
+          按被保全人及财产跟踪保全期限，到期前持续提醒
+        </p>
+      </header>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <KpiCard label="生效保全" value={activeCount} />
+        <KpiCard label="累计保全金额" value={formatCurrency(totalAmount)} />
+        <KpiCard label="30天内到期" value={expiring30} tone="warn" />
+        <KpiCard label="已过期未处理" value={expiredCount} tone="danger" />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="搜索被保全人 / 案件 / 法院" className="pl-8 text-xs" />
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={exportAllIcs}
-            className="gap-1.5"
-            title="导出所有活跃保全到期日，含 30/15/7/3/1 天提醒"
-          >
-            <Calendar className="h-3.5 w-3.5" />
-            导出日历
-          </Button>
-          <Button onClick={() => setNewDialogOpen(true)} className="gap-1.5">
-            <Plus className="h-3.5 w-3.5" />
-            新建保全
-          </Button>
-        </div>
-      </div>
-
-      {/* KPI */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Kpi
-          icon={<Shield className="h-3.5 w-3.5" />}
-          label="生效保全"
-          value={stats.active.toString()}
-          accent="rgb(22 163 74)"
-        />
-        <Kpi
-          icon={<CheckCircle2 className="h-3.5 w-3.5" />}
-          label="累计保全金额"
-          value={`¥${(stats.total / 10000).toFixed(1)}万`}
-          accent="rgb(37 99 235)"
-        />
-        <Kpi
-          icon={<AlertTriangle className="h-3.5 w-3.5" />}
-          label="30 天内到期"
-          value={stats.expiring30.toString()}
-          accent="rgb(217 119 6)"
-        />
-        <Kpi
-          icon={<AlertTriangle className="h-3.5 w-3.5" />}
-          label="已过期未处理"
-          value={stats.overdue.toString()}
-          accent="rgb(220 38 38)"
-        />
-      </div>
-
-      {/* 筛选 */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-0 sm:min-w-64 flex-1">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
-            strokeWidth={1.8}
-          />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="搜索 被保全人 / 案件名 / 编号 / 裁定书"
-            className="h-9 border-border bg-card pl-9"
-          />
-        </div>
-        <RadioChips
-          size="sm"
-          items={[
-            { value: "ALL", label: "全部" },
-            { value: "ACTIVE", label: "生效中" },
-            { value: "RENEWED", label: "已续保" },
-            { value: "EXPIRED", label: "已到期" },
-            { value: "LIFTED", label: "已解除" }
-          ]}
-          value={status}
-          onChange={(v) => setStatus(v as StatusFilter)}
-        />
-      </div>
-
-      {/* 列表 */}
-      <motion.div
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-      >
-        {filtered.length === 0 ? (
-          <div className="ll-surface rounded-lg border border-border p-12 text-center text-sm text-muted-foreground">
-            <Shield className="mx-auto mb-2 h-6 w-6 opacity-40" />
-            {items.length === 0 ? "暂无保全记录，点右上「新建保全」添加" : "没有匹配的保全记录"}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((p) => (
-              <PresCard
-                key={p.id}
-                pres={p}
-                onEdit={() => setEditTarget(p)}
-                onRenew={() => setRenewTarget(p)}
-                onLift={() => setLiftTarget(p)}
-              />
-            ))}
-          </div>
-        )}
-      </motion.div>
-
-      <PreservationDialog
-        open={newDialogOpen}
-        onOpenChange={setNewDialogOpen}
-        matters={matters}
-        users={users}
-      />
-      {editTarget && (
-        <PreservationDialog
-          open
-          onOpenChange={(o) => !o && setEditTarget(null)}
-          matters={matters}
-          users={users}
-          initial={editTarget}
-        />
-      )}
-      {renewTarget && (
-        <RenewPreservationDialog
-          open
-          onOpenChange={(o) => !o && setRenewTarget(null)}
-          pres={renewTarget}
-        />
-      )}
-      {liftTarget && (
-        <LiftPreservationDialog
-          open
-          onOpenChange={(o) => !o && setLiftTarget(null)}
-          pres={liftTarget}
-        />
-      )}
-    </div>
-  );
-}
-
-function Kpi({
-  icon,
-  label,
-  value,
-  accent
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-  accent: string;
-}) {
-  return (
-    <div className="ll-surface rounded-lg p-4">
-      <div className="flex items-center gap-1.5 text-[10px] tracking-wider text-muted-foreground">
-        <span style={{ color: accent }}>{icon}</span>
-        {label}
-      </div>
-      <p className="mt-2 text-3xl" style={{ color: accent }}>
-        {value}
-      </p>
-    </div>
-  );
-}
-
-function PresCard({
-  pres,
-  onEdit,
-  onRenew,
-  onLift
-}: {
-  pres: PreservationRow;
-  onEdit: () => void;
-  onRenew: () => void;
-  onLift: () => void;
-}) {
-  const now = new Date();
-  const daysLeft = Math.ceil((pres.expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  const exp = classifyExpiry(daysLeft);
-  const sc = PRES_STATUS_COLOR[pres.status];
-  const isActive = pres.status === "ACTIVE" || pres.status === "RENEWED";
-  const [pending, startTransition] = useTransition();
-
-  const onDelete = () => {
-    if (!confirm(`确认删除保全记录「${pres.respondent}」？此操作不可撤销。`)) return;
-    startTransition(async () => {
-      try {
-        await deletePreservation({ id: pres.id });
-        toast.success("已删除");
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "失败");
-      }
-    });
-  };
-
-  return (
-    <div className="ll-surface flex flex-col gap-2 rounded-lg border border-border p-4">
-      {/* 行 1：类型 + 财产 + 状态 + 到期倒计时 */}
-      <div className="flex flex-wrap items-center gap-2 text-[11px]">
-        <span className="rounded border border-border px-1.5 py-0.5 text-muted-foreground">
-          {PRES_TYPE_CN[pres.type]}
-        </span>
-        <span className="rounded border border-border px-1.5 py-0.5 text-muted-foreground">
-          {PROPERTY_TYPE_CN[pres.propertyType]}
-        </span>
-        <Badge
-          variant="outline"
-          className="px-1.5 text-[10px] font-normal"
-          style={{ borderColor: sc.border, background: sc.bg, color: sc.text }}
-        >
-          {PRES_STATUS_CN[pres.status]}
-        </Badge>
-        {isActive && (
-          <span
-            className={cn(
-              "ml-auto rounded px-1.5 py-0.5 text-[10px] font-medium",
-              exp.tone === "danger" && "bg-red-500/10 text-red-700",
-              exp.tone === "warn" && "bg-amber-500/15 text-amber-700",
-              exp.tone === "muted" && "bg-muted/60 text-muted-foreground",
-              exp.tone === "ok" && "bg-green-500/10 text-green-700"
-            )}
-          >
-            {exp.label}
-          </span>
-        )}
-      </div>
-
-      {/* 行 2：被保全人 + 金额 */}
-      <div className="flex items-baseline justify-between gap-2">
-        <h3 className="line-clamp-1 text-[1rem] text-foreground">
-          {pres.respondent}
-        </h3>
-        {pres.amount && (
-          <span className="font-mono text-[13px] text-foreground/85">
-            {formatCurrency(Number(pres.amount), { compact: true })}
-          </span>
-        )}
-      </div>
-
-      {/* 行 3：关联案件 */}
-      {pres.matter ? (
-        <Link
-          href={`/matters/${pres.matter.id}`}
-          className="group inline-flex items-center gap-1 text-[11px] hover:text-primary"
-        >
-          <Briefcase className="h-3 w-3 text-muted-foreground" />
-          <span className="font-mono text-[10px] text-muted-foreground">
-            {pres.matter.internalCode}
-          </span>
-          <span className="truncate text-muted-foreground group-hover:text-primary">
-            {pres.matter.title}
-          </span>
-        </Link>
-      ) : (
-        <span className="text-[11px] text-muted-foreground/60">未关联案件（诉前）</span>
-      )}
-
-      {/* 行 4：日期 + 法院 + 裁定书 */}
-      <div className="mt-1 space-y-0.5 border-t border-border pt-2 text-[11px] text-muted-foreground">
-        <div className="flex justify-between gap-2">
-          <span>生效：{fmtDate(pres.startDate)}</span>
-          <span>到期：{fmtDate(pres.expiryDate)}</span>
-        </div>
-        {pres.court && <div className="truncate">{pres.court}</div>}
-        {pres.rulingNumber && <div className="font-mono text-[10px]">{pres.rulingNumber}</div>}
-        {pres.renewals.length > 0 && (
-          <div className="text-[10px] text-blue-700/70">已续保 {pres.renewals.length} 次</div>
-        )}
-      </div>
-
-      {/* 操作 */}
-      <div className="mt-auto flex items-center justify-end gap-1 pt-2">
-        <Button size="sm" variant="ghost" onClick={onEdit} className="h-7 gap-1 px-2 text-[11px]">
-          <Pencil className="h-3 w-3" />
-          编辑
+        <RadioChips items={STATUS_FILTERS} value={statusFilter} onChange={setStatusFilter} />
+        <Button size="sm" onClick={() => setCreateOpen(true)} className="ml-auto gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> 新建保全
         </Button>
-        {isActive && (
-          <Button size="sm" variant="ghost" onClick={onRenew} className="h-7 gap-1 px-2 text-[11px] text-blue-700">
-            <RotateCw className="h-3 w-3" />
-            续保
-          </Button>
-        )}
-        {isActive && (
-          <Button size="sm" variant="ghost" onClick={onLift} className="h-7 gap-1 px-2 text-[11px]">
-            <Unlock className="h-3 w-3" />
-            解除
-          </Button>
-        )}
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={pending}
-          className="rounded p-1 text-muted-foreground hover:text-destructive"
-          title="删除"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
       </div>
+
+      {filtered.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border bg-card py-16 text-center">
+          <Shield className="mx-auto mb-2 h-8 w-8 text-muted-foreground/40" />
+          <p className="text-sm text-muted-foreground">{search ? `没有匹配「${search}」的保全记录` : "还没有保全记录"}</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map((cs) => (
+            <CaseCard key={cs.id} caseData={cs} expanded={expandedId === cs.id} onToggle={() => setExpandedId(expandedId === cs.id ? null : cs.id)} matters={matters} users={users} />
+          ))}
+        </div>
+      )}
+
+      <PreservationCaseDialog open={createOpen} onOpenChange={setCreateOpen} matters={matters} users={users} />
     </div>
   );
 }
 
-function fmtDate(d: Date | string): string {
-  const dt = typeof d === "string" ? new Date(d) : d;
-  return dt.toLocaleDateString("zh-CN");
+function KpiCard({ label, value, tone }: { label: string; value: string | number; tone?: "warn" | "danger" }) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-3">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className={cn("mt-1 text-lg font-semibold tabular", tone === "danger" && "text-destructive", tone === "warn" && "text-amber-500")}>{value}</div>
+    </div>
+  );
+}
+
+function CaseCard({ caseData: cs, expanded, onToggle, matters, users }: { caseData: PreservationCaseRow; expanded: boolean; onToggle: () => void; matters: MatterOption[]; users: UserOption[] }) {
+  const [isPending, startTransition] = useTransition();
+  const [addTargetOpen, setAddTargetOpen] = useState(false);
+  const [addPropOpen, setAddPropOpen] = useState<string | null>(null);
+  const [renewPropOpen, setRenewPropOpen] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+
+  const allProps = cs.targets.flatMap((t) => t.properties);
+  const worstExpiry = allProps.length ? Math.min(...allProps.map((p) => Math.ceil((p.expiryDate.getTime() - Date.now()) / 86400000))) : null;
+  const expiryInfo = worstExpiry !== null ? classifyExpiry(worstExpiry) : null;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-border bg-card">
+      <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+        {expanded ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+        <Shield className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.8} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium truncate">{cs.matter ? cs.matter.title : "未关联案件"}</span>
+            <span className="shrink-0 rounded border px-1.5 py-0.5 text-[10px] text-primary border-primary/30 bg-primary/5">{PRES_TYPE_CN[cs.type]}</span>
+            {expiryInfo && <span className={cn("shrink-0 text-[10px] font-medium", expiryInfo.tone === "danger" ? "text-destructive" : expiryInfo.tone === "warn" ? "text-amber-500" : "text-muted-foreground")}>{expiryInfo.label}</span>}
+          </div>
+          <div className="mt-0.5 text-[11px] text-muted-foreground">
+            {cs.court && <span>{cs.court}</span>}{cs.rulingNumber && <span> · {cs.rulingNumber}</span>}{" · "}{cs.targets.length} 个被保全人 · {allProps.length} 项财产
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <button type="button" onClick={() => setEditOpen(true)} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+          <button type="button" onClick={() => { if (confirm("确认删除此保全案件及所有记录？")) { startTransition(async () => { try { await deletePreservationCase({ id: cs.id }); toast.success("已删除"); } catch (e) { toast.error("删除失败"); } }); } }} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="border-t border-border px-4 py-3 space-y-4">
+          {cs.targets.length === 0 ? (
+            <p className="py-4 text-center text-xs text-muted-foreground">还没有被保全人</p>
+          ) : cs.targets.map((target) => (
+            <div key={target.id} className="space-y-2">
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-sm font-medium">{target.name}</span>
+                <button type="button" onClick={() => setAddPropOpen(target.id)} className="ml-auto text-[11px] text-primary hover:underline">+ 添加财产</button>
+              </div>
+              {target.properties.length === 0 ? (
+                <p className="pl-6 text-xs text-muted-foreground">暂无财产记录</p>
+              ) : (
+                <div className="pl-6 space-y-1.5">
+                  {target.properties.map((prop) => {
+                    const days = Math.ceil((prop.expiryDate.getTime() - Date.now()) / 86400000);
+                    const exp = classifyExpiry(days);
+                    const sc = PRES_STATUS_COLOR[prop.status] ?? PRES_STATUS_COLOR.ACTIVE;
+                    return (
+                      <div key={prop.id} className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2">
+                        <Landmark className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        <span className="text-xs font-medium">{PROPERTY_TYPE_CN[prop.propertyType]}</span>
+                        {prop.amount && <span className="text-[11px] text-muted-foreground">{formatCurrency(Number(prop.amount))}</span>}
+                        {prop.propertyDetail && <span className="truncate text-[10px] text-muted-foreground">({prop.propertyDetail})</span>}
+                        <span className={cn("ml-auto shrink-0 text-[10px] font-medium", exp.tone === "danger" ? "text-destructive" : exp.tone === "warn" ? "text-amber-500" : "text-muted-foreground")}>{exp.label}</span>
+                        <span className="shrink-0 rounded border px-1.5 py-0 text-[9px]" style={{ borderColor: sc.border, color: sc.text, backgroundColor: sc.bg }}>{PRES_STATUS_CN[prop.status]}</span>
+                        {(prop.status === "ACTIVE" || prop.status === "RENEWED") && (
+                          <>
+                            <button type="button" onClick={() => setRenewPropOpen(prop.id)} className="shrink-0 text-[10px] text-primary hover:underline">续保</button>
+                            <button type="button" onClick={() => { startTransition(async () => { try { const { liftProperty } = await import("@/server/preservations/actions-v2"); await liftProperty(prop.id); toast.success("已解除"); } catch { toast.error("操作失败"); } }); }} className="shrink-0 text-[10px] text-muted-foreground hover:text-foreground">解除</button>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+          <Button size="sm" variant="outline" onClick={() => setAddTargetOpen(true)} className="gap-1 text-xs"><UserPlus className="h-3 w-3" /> 添加被保全人</Button>
+        </div>
+      )}
+
+      <PreservationCaseDialog open={editOpen} onOpenChange={setEditOpen} editCase={cs} matters={matters} users={users} />
+      <AddTargetDialog open={addTargetOpen} onOpenChange={setAddTargetOpen} caseId={cs.id} />
+      {addPropOpen && <AddPropertyDialog open={!!addPropOpen} onOpenChange={(o) => { if (!o) setAddPropOpen(null); }} targetId={addPropOpen} />}
+      {renewPropOpen && (() => { const prop = allProps.find((p) => p.id === renewPropOpen); return prop ? <RenewPropertyDialog open={!!renewPropOpen} onOpenChange={(o) => { if (!o) setRenewPropOpen(null); }} property={prop} /> : null; })()}
+    </motion.div>
+  );
 }

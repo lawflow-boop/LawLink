@@ -1,11 +1,11 @@
-import { listPreservations } from "@/server/preservations/actions";
+import { listPreservationCases } from "@/server/preservations/actions-v2";
 import { listActiveColleagues } from "@/server/users/actions";
 import { prisma } from "@/lib/prisma";
 import { PreservationsView } from "./_components/preservations-view";
 
 export default async function PreservationPage() {
   const [items, matters, users] = await Promise.all([
-    listPreservations({ status: "ALL" }),
+    listPreservationCases({ status: "ALL" }),
     prisma.matter.findMany({
       where: { deletedAt: null },
       orderBy: { updatedAt: "desc" },

@@ -1,18 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { motion } from "framer-motion";
-import { Shield, Plus, AlertTriangle, Pencil, RotateCw, Unlock, Trash2 } from "lucide-react";
+import { Shield, Plus, Pencil, RotateCw, Unlock, Trash2, UserPlus, Landmark, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
-import { deletePreservation } from "@/server/preservations/actions";
+import { deletePreservationCase, liftProperty } from "@/server/preservations/actions-v2";
 import {
-  PreservationDialog,
-  RenewPreservationDialog,
-  LiftPreservationDialog
+  PreservationCaseDialog,
+  AddTargetDialog,
+  AddPropertyDialog,
+  RenewPropertyDialog
 } from "@/app/(app)/preservation/_components/preservation-dialog";
 import {
   PRES_TYPE_CN,
@@ -20,7 +20,7 @@ import {
   PRES_STATUS_CN,
   PRES_STATUS_COLOR,
   classifyExpiry,
-  type PreservationRow,
+  type PreservationCaseRow,
   type MatterOption,
   type UserOption
 } from "@/app/(app)/preservation/_components/preservation-types";
@@ -29,214 +29,134 @@ export function MatterPreservationPanel({
   matterId,
   matterCode,
   matterTitle,
-  preservations,
+  preservations: _legacyData,
   users
 }: {
   matterId: string;
   matterCode: string;
   matterTitle: string;
-  preservations: PreservationRow[];
+  preservations: PreservationCaseRow[];
   users: UserOption[];
 }) {
-  const [newOpen, setNewOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<PreservationRow | null>(null);
-  const [renewTarget, setRenewTarget] = useState<PreservationRow | null>(null);
-  const [liftTarget, setLiftTarget] = useState<PreservationRow | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const cases = _legacyData;
 
-  // 给 Dialog 传一个只含本案的 matter 列表（PreservationDialog 需要 matters[]）
   const matters: MatterOption[] = [{ id: matterId, internalCode: matterCode, title: matterTitle }];
 
+  const totalProps = cases.flatMap((c) => c.targets.flatMap((t) => t.properties));
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
+    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <div className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-lg">
           <Shield className="h-4 w-4 text-primary" />
           财产保全
-          {preservations.length > 0 && (
-            <span className="font-mono text-[11px] text-muted-foreground">
-              {preservations.length} 条
-            </span>
-          )}
+          {totalProps.length > 0 && <span className="font-mono text-[11px] text-muted-foreground">{totalProps.length} 项</span>}
         </h3>
-        <Button onClick={() => setNewOpen(true)} size="sm" className="gap-1.5">
-          <Plus className="h-3.5 w-3.5" />
-          新建保全
+        <Button onClick={() => setCreateOpen(true)} size="sm" className="gap-1.5">
+          <Plus className="h-3.5 w-3.5" /> 新建保全
         </Button>
       </div>
 
-      {preservations.length === 0 ? (
+      {cases.length === 0 ? (
         <div className="ll-surface rounded-lg border border-border p-10 text-center text-sm text-muted-foreground">
           <Shield className="mx-auto mb-2 h-6 w-6 opacity-40" />
-          该案件暂无保全记录。点上方&ldquo;新建保全&rdquo;创建。
+          该案件暂无保全记录
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {preservations.map((p) => (
-            <Card
-              key={p.id}
-              p={p}
-              onEdit={() => setEditTarget(p)}
-              onRenew={() => setRenewTarget(p)}
-              onLift={() => setLiftTarget(p)}
-            />
+        <div className="space-y-3">
+          {cases.map((cs) => (
+            <CaseCard key={cs.id} cs={cs} matters={matters} users={users} />
           ))}
         </div>
       )}
 
-      {/* 新建：预填 matterId */}
-      <PreservationDialog
-        open={newOpen}
-        onOpenChange={setNewOpen}
+      <PreservationCaseDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
         matters={matters}
         users={users}
-        initial={{ matterId } as Partial<PreservationRow> as PreservationRow}
+        initialMatterId={matterId}
       />
-      {editTarget && (
-        <PreservationDialog
-          open
-          onOpenChange={(o) => !o && setEditTarget(null)}
-          matters={matters}
-          users={users}
-          initial={editTarget}
-        />
-      )}
-      {renewTarget && (
-        <RenewPreservationDialog
-          open
-          onOpenChange={(o) => !o && setRenewTarget(null)}
-          pres={renewTarget}
-        />
-      )}
-      {liftTarget && (
-        <LiftPreservationDialog
-          open
-          onOpenChange={(o) => !o && setLiftTarget(null)}
-          pres={liftTarget}
-        />
-      )}
     </motion.div>
   );
 }
 
-function Card({
-  p,
-  onEdit,
-  onRenew,
-  onLift
-}: {
-  p: PreservationRow;
-  onEdit: () => void;
-  onRenew: () => void;
-  onLift: () => void;
-}) {
-  const now = new Date();
-  const daysLeft = Math.ceil((p.expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  const exp = classifyExpiry(daysLeft);
-  const sc = PRES_STATUS_COLOR[p.status];
-  const isActive = p.status === "ACTIVE" || p.status === "RENEWED";
-  const [pending, startTransition] = useTransition();
+function CaseCard({ cs, matters, users }: { cs: PreservationCaseRow; matters: MatterOption[]; users: UserOption[] }) {
+  const [expanded, setExpanded] = useState(true);
+  const [isPending, startTransition] = useTransition();
+  const [editOpen, setEditOpen] = useState(false);
+  const [addTargetOpen, setAddTargetOpen] = useState(false);
+  const [addPropOpen, setAddPropOpen] = useState<string | null>(null);
+  const [renewPropOpen, setRenewPropOpen] = useState<string | null>(null);
 
-  const onDelete = () => {
-    if (!confirm(`确认删除保全「${p.respondent}」？`)) return;
-    startTransition(async () => {
-      try {
-        await deletePreservation({ id: p.id });
-        toast.success("已删除");
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "失败");
-      }
-    });
-  };
+  const allProps = cs.targets.flatMap((t) => t.properties);
 
   return (
-    <div className="ll-surface flex flex-col gap-2 rounded-lg border border-border p-4">
-      <div className="flex flex-wrap items-center gap-2 text-[11px]">
-        <span className="rounded border border-border px-1.5 py-0.5 text-muted-foreground">
-          {PRES_TYPE_CN[p.type]}
-        </span>
-        <span className="rounded border border-border px-1.5 py-0.5 text-muted-foreground">
-          {PROPERTY_TYPE_CN[p.propertyType]}
-        </span>
-        <Badge
-          variant="outline"
-          className="px-1.5 text-[10px] font-normal"
-          style={{ borderColor: sc.border, background: sc.bg, color: sc.text }}
-        >
-          {PRES_STATUS_CN[p.status]}
-        </Badge>
-        {isActive && (
-          <span
-            className={cn(
-              "ml-auto inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium",
-              exp.tone === "danger" && "bg-red-500/10 text-red-700",
-              exp.tone === "warn" && "bg-amber-500/15 text-amber-700",
-              exp.tone === "muted" && "bg-muted/60 text-muted-foreground",
-              exp.tone === "ok" && "bg-green-500/10 text-green-700"
-            )}
-          >
-            {exp.tone === "danger" && <AlertTriangle className="h-3 w-3" />}
-            {exp.label}
-          </span>
-        )}
-      </div>
-
-      <div className="flex items-baseline justify-between gap-2">
-        <h4 className="line-clamp-1 text-[1rem]">{p.respondent}</h4>
-        {p.amount && (
-          <span className="font-mono text-[13px] text-foreground/85">
-            {formatCurrency(Number(p.amount), { compact: true })}
-          </span>
-        )}
-      </div>
-
-      <div className="text-[11px] text-muted-foreground space-y-0.5">
-        <div className="flex justify-between gap-2">
-          <span>生效：{p.startDate.toLocaleDateString("zh-CN")}</span>
-          <span>到期：{p.expiryDate.toLocaleDateString("zh-CN")}</span>
+    <div className="rounded-lg border border-border bg-card">
+      <button type="button" onClick={() => setExpanded(!expanded)} className="flex w-full items-center gap-3 px-4 py-3 text-left">
+        <Shield className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.8} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">{PRES_TYPE_CN[cs.type]}</span>
+            {cs.court && <span className="text-xs text-muted-foreground">{cs.court}</span>}
+          </div>
+          <div className="mt-0.5 text-[11px] text-muted-foreground">
+            {cs.targets.length} 个被保全人 · {allProps.length} 项财产
+          </div>
         </div>
-        {p.court && <div className="truncate">{p.court}</div>}
-        {p.rulingNumber && <div className="font-mono text-[10px]">{p.rulingNumber}</div>}
-        {p.renewals.length > 0 && (
-          <div className="text-[10px] text-blue-700/70">已续保 {p.renewals.length} 次</div>
-        )}
-      </div>
+        <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+          <button type="button" onClick={() => setEditOpen(true)} className="rounded-md p-1 text-muted-foreground hover:text-foreground"><Pencil className="h-3 w-3" /></button>
+          <button type="button" onClick={() => { if (confirm("确认删除？")) { startTransition(async () => { try { await deletePreservationCase({ id: cs.id }); toast.success("已删除"); } catch { toast.error("删除失败"); } }); } }} className="rounded-md p-1 text-muted-foreground hover:text-destructive"><Trash2 className="h-3 w-3" /></button>
+        </div>
+      </button>
 
-      <div className="mt-auto flex items-center justify-end gap-1 pt-2">
-        <Button size="sm" variant="ghost" onClick={onEdit} className="h-7 gap-1 px-2 text-[11px]">
-          <Pencil className="h-3 w-3" />
-          编辑
-        </Button>
-        {isActive && (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onRenew}
-            className="h-7 gap-1 px-2 text-[11px] text-blue-700"
-          >
-            <RotateCw className="h-3 w-3" />
-            续保
-          </Button>
-        )}
-        {isActive && (
-          <Button size="sm" variant="ghost" onClick={onLift} className="h-7 gap-1 px-2 text-[11px]">
-            <Unlock className="h-3 w-3" />
-            解除
-          </Button>
-        )}
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={pending}
-          className="rounded p-1 text-muted-foreground hover:text-destructive"
-          title="删除"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </div>
+      {expanded && (
+        <div className="border-t border-border px-4 py-3 space-y-3">
+          {cs.targets.map((t) => (
+            <div key={t.id}>
+              <div className="flex items-center gap-2 mb-1">
+                <UserPlus className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs font-medium">{t.name}</span>
+                <button type="button" onClick={() => setAddPropOpen(t.id)} className="text-[10px] text-primary hover:underline">+ 添加财产</button>
+              </div>
+              {t.properties.length === 0 ? (
+                <p className="pl-5 text-[11px] text-muted-foreground">暂无财产</p>
+              ) : (
+                <div className="pl-5 space-y-1">
+                  {t.properties.map((p) => {
+                    const days = Math.ceil((p.expiryDate.getTime() - Date.now()) / 86400000);
+                    const exp = classifyExpiry(days);
+                    const sc = PRES_STATUS_COLOR[p.status] ?? PRES_STATUS_COLOR.ACTIVE;
+                    const isActive = p.status === "ACTIVE" || p.status === "RENEWED";
+                    return (
+                      <div key={p.id} className="flex items-center gap-2 rounded border border-border bg-background px-2.5 py-1.5 text-[11px]">
+                        <Landmark className="h-3 w-3 shrink-0 text-muted-foreground" />
+                        <span className="font-medium">{PROPERTY_TYPE_CN[p.propertyType]}</span>
+                        {p.amount && <span className="text-muted-foreground">{formatCurrency(Number(p.amount), { compact: true })}</span>}
+                        <span className={cn("ml-auto shrink-0 font-medium", exp.tone === "danger" && "text-destructive", exp.tone === "warn" && "text-amber-500")}>{exp.label}</span>
+                        <span className="shrink-0 rounded border px-1 py-0 text-[9px]" style={{ borderColor: sc.border, color: sc.text, backgroundColor: sc.bg }}>{PRES_STATUS_CN[p.status]}</span>
+                        {isActive && (
+                          <>
+                            <button type="button" onClick={() => setRenewPropOpen(p.id)} className="shrink-0 text-[10px] text-primary hover:underline">续保</button>
+                            <button type="button" onClick={() => { startTransition(async () => { try { await liftProperty(p.id); toast.success("已解除"); } catch { toast.error("操作失败"); } }); }} className="shrink-0 text-[10px] text-muted-foreground hover:text-foreground">解除</button>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+          <Button size="sm" variant="ghost" onClick={() => setAddTargetOpen(true)} className="h-7 gap-1 text-[11px]"><UserPlus className="h-3 w-3" />添加被保全人</Button>
+        </div>
+      )}
+
+      <PreservationCaseDialog open={editOpen} onOpenChange={setEditOpen} editCase={cs} matters={matters} users={users} />
+      <AddTargetDialog open={addTargetOpen} onOpenChange={setAddTargetOpen} caseId={cs.id} />
+      {addPropOpen && <AddPropertyDialog open={!!addPropOpen} onOpenChange={(o) => { if (!o) setAddPropOpen(null); }} targetId={addPropOpen} />}
+      {renewPropOpen && (() => { const prop = allProps.find((p) => p.id === renewPropOpen); return prop ? <RenewPropertyDialog open={!!renewPropOpen} onOpenChange={(o) => { if (!o) setRenewPropOpen(null); }} property={prop} /> : null; })()}
     </div>
   );
 }

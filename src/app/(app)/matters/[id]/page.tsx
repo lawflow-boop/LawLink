@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getMatterById } from "@/server/matters/actions";
 import { getMatterFinance } from "@/server/finance/actions";
-import { listPreservations } from "@/server/preservations/actions";
+import { listPreservationCases } from "@/server/preservations/actions-v2";
 import { listActiveColleagues } from "@/server/users/actions";
 import { getLatestArchiveRecord } from "@/server/archive/actions";
 import { getMatterReviewSummary } from "@/server/ai/matter-review-summary";
@@ -80,7 +80,7 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
       }
     }),
     // v0.9.3: 本案保全记录
-    listPreservations({ matterId: matter.id, status: "ALL" }),
+    listPreservationCases({ matterId: matter.id, status: "ALL" }),
     listActiveColleagues(),
     // v0.11: 案件下用印申请关联的合同附件（待盖章稿 + 盖章后扫描件）
     prisma.sealRequest.findMany({

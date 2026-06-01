@@ -1,10 +1,18 @@
 import type { Prisma, PreservationType, PropertyType, GuaranteeType, PreservationStatus } from "@prisma/client";
 
-export type PreservationRow = Prisma.PreservationGetPayload<{
+export type PreservationCaseRow = Prisma.PreservationCaseGetPayload<{
   include: {
     matter: { select: { id: true; internalCode: true; title: true } };
     owner: { select: { id: true; name: true } };
-    renewals: true;
+    targets: {
+      include: {
+        properties: {
+          include: {
+            renewals: { orderBy: { renewedAt: "desc" }; take: 3 }
+          }
+        }
+      }
+    }
   };
 }>;
 
@@ -15,6 +23,15 @@ export type MatterOption = {
 };
 
 export type UserOption = { id: string; name: string };
+
+/** @deprecated 旧模型兼容别名 */
+export type PreservationRow = Prisma.PreservationGetPayload<{
+  include: {
+    matter: { select: { id: true; internalCode: true; title: true } };
+    owner: { select: { id: true; name: true } };
+    renewals: true;
+  };
+}>;
 
 export const PRES_TYPE_CN: Record<PreservationType, string> = {
   PRE_LITIGATION: "诉前保全",
