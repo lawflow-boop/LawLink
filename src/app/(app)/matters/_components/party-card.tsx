@@ -178,7 +178,7 @@ export function PartyCard({
           {nameSlot ?? (
             !isOrg ? (
               <Input
-                className="h-9 text-sm"
+                className="h-9 text-xs"
                 placeholder="姓名"
                 {...register(`${p}.name`)}
               />
@@ -192,7 +192,7 @@ export function PartyCard({
                 <PopoverTrigger asChild>
                   <div className="relative">
                     <Input
-                      className="h-9 pr-7 text-sm"
+                      className="h-9 pr-7 text-xs"
                       placeholder="单位 / 组织名称（输入自动匹配）"
                       {...nameReg}
                       onChange={(e) => {
@@ -256,7 +256,7 @@ export function PartyCard({
 
         {/* 联系人 */}
         <Input
-          className="h-9 text-sm"
+          className="h-9 text-xs"
           placeholder="联系人"
           {...register(`${p}.contactName`)}
         />
