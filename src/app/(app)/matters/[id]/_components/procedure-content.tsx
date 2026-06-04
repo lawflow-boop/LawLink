@@ -21,6 +21,14 @@ import type {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn, daysUntil } from "@/lib/utils";
 import { procedureTypeLabel } from "@/lib/enums";
@@ -108,6 +116,8 @@ export function ProcedureRemindersAndMemos({
         onOpenChange={setHearingOpen}
         procedures={procOptions}
         defaultProcedureId={currentProcedureId}
+        hearingCounts={Object.fromEntries(procedures.map(p => [p.id, p.hearings.length]))}
+        proceduresDetail={Object.fromEntries(procedures.map(p => [p.id, { handlingAgency: p.handlingAgency, panel: p.panel, jurisdiction: p.jurisdiction }]))}
       />
     </div>
   );
@@ -176,10 +186,10 @@ function RemindersCard({
   const total = hearings.length + deadlines.length;
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
-      <header className="mb-4 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-sm font-semibold">
-          <AlertTriangle className="h-4 w-4 text-[#FBBF24]" />
+    <section className="rounded-lg border border-border bg-card">
+      <header className="flex items-center justify-between border-b border-border px-4 py-2">
+        <h3 className="flex items-center gap-2 text-sm font-medium">
+          <AlertTriangle className="h-3.5 w-3.5 text-[#FBBF24]" />
           提醒 <span className="text-muted-foreground">({total})</span>
         </h3>
         <div className="flex items-center gap-1">
@@ -207,11 +217,11 @@ function RemindersCard({
       </header>
 
       {total === 0 ? (
-        <p className="py-6 text-center text-xs text-muted-foreground">
+        <p className="px-4 py-6 text-center text-xs text-muted-foreground">
           还没有开庭或期限记录
         </p>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 px-4 py-3">
           {/* 开庭 */}
           {hearings.length > 0 && (
             <Group label="开庭" icon={<Gavel className="h-3 w-3" />}>
@@ -287,11 +297,11 @@ function Group({
 }) {
   return (
     <div>
-      <div className="mb-1.5 flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
         {icon}
         {label}
       </div>
-      <ul className="space-y-2">{children}</ul>
+      <ul className="space-y-1">{children}</ul>
     </div>
   );
 }
@@ -327,14 +337,8 @@ function DeadlineRow({
   return (
     <li
       className={cn(
-        "group flex items-start gap-3 rounded-md border bg-background px-3 py-2 transition-colors",
-        d.completed
-          ? "border-border opacity-50"
-          : isOverdue
-            ? "border-destructive/40"
-            : isWarn
-              ? "border-[#FBBF24]/40"
-              : "border-border"
+        "group flex items-center gap-3 py-1 transition-colors",
+        d.completed && "opacity-50"
       )}
     >
       <button
@@ -411,28 +415,18 @@ function HearingRow({
 }) {
   const upcoming = new Date(h.startsAt) > new Date();
   return (
-    <li className="group rounded-md border border-border bg-background px-3 py-2">
-      <div className="flex items-center justify-between">
+    <li className="group flex items-center gap-3 py-1">
+      <Calendar className="h-3.5 w-3.5 text-primary shrink-0" />
+      <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <Calendar className="h-3.5 w-3.5 text-primary" />
-          <span className="text-sm font-medium">{h.title}</span>
+          <span className="text-sm font-medium truncate">{h.title}</span>
           {multiProc && <ProcTag label={h.procLabel} />}
-          <Badge variant="outline" className="text-[9px]">
+          <Badge variant="outline" className="text-[9px] shrink-0">
             {upcoming ? "未召开" : "已召开"}
           </Badge>
         </div>
-        <button
-          type="button"
-          onClick={onDelete}
-          className="opacity-0 transition-opacity group-hover:opacity-100"
-        >
-          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-        </button>
-      </div>
-      <div className="mt-1.5 grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-        <div>
-          <span className="text-foreground/60">时间：</span>
-          <span className="font-mono tabular text-foreground">
+        <div className="mt-0.5 flex items-center gap-3 text-[11px] text-muted-foreground">
+          <span className="font-mono tabular">
             {new Date(h.startsAt).toLocaleString("zh-CN", {
               month: "2-digit",
               day: "2-digit",
@@ -440,25 +434,17 @@ function HearingRow({
               minute: "2-digit"
             })}
           </span>
+          {h.room && <span>· {h.room}</span>}
+          {h.judge && <span>· {h.judge}</span>}
         </div>
-        {h.room && (
-          <div>
-            <span className="text-foreground/60">法庭：</span>
-            <span className="text-foreground">{h.room}</span>
-          </div>
-        )}
-        {h.judge && (
-          <div className="col-span-2">
-            <span className="text-foreground/60">主审：</span>
-            <span className="text-foreground">{h.judge}</span>
-          </div>
-        )}
-        {h.notes && (
-          <div className="col-span-2 mt-1 whitespace-pre-wrap text-foreground/80">
-            {h.notes}
-          </div>
-        )}
       </div>
+      <button
+        type="button"
+        onClick={onDelete}
+        className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+      >
+        <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+      </button>
     </li>
   );
 }
@@ -476,6 +462,7 @@ function MemosCard({
   multiProc: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
 
   const canAdd = !!addProcedureId;
@@ -487,6 +474,7 @@ function MemosCard({
       try {
         await addProcedureMemo({ procedureId: addProcedureId, content });
         setDraft("");
+        setOpen(false);
       } catch (err) {
         toast.error("添加失败", { description: err instanceof Error ? err.message : "" });
       }
@@ -504,48 +492,30 @@ function MemosCard({
   }
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
-      <header className="mb-3 flex items-center justify-between">
-        <h3 className="flex items-center gap-2 text-sm font-semibold">
-          <StickyNote className="h-4 w-4 text-primary" />
+    <section className="rounded-lg border border-border bg-card">
+      <header className="flex items-center justify-between border-b border-border px-4 py-2">
+        <h3 className="flex items-center gap-2 text-sm font-medium">
+          <StickyNote className="h-3.5 w-3.5 text-primary" />
           备忘 <span className="text-muted-foreground">({memos.length})</span>
         </h3>
-      </header>
-
-      {/* 添加：归到当前选中程序 */}
-      <div className="mb-3 flex items-center gap-2">
-        <Input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              handleAdd();
-            }
-          }}
-          placeholder={canAdd ? "记一条备忘，回车添加" : "请先添加程序"}
-          disabled={!canAdd}
-          className="h-8 text-xs"
-        />
         <Button
+          variant="ghost"
           size="sm"
-          onClick={handleAdd}
-          disabled={isPending || !canAdd || !draft.trim()}
-          className="h-8 shrink-0 gap-1"
+          onClick={() => setOpen(true)}
+          disabled={!canAdd}
+          className="h-7 gap-1 text-primary"
         >
-          {isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Plus className="h-3 w-3" />}
+          <Plus className="h-3.5 w-3.5" />
           添加
         </Button>
-      </div>
+      </header>
 
       {memos.length === 0 ? (
-        <p className="flex flex-col items-center gap-1.5 py-6 text-center text-xs text-muted-foreground">
-          <StickyNote className="h-5 w-5 opacity-30" />
+        <p className="px-4 py-6 text-center text-xs text-muted-foreground">
           还没有备忘
         </p>
       ) : (
-        // 无外边框、密排、小字号——在有限空间尽量多容内容
-        <ul className="divide-y divide-border/60">
+        <ul className="divide-y divide-border px-4 py-2">
           {memos.map((m) => (
             <li key={m.id} className="group flex items-start gap-2 py-1.5">
               <span className="flex-1 whitespace-pre-wrap break-words text-xs leading-relaxed">
@@ -568,6 +538,33 @@ function MemosCard({
           ))}
         </ul>
       )}
+
+      {/* 添加备忘弹窗 */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>添加备忘</DialogTitle>
+            <DialogDescription>记录一条备忘，归到当前选中程序</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="输入备忘内容..."
+              disabled={!canAdd}
+              className="w-full min-h-[100px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={handleAdd}
+              disabled={isPending || !canAdd || !draft.trim()}
+            >
+              {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "添加"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

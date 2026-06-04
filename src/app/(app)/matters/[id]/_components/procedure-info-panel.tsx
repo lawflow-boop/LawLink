@@ -22,12 +22,38 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { litigationStandingLabel, procedureToStandingOptions } from "@/lib/enums";
+import { litigationStandingLabel, procedureToStandingOptions, procedureTypeLabel } from "@/lib/enums";
 import { formatDate } from "@/lib/utils";
 import { updateProcedureInfo } from "@/server/matters/actions";
 import { InfoRow, Pair } from "./info-panel";
 import { JurisdictionSelect } from "@/app/(app)/intakes/_components/jurisdiction-select";
 import { agencyOptions } from "@/lib/china-regions";
+
+// v0.45: 程序类型到「XX信息」的映射（覆盖所有程序类型）
+const PROC_INFO_LABEL: Record<string, string> = {
+  FIRST_INSTANCE: "一审信息",
+  SECOND_INSTANCE: "二审信息",
+  RETRIAL_REVIEW: "再审审查信息",
+  RETRIAL: "再审信息",
+  REMAND_FIRST: "重审一审信息",
+  REMAND_SECOND: "重审二审信息",
+  PROSECUTORIAL_SUPERVISION: "检察监督信息",
+  COMMERCIAL_ARBITRATION: "商事仲裁信息",
+  LABOR_ARBITRATION: "劳动仲裁信息",
+  ARBITRATION_SET_ASIDE: "撤销仲裁裁决信息",
+  ARBITRATION_ENFORCEMENT_REVIEW: "不予执行仲裁审查信息",
+  ENFORCEMENT: "强制执行信息",
+  ENFORCEMENT_OBJECTION: "执行异议信息",
+  INVESTIGATION: "侦查信息",
+  PROSECUTION_REVIEW: "审查起诉信息",
+  DEATH_PENALTY_REVIEW: "死刑复核信息",
+  CRIMINAL_ENFORCEMENT: "刑罚执行信息",
+  COMMUTATION_PAROLE_REVIEW: "减刑假释审查信息",
+  ADMIN_RECONSIDERATION: "行政复议信息",
+  ADMIN_NON_LITIGATION_ENFORCEMENT: "非诉行政执行信息",
+  NON_LITIGATION_PHASE: "非诉阶段信息",
+  CUSTOM: "程序信息"
+};
 
 type Proc = {
   id: string;
@@ -67,27 +93,19 @@ function roleLabels(type: ProcedureType): { judge: string; assistant: string } {
 const dash = (v: string | null | undefined) => v?.trim() || "—";
 const toInput = (d: Date | null) => (d ? new Date(d).toISOString().split("T")[0] : "");
 
-export function ProcedureInfoPanel({ procedure: p }: { procedure: Proc }) {
+export function ProcedureInfoPanel({ procedure: p, editOpen, onEditOpenChange }: { procedure: Proc; editOpen?: boolean; onEditOpenChange?: (o: boolean) => void }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = editOpen ?? internalOpen;
+  const setOpen = onEditOpenChange ?? setInternalOpen;
   const { judge, assistant } = roleLabels(p.type);
   const standingOptions = procedureToStandingOptions(p.type, "ours");
+  // v0.45: 动态标题，如"一审信息"、"二审信息"
+  const infoTitle = PROC_INFO_LABEL[p.type] ?? "程序信息";
 
   return (
     <section className="rounded-lg border border-border bg-card">
-      <header className="flex items-center justify-between border-b border-border px-4 py-2">
-        <span className="text-[13px] font-medium">程序基本信息</span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setOpen(true)}
-          className="h-6 gap-1 text-[11px] text-muted-foreground hover:text-primary"
-        >
-          <Pencil className="h-3 w-3" strokeWidth={1.8} />
-          编辑
-        </Button>
-      </header>
-      <div className="overflow-hidden rounded-b-lg">
+      <div className="overflow-hidden rounded-lg">
         <InfoRow>
           <Pair label="管辖地">{dash(p.jurisdiction)}</Pair>
           <Pair label="管辖机构">{dash(p.handlingAgency)}</Pair>
@@ -186,7 +204,7 @@ function EditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[92vw] max-w-2xl">
         <DialogHeader>
-          <DialogTitle>编辑程序基本信息</DialogTitle>
+          <DialogTitle>编辑{PROC_INFO_LABEL[proc.type] ?? "程序"}信息</DialogTitle>
         </DialogHeader>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <FieldRow label="管辖地（省/市/区县）">

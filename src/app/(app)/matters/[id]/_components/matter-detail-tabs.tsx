@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { motion } from "framer-motion";
 import type { Prisma } from "@prisma/client";
 import {
   Info,
-  Plus
+  Plus,
+  Pencil,
+  X
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { matterStatusLabel, procedureTypeLabel, matterCategoryKind } from "@/lib/enums";
 import { cn } from "@/lib/utils";
@@ -19,6 +23,8 @@ import { TimelinePanel } from "./timeline-panel";
 import { ApprovalsPanel } from "./approvals-panel";
 import { ExpressMiniCard, type SealContractItem, type ExpressItem } from "./info-extras";
 import { AddProcedureSheet } from "./procedure-forms";
+import { deleteProcedure } from "@/server/procedures/actions";
+import { useRouter } from "next/navigation";
 import { MatterPreservationPanel } from "./matter-preservation-panel";
 import { CustomFieldsPanel } from "./custom-fields-panel";
 import { LifecycleActions } from "./lifecycle-actions";
@@ -164,6 +170,21 @@ export function MatterDetailTabs({
 }) {
   const [selectedProcId, setSelectedProcId] = useState<string | null>(null);
   const [addProcOpen, setAddProcOpen] = useState(false);
+  const [procEditOpen, setProcEditOpen] = useState(false);
+  const [, startTransition] = useTransition();
+  const router = useRouter();
+
+  function handleDeleteProcedure(id: string) {
+    startTransition(async () => {
+      try {
+        await deleteProcedure(id);
+        toast.success("程序已删除");
+        router.refresh();
+      } catch (err) {
+        toast.error("删除失败", { description: err instanceof Error ? err.message : "" });
+      }
+    });
+  }
   const [archiveOpen, setArchiveOpen] = useState(false);
 
   const engagedProcedures = matter.procedures
@@ -261,7 +282,7 @@ export function MatterDetailTabs({
           }
         />
 
-        {/* 2. 案件程序（新容器） */}
+        {/* 2. 案件程序（新容器）：程序切换 + 程序基本信息 + 案件材料|快递 */}
         <section className="rounded-xl border border-border bg-card p-5">
           {/* 程序切换标签 */}
           <header className="mb-4 flex flex-wrap items-center gap-2 border-b border-border pb-3">
@@ -272,54 +293,87 @@ export function MatterDetailTabs({
               engagedProcedures.map((p, idx) => {
                 const isActive = currentProcedure?.id === p.id;
                 return (
-                  <button
+                  <span
                     key={p.id}
-                    onClick={() => setSelectedProcId(p.id)}
                     className={cn(
-                      "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors",
+                      "group/proc inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors",
                       isActive
                         ? "bg-primary/10 text-primary"
                         : "text-muted-foreground hover:bg-muted/60"
                     )}
                   >
-                    <span className="font-medium text-primary">{ROMAN[idx] ?? idx + 1}</span>
-                    <span>{p.customLabel ?? procedureTypeLabel[p.type]}</span>
-                    {p.status === "CONCLUDED" && (
-                      <Badge
-                        variant="outline"
-                        className="ml-0.5 border-border bg-muted/30 px-1 text-[9px] font-normal"
-                      >
-                        已结
-                      </Badge>
-                    )}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedProcId(p.id)}
+                      className="flex items-center gap-1.5"
+                    >
+                      <span className="font-medium text-primary">{ROMAN[idx] ?? idx + 1}</span>
+                      <span>{p.customLabel ?? procedureTypeLabel[p.type]}</span>
+                      {p.status === "CONCLUDED" && (
+                        <Badge
+                          variant="outline"
+                          className="ml-0.5 border-border bg-muted/30 px-1 text-[9px] font-normal"
+                        >
+                          已结
+                        </Badge>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const label = p.customLabel ?? procedureTypeLabel[p.type];
+                        if (confirm(`确定删除程序「${label}」？该程序下的所有开庭、期限、备忘和材料记录将被一并删除，此操作不可撤销。`)) {
+                          handleDeleteProcedure(p.id);
+                        }
+                      }}
+                      className="ml-0.5 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover/proc:opacity-100"
+                      title="删除此程序"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
                 );
               })
             )}
             <button
               type="button"
               onClick={() => setAddProcOpen(true)}
-              className="ml-1 inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+              className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80"
             >
               <Plus className="h-3 w-3" strokeWidth={2} />
               添加程序
             </button>
+            {currentProcedure && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setProcEditOpen(true)}
+                className="ml-auto h-6 gap-1 text-[11px] text-muted-foreground hover:text-primary"
+              >
+                <Pencil className="h-3 w-3" strokeWidth={1.8} />
+                编辑
+              </Button>
+            )}
           </header>
 
-          {/* 当前程序内容：基本信息 + 案件材料 + 提醒/备忘（全案聚合） */}
+          {/* 当前程序内容：基本信息 + 案件材料|快递 */}
           {currentProcedure ? (
             <div className="space-y-4">
-              <ProcedureInfoPanel procedure={currentProcedure} />
-              <ProcedureDocumentsSection
-                matterId={matter.id}
-                procedureId={currentProcedure.id}
-                documents={procDocs}
-                parties={matter.parties}
-              />
-              <ProcedureRemindersAndMemos
-                procedures={engagedProcedures}
-                currentProcedureId={currentProcedure.id}
-              />
+              <ProcedureInfoPanel procedure={currentProcedure} editOpen={procEditOpen} onEditOpenChange={setProcEditOpen} />
+              {/* v0.45: 案件材料(2/3) + 快递记录(1/3) 并列 */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+                <div className="lg:col-span-8 h-full">
+                  <ProcedureDocumentsSection
+                    matterId={matter.id}
+                    procedureId={currentProcedure.id}
+                    documents={procDocs}
+                    parties={matter.parties}
+                  />
+                </div>
+                <div className="lg:col-span-4 h-full">
+                  <ExpressMiniCard expresses={expresses} matterId={matter.id} />
+                </div>
+              </div>
             </div>
           ) : (
             <p className="py-8 text-center text-xs text-muted-foreground">
@@ -328,22 +382,21 @@ export function MatterDetailTabs({
           )}
         </section>
 
-        {/* 3. 用印审批 */}
+        {/* 3. 提醒 | 备忘（全案聚合，独立模块） */}
+        <ProcedureRemindersAndMemos
+          procedures={engagedProcedures}
+          currentProcedureId={currentProcedure?.id ?? ""}
+        />
+
+        {/* 4. 用印审批 */}
         <ApprovalsPanel
           matterId={matter.id}
           matterTitle={matter.title}
           sealContracts={sealContracts}
         />
 
-        {/* 4. 财务费用 | 快递 */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-          <div className="lg:col-span-8">
-            <FinancePanel matterId={matter.id} finance={finance} userOptions={userOptions} />
-          </div>
-          <div className="lg:col-span-4">
-            <ExpressMiniCard expresses={expresses} matterId={matter.id} />
-          </div>
-        </div>
+        {/* 5. 财务费用 */}
+        <FinancePanel matterId={matter.id} finance={finance} userOptions={userOptions} />
 
         {/* 5. 保全 */}
         <MatterPreservationPanel
@@ -365,6 +418,7 @@ export function MatterDetailTabs({
         category={matter.category}
         nextOrder={matter.procedures.length + 1}
         colleagues={colleagues}
+        existingTypes={matter.procedures.map(p => p.type)}
       />
       <ArchiveWizardDialog
         matterId={matter.id}

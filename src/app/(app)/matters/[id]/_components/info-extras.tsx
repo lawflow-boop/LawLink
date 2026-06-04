@@ -166,23 +166,21 @@ export function ExpressMiniCard({
 }) {
   const [addOpen, setAddOpen] = useState(false);
   return (
-    <section className="ll-surface rounded-lg border border-border p-4">
-      <header className="mb-3 flex items-center gap-2">
-        <Package className="h-3.5 w-3.5 text-primary" strokeWidth={1.8} />
-        <span className="text-[13px] font-medium">快递记录</span>
-        <span className="font-mono text-[11px] text-muted-foreground tabular">
-          {expresses.length}
+    <section className="ll-surface h-full rounded-lg border border-border">
+      <header className="flex items-center justify-between border-b border-border px-4 py-2">
+        <span className="flex items-center gap-1.5 text-[13px] font-medium">
+          <Package className="h-3.5 w-3.5 text-primary" strokeWidth={1.8} />
+          快递记录
+          <span className="ml-1 font-mono text-[11px] text-muted-foreground tabular">
+            {expresses.length}
+          </span>
         </span>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center gap-2">
           {matterId && (
-            <button
-              type="button"
-              onClick={() => setAddOpen(true)}
-              className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline"
-            >
-              <Plus className="h-3 w-3" strokeWidth={2} />
+            <Button size="sm" onClick={() => setAddOpen(true)} className="h-6 gap-0.5 px-2 text-[11px]">
+              <Plus className="h-2.5 w-2.5" />
               添加
-            </button>
+            </Button>
           )}
           <Link
             href="/express"

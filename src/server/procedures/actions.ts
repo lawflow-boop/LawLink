@@ -47,6 +47,7 @@ export async function addProcedure(input: ProcedureCreateInput) {
       engagement: data.engagement,
       order: (lastOrder?.order ?? 0) + 1,
       caseNumber: data.caseNumber || null,
+      jurisdiction: data.jurisdiction || null,
       handlingAgency: data.handlingAgency || null,
       panel: data.panel || null,
       handler: data.handler || null,

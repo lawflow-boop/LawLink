@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition, useRef, useState, useEffect } from "react";
+import { useTransition, useRef, useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -44,6 +44,8 @@ import {
   proceduresByCategory,
   suggestHandlingAgency
 } from "@/lib/procedures-by-category";
+import { agencyOptions } from "@/lib/china-regions";
+import { JurisdictionSelect } from "@/app/(app)/intakes/_components/jurisdiction-select";
 import { cn } from "@/lib/utils";
 
 // ============ AddProcedureSheet ============
@@ -54,18 +56,22 @@ export function AddProcedureSheet({
   matterId,
   category,
   nextOrder,
-  colleagues
+  colleagues,
+  existingTypes
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   matterId: string;
   category: MatterCategory;
   nextOrder: number;
-  /** v0.44: 所内律师列表（主办律师下拉） */
   colleagues?: { id: string; name: string }[];
+  /** 已有的程序类型，防止重复添加 */
+  existingTypes?: string[];
 }) {
   const [isPending, startTransition] = useTransition();
-  const procedureOptions = proceduresByCategory[category];
+  const allOptions = proceduresByCategory[category];
+  const existingSet = new Set(existingTypes ?? []);
+  const procedureOptions = allOptions.filter(p => !existingSet.has(p));
 
   const {
     register,
@@ -86,6 +92,7 @@ export function AddProcedureSheet({
       panel: "",
       handler: "",
       acceptedAt: undefined,
+      jurisdiction: "",
       leadLawyerId: null,
       isExternalLead: false
     }
@@ -94,6 +101,8 @@ export function AddProcedureSheet({
   const procedureType = watch("type");
   const leadLawyerId = watch("leadLawyerId");
   const isExternalLead = watch("isExternalLead");
+  const jurisdiction = watch("jurisdiction") ?? "";
+  const agencyOpts = useMemo(() => agencyOptions(jurisdiction), [jurisdiction]);
 
   function onSubmit(values: ProcedureCreateInput) {
     startTransition(async () => {
@@ -190,11 +199,33 @@ export function AddProcedureSheet({
                   {...register("caseNumber")}
                 />
               </Field>
-              <Field label="办理机关">
-                <Input
-                  placeholder={suggestHandlingAgency(procedureType)}
-                  {...register("handlingAgency")}
+              <Field label="管辖地">
+                <JurisdictionSelect
+                  value={jurisdiction}
+                  onChange={(v) => {
+                    setValue("jurisdiction", v);
+                    const cur = watch("handlingAgency");
+                    if (cur && !agencyOptions(v).includes(cur)) {
+                      setValue("handlingAgency", "");
+                    }
+                  }}
                 />
+              </Field>
+              <Field label="办理机关">
+                <Select
+                  value={watch("handlingAgency") || ""}
+                  onValueChange={(v) => setValue("handlingAgency", v)}
+                  disabled={agencyOpts.length === 0}
+                >
+                  <SelectTrigger className="h-9 bg-background">
+                    <SelectValue placeholder={jurisdiction ? "选择机构" : "请先选管辖地"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {agencyOpts.map((a) => (
+                      <SelectItem key={a} value={a}>{a}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </Field>
               <Field label="主审 / 仲裁员">
                 <Input {...register("handler")} />
@@ -208,7 +239,11 @@ export function AddProcedureSheet({
               >
                 <Input
                   type="date"
-                  {...register("acceptedAt", { valueAsDate: true })}
+                  {...register("acceptedAt")}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setValue("acceptedAt", v ? new Date(v) : undefined, { shouldValidate: true });
+                  }}
                 />
               </Field>
             </div>
@@ -406,13 +441,17 @@ export function AddHearingDialog({
   open,
   onOpenChange,
   procedures,
-  defaultProcedureId
+  defaultProcedureId,
+  hearingCounts,
+  proceduresDetail
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  /** v0.45：提醒全案聚合，新增开庭需明确所处程序 */
   procedures: { id: string; label: string }[];
   defaultProcedureId: string;
+  hearingCounts?: Record<string, number>;
+  /** 各程序附加信息（审理法院等），用于预填 */
+  proceduresDetail?: Record<string, { handlingAgency?: string | null; panel?: string | null; jurisdiction?: string | null }>;
 }) {
   const [isPending, startTransition] = useTransition();
   const [ocrLoading, setOcrLoading] = useState(false);
@@ -438,10 +477,24 @@ export function AddHearingDialog({
     }
   });
 
-  // 打开时把所处程序默认值同步为当前选中程序
+  const procedureId = watch("procedureId");
+
+  const CN_NUM: Record<number, string> = { 1: "一", 2: "二", 3: "三", 4: "四", 5: "五", 6: "六", 7: "七", 8: "八", 9: "九", 10: "十" };
+
+  function autoTitle(procId: string) {
+    const proc = procedures.find(p => p.id === procId);
+    if (!proc) return;
+    const count = (hearingCounts?.[procId] ?? 0) + 1;
+    const numStr = CN_NUM[count] ?? String(count);
+    setValue("title", `${proc.label}第${numStr}次开庭`);
+  }
+
+  // 打开时同步默认程序 + 自动生成主题
   useEffect(() => {
-    if (open) setValue("procedureId", defaultProcedureId);
-  }, [open, defaultProcedureId, setValue]);
+    if (!open) return;
+    setValue("procedureId", defaultProcedureId);
+    autoTitle(defaultProcedureId);
+  }, [open, defaultProcedureId]);
 
   function handleSummonsUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -506,7 +559,10 @@ export function AddHearingDialog({
             <Field label="所处程序" required>
               <Select
                 value={watch("procedureId") || undefined}
-                onValueChange={(v) => setValue("procedureId", v)}
+                onValueChange={(v) => {
+                  setValue("procedureId", v);
+                  autoTitle(v);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="选择所处程序" />
@@ -561,15 +617,16 @@ export function AddHearingDialog({
               />
             </Field>
 
-            <Field label="预计结束">
+            <Field label="审理法院">
               <Input
-                type="datetime-local"
-                {...register("endsAt", { valueAsDate: true })}
+                readOnly
+                value={proceduresDetail?.[watch("procedureId")]?.handlingAgency ?? "—"}
+                className="bg-muted/50 text-muted-foreground"
               />
             </Field>
 
-            <Field label="法庭 / 仲裁庭">
-              <Input placeholder="如 第三法庭" {...register("room")} />
+            <Field label="开庭地点">
+              <Input placeholder="如：第三法庭" {...register("room")} />
             </Field>
 
             <Field label="主审 / 仲裁员">

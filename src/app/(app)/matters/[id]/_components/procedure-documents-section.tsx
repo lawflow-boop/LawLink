@@ -42,6 +42,7 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
+import { ChevronDown } from "lucide-react";
 import { uploadDocument, deleteDocument } from "@/server/documents/actions";
 import { canPreview, officePreviewKind } from "@/lib/storage/mime-ext";
 import { cn, formatDate } from "@/lib/utils";
@@ -199,104 +200,120 @@ export function ProcedureDocumentsSection({
   }
 
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
-      <header className="mb-3 flex items-center justify-between">
-        <div>
-          <h3 className="text-sm font-medium">案件材料</h3>
-          <p className="text-[11px] text-muted-foreground">共 {documents.length} 份</p>
+    <section className="h-full rounded-lg border border-border bg-card">
+      <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-2">
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-[13px] font-medium whitespace-nowrap">
+            案件材料
+            <span className="ml-1 font-mono text-[11px] text-muted-foreground tabular">
+              {documents.length}
+            </span>
+          </span>
+          {/* 分类按钮组（参考用印审批） */}
+          <div className="flex items-center gap-0.5 rounded-md border border-border bg-background p-0.5">
+            <button
+              type="button"
+              onClick={() => setFilter(null)}
+              className={cn(
+                "rounded px-2 py-0.5 text-[11px] transition-colors",
+                filter === null
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              全部
+            </button>
+            {CATEGORY_OPTIONS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setFilter(filter === c ? null : c)}
+                className={cn(
+                  "rounded px-2 py-0.5 text-[11px] transition-colors",
+                  filter === c
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {categoryLabel[c]}
+              </button>
+            ))}
+          </div>
         </div>
-        <Button size="sm" onClick={() => setOpen(true)} className="gap-1.5">
-          <Plus className="h-3.5 w-3.5" />
+        <Button size="sm" onClick={() => setOpen(true)} className="h-6 gap-0.5 px-2 text-[11px] shrink-0">
+          <Plus className="h-2.5 w-2.5" />
           上传
         </Button>
       </header>
 
-      {/* v0.42 分类切换 tab */}
-      <div className="mb-3 flex flex-wrap gap-1.5">
-        <CategoryTab
-          active={filter === null}
-          label="全部"
-          count={documents.length}
-          onClick={() => setFilter(null)}
-        />
-        {CATEGORY_OPTIONS.map((c) => (
-          <CategoryTab
-            key={c}
-            active={filter === c}
-            label={categoryLabel[c]}
-            count={counts[c] ?? 0}
-            onClick={() => setFilter(c)}
-          />
-        ))}
-      </div>
-
       {filtered.length === 0 ? (
-        <p className="rounded-md border border-dashed border-border bg-background py-6 text-center text-xs text-muted-foreground">
+        <p className="px-4 py-6 text-center text-xs text-muted-foreground">
           {filter ? "该分类下暂无材料" : "本程序还没有材料，点击上方上传按钮添加"}
         </p>
       ) : (
-        // v0.42 一行两列
-        <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        // 紧凑列表，无外框
+        <ul className="divide-y divide-border px-4">
           {filtered.map((d) => {
             const Icon = iconFor(d.mimeType);
             const pUrl = previewUrl(d);
             return (
               <li
                 key={d.id}
-                className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                className="group flex items-center gap-2 py-1.5"
               >
-                <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
+                <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1 flex items-center gap-2">
                   {pUrl ? (
                     <a
                       href={pUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="block truncate hover:text-primary hover:underline"
+                      className="truncate text-xs hover:text-primary hover:underline"
                       title="点击打开查看"
                     >
                       {d.name}
                     </a>
                   ) : (
-                    <div className="truncate" title={d.name}>
+                    <span className="truncate text-xs" title={d.name}>
                       {d.name}
-                    </div>
+                    </span>
                   )}
-                  {/* v0.42 不再显示分类（已有 tab），改显时间/大小/来源 */}
-                  <div className="text-[10px] text-muted-foreground">
+                  <span className="shrink-0 text-[10px] text-muted-foreground">
                     {formatDate(d.createdAt)}
-                    {d.size ? ` · ${(d.size / 1024).toFixed(0)} KB` : ""}
-                    {d.sourceParty ? ` · 来源：${d.sourceParty}` : ""}
-                  </div>
+                    {d.size ? ` · ${(d.size / 1024).toFixed(0)}KB` : ""}
+                    {d.sourceParty ? ` · ${d.sourceParty}` : ""}
+                  </span>
                 </div>
-                {pUrl && (
+                <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  {pUrl && (
+                    <a
+                      href={pUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="p-1 text-muted-foreground hover:text-primary"
+                      title="预览"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                    </a>
+                  )}
                   <a
-                    href={pUrl}
+                    href={`/api/documents/${d.id}/download`}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
-                    title="预览"
+                    className="p-1 text-muted-foreground hover:text-primary"
+                    title="下载"
                   >
-                    <Eye className="h-3 w-3" />
+                    <Download className="h-3.5 w-3.5" />
                   </a>
-                )}
-                <a
-                  href={`/api/documents/${d.id}/download`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
-                  title="下载"
-                >
-                  <Download className="h-3 w-3" />
-                </a>
-                <button
-                  type="button"
-                  onClick={() => handleDelete(d.id, d.name)}
-                  className="rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:border-destructive hover:text-destructive"
-                  title="删除"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(d.id, d.name)}
+                    className="p-1 text-muted-foreground hover:text-destructive"
+                    title="删除"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </li>
             );
           })}
@@ -388,33 +405,5 @@ export function ProcedureDocumentsSection({
         </DialogContent>
       </Dialog>
     </section>
-  );
-}
-
-function CategoryTab({
-  active,
-  label,
-  count,
-  onClick
-}: {
-  active: boolean;
-  label: string;
-  count: number;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "rounded-full border px-2.5 py-1 text-[11px] transition-colors",
-        active
-          ? "border-primary bg-primary/10 text-primary"
-          : "border-border bg-background text-muted-foreground hover:border-input hover:text-foreground"
-      )}
-    >
-      {label}
-      <span className="ml-1 opacity-60">{count}</span>
-    </button>
   );
 }
