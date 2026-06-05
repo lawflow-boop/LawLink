@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { createNotification } from "@/server/notifications/create";
+import { notifyDirectApprovers } from "@/server/notifications/approval";
 import { assertMatterWritable } from "@/lib/archive/guard";
 import { assertCanAssociateMatter } from "@/lib/permissions";
 import { storage } from "@/lib/storage";
@@ -135,6 +136,59 @@ async function pickApprovableSealTypes(user: { id: string; role: string }): Prom
       return c.approverRoles.includes(user.role as UserRole);
     })
     .map((c) => c.type);
+}
+
+async function getSealApprovalRecipientIds(sealType: SealType): Promise<string[]> {
+  const admins = await prisma.user.findMany({
+    where: { active: true, role: "ADMIN" },
+    select: { id: true }
+  });
+  const ids = admins.map((user) => user.id);
+
+  const cfg = await prisma.sealTypeConfig.findUnique({ where: { type: sealType } });
+  if (!cfg || !cfg.enabled) return ids;
+
+  if (cfg.requiresLegalRep) {
+    const repId = await getFirmLegalRepUserId();
+    if (repId) ids.push(repId);
+    return ids;
+  }
+
+  if (cfg.approverRoles.length > 0) {
+    const roleApprovers = await prisma.user.findMany({
+      where: {
+        active: true,
+        role: { in: cfg.approverRoles as UserRole[] }
+      },
+      select: { id: true }
+    });
+    ids.push(...roleApprovers.map((user) => user.id));
+  }
+
+  return ids;
+}
+
+async function notifySealApprovalRequested(input: {
+  sealRequestId: string;
+  code: string;
+  sealType: SealType;
+  documentTitle: string;
+  purpose: string;
+  requesterId: string;
+  requesterName?: string | null;
+  urgency: "NORMAL" | "URGENT";
+}) {
+  const userIds = await getSealApprovalRecipientIds(input.sealType);
+  await notifyDirectApprovers({
+    userIds,
+    excludeUserId: input.requesterId,
+    title: "新的用印审批待处理",
+    content: `${input.requesterName ?? "有用户"} 提交了用印申请：${input.code} · ${input.documentTitle} · ${input.purpose}`,
+    href: `/approvals/seals?id=${input.sealRequestId}`,
+    refType: "SealRequest",
+    refId: input.sealRequestId,
+    priority: input.urgency === "URGENT" ? "URGENT" : "HIGH"
+  });
 }
 
 export async function getSealApprovalCapabilities() {
@@ -434,6 +488,30 @@ export async function createSealRequest(formData: FormData) {
         matterId: data.matterId,
         parentCode: code
       }
+    });
+  }
+
+  await notifySealApprovalRequested({
+    sealRequestId: created.seal.id,
+    code,
+    sealType: data.sealType,
+    documentTitle: data.documentTitle.trim(),
+    purpose: data.purpose.trim(),
+    requesterId: session.user.id,
+    requesterName: session.user.name,
+    urgency: data.urgency
+  });
+
+  if (created.legalRepSealId && legalRepCode) {
+    await notifySealApprovalRequested({
+      sealRequestId: created.legalRepSealId,
+      code: legalRepCode,
+      sealType: "LEGAL_REP_SEAL",
+      documentTitle: data.documentTitle.trim(),
+      purpose: `${data.purpose.trim()}（与 ${code} 同时加盖）`,
+      requesterId: session.user.id,
+      requesterName: session.user.name,
+      urgency: data.urgency
     });
   }
 

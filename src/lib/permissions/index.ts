@@ -77,21 +77,74 @@ export async function assertCanAssociateMatter(
   if (!row) throw new Error("案件不存在或无权关联");
 }
 
-/** 修改断言：owner 或 manager */
-export async function assertCanModifyMatter(
+/** 案件处理断言：只允许主办或案件成员，不因管理角色放开 */
+export async function assertCanHandleMatter(
   userId: string,
-  role: string,
   matterId: string
 ): Promise<void> {
-  if (isManager(role)) return;
+  const row = await prisma.matter.findFirst({
+    where: {
+      id: matterId,
+      deletedAt: null,
+      ...matterAssociationFilter(userId)
+    },
+    select: { id: true }
+  });
+  if (!row) throw new Error("案件不存在或无权处理");
+}
+
+/** 主办/协办断言：用于归档、团队、核心信息、文书生成等较敏感处理 */
+export async function assertCanLeadMatter(
+  userId: string,
+  matterId: string,
+  message = "仅案件主办/协办可操作"
+): Promise<void> {
+  const row = await prisma.matter.findFirst({
+    where: {
+      id: matterId,
+      deletedAt: null,
+      OR: [
+        { ownerId: userId },
+        { members: { some: { userId, role: { in: ["LEAD", "CO_LEAD"] } } } }
+      ]
+    },
+    select: { id: true }
+  });
+  if (!row) throw new Error(message);
+}
+
+/** 当前主办律师断言：用于变更承办团队、删除案件等所有权级操作 */
+export async function assertCanOwnMatter(
+  userId: string,
+  matterId: string,
+  message = "仅案件主办律师可操作"
+): Promise<void> {
+  const row = await prisma.matter.findFirst({
+    where: {
+      id: matterId,
+      deletedAt: null,
+      ownerId: userId
+    },
+    select: { id: true }
+  });
+  if (!row) throw new Error(message);
+}
+
+/** 修改断言：只允许主办或案件成员，不因管理角色放开 */
+export async function assertCanModifyMatter(
+  userId: string,
+  _role: string,
+  matterId: string
+): Promise<void> {
   const matter = await prisma.matter.findFirst({
-    where: { id: matterId, deletedAt: null },
-    select: { ownerId: true }
+    where: {
+      id: matterId,
+      deletedAt: null,
+      ...matterAssociationFilter(userId)
+    },
+    select: { id: true }
   });
   if (!matter) throw new Error("案件不存在");
-  if (matter.ownerId !== userId) {
-    throw new Error("无权操作此案件");
-  }
 }
 
 // ============ 收案可见性 ============

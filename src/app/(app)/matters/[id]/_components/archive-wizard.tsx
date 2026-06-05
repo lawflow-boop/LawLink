@@ -201,7 +201,7 @@ export function ArchiveWizardDialog({ matterId, open, onOpenChange }: Props) {
             归档案件
           </DialogTitle>
           <DialogDescription>
-            归档不可逆。提交后案件转为只读，自动生成卷宗封皮和卷宗目录入归档卷宗。
+            提交后进入管理员审批；审批通过后案件转为只读，并生成卷宗封皮和卷宗目录入归档卷宗。
           </DialogDescription>
         </DialogHeader>
 
@@ -406,7 +406,7 @@ export function ArchiveWizardDialog({ matterId, open, onOpenChange }: Props) {
                   归档审批流程
                 </AlertTitle>
                 <AlertDescription className="mt-0.5 text-[11.5px] text-muted-foreground">
-                  提交后状态为「归档中」，需管理员审批通过才正式归档。管理员本人提交时自动通过。
+                  提交后状态为「归档中」，需管理员审批通过才正式归档。
                 </AlertDescription>
               </Alert>
             </div>

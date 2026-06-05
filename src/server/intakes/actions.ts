@@ -15,6 +15,7 @@ import {
   type DeclineIntakeInput
 } from "./schemas";
 import { seedDefaultFolders } from "@/lib/default-folders";
+import { notifyRoleApprovers } from "@/server/notifications/approval";
 
 function emptyToNull<T extends Record<string, unknown>>(obj: T): T {
   const out: Record<string, unknown> = {};
@@ -317,6 +318,17 @@ export async function createIntake(input: IntakeCreateInput) {
     }
   });
 
+  await notifyRoleApprovers({
+    roles: ["ADMIN", "PRINCIPAL_LAWYER"],
+    excludeUserId: session.user.id,
+    title: "新的案件审批待处理",
+    content: `${session.user.name ?? "有用户"} 提交了案件审批：${created.title}`,
+    href: `/intakes/${created.id}`,
+    refType: "Intake",
+    refId: created.id,
+    priority: "HIGH"
+  });
+
   revalidatePath("/intakes");
   revalidatePath("/matters");
   return { ok: true, id: created.id, clientId: resolvedClientId };
@@ -383,7 +395,7 @@ export async function resubmitIntake(id: string) {
 
   const intake = await prisma.intake.findUnique({
     where: { id },
-    select: { status: true, createdById: true, ownerUserId: true }
+    select: { status: true, title: true, createdById: true, ownerUserId: true }
   });
   if (!intake) throw new Error("收案不存在");
   if (intake.status !== "NEEDS_REVISION") throw new Error("只有待补正状态可重新提交");
@@ -402,6 +414,17 @@ export async function resubmitIntake(id: string) {
     targetType: "Intake",
     targetId: id,
     detail: {}
+  });
+
+  await notifyRoleApprovers({
+    roles: ["ADMIN", "PRINCIPAL_LAWYER"],
+    excludeUserId: session.user.id,
+    title: "案件审批已重新提交",
+    content: `${session.user.name ?? "有用户"} 重新提交了案件审批：${intake.title}`,
+    href: `/intakes/${id}`,
+    refType: "Intake",
+    refId: id,
+    priority: "HIGH"
   });
 
   revalidatePath("/intakes");

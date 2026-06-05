@@ -15,11 +15,13 @@ import type { FinancePayload, UserOption } from "./matter-detail-tabs";
  */
 export function FinancePanel({
   matterId,
-  finance
+  finance,
+  canRequestInvoice
 }: {
   matterId: string;
   finance: FinancePayload;
   userOptions: UserOption[];
+  canRequestInvoice: boolean;
 }) {
   const [invoiceOpen, setInvoiceOpen] = useState(false);
 
@@ -47,14 +49,16 @@ export function FinancePanel({
             <Wallet className="h-3.5 w-3.5 text-primary" />
             财务费用
           </span>
-          <Button
-            size="sm"
-            onClick={() => setInvoiceOpen(true)}
-            className="h-7 gap-1"
-          >
-            <Receipt className="h-3 w-3" />
-            申请开票
-          </Button>
+          {canRequestInvoice && (
+            <Button
+              size="sm"
+              onClick={() => setInvoiceOpen(true)}
+              className="h-7 gap-1"
+            >
+              <Receipt className="h-3 w-3" />
+              申请开票
+            </Button>
+          )}
         </div>
       </header>
 
@@ -96,11 +100,13 @@ export function FinancePanel({
         </ul>
       )}
 
-      <InvoiceRequestSheet
-        open={invoiceOpen}
-        onOpenChange={setInvoiceOpen}
-        matterId={matterId}
-      />
+      {canRequestInvoice && (
+        <InvoiceRequestSheet
+          open={invoiceOpen}
+          onOpenChange={setInvoiceOpen}
+          matterId={matterId}
+        />
+      )}
     </section>
   );
 }

@@ -15,6 +15,7 @@ export function InfoPanel({
   userOptions,
   finance,
   contracts,
+  canEditMatter,
   canManageRelatedMatters
 }: {
   matter: MatterPayload;
@@ -22,6 +23,7 @@ export function InfoPanel({
   finance: FinancePayload;
   /** v0.43 项1：委托合同 = 收案（审批）阶段上传、绑定本案的文件 */
   contracts: { id: string; name: string }[];
+  canEditMatter: boolean;
   canManageRelatedMatters: boolean;
 }) {
   const [teamEditorOpen, setTeamEditorOpen] = useState(false);
@@ -108,15 +110,17 @@ export function InfoPanel({
               丨 {matter.firmCaseNo || matter.internalCode}
             </span>
           </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setTeamEditorOpen(true)}
-            className="h-6 gap-1 text-[11px] text-muted-foreground hover:text-primary"
-          >
-            <Pencil className="h-3 w-3" strokeWidth={1.8} />
-            编辑
-          </Button>
+          {canEditMatter && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setTeamEditorOpen(true)}
+              className="h-6 gap-1 text-[11px] text-muted-foreground hover:text-primary"
+            >
+              <Pencil className="h-3 w-3" strokeWidth={1.8} />
+              编辑
+            </Button>
+          )}
         </header>
         <div className="overflow-hidden rounded-b-lg">
           {/* 行1：收案时间 | 案件类型 */}
@@ -204,31 +208,33 @@ export function InfoPanel({
         </div>
       </section>
 
-      <TeamEditorDialog
-        open={teamEditorOpen}
-        onOpenChange={setTeamEditorOpen}
-        matterId={matter.id}
-        matterMeta={{
-          internalCode: matter.internalCode,
-          intakeDate: matter.intakeDate ?? null,
-          category: matter.category,
-          title: matter.title,
-          causeId: matter.causeId ?? null,
-          causeFreeText: matter.causeFreeText ?? null,
-          claimAmount:
-            matter.claimAmount === null || matter.claimAmount === undefined
-              ? null
-              : Number(matter.claimAmount),
-          ourStanding: matter.ourStanding ?? null
-        }}
-        currentOwnerId={matter.ownerId}
-        currentMembers={matter.members.map((m) => ({
-          userId: m.userId,
-          role: m.role,
-          name: m.user.name
-        }))}
-        userOptions={userOptions}
-      />
+      {canEditMatter && (
+        <TeamEditorDialog
+          open={teamEditorOpen}
+          onOpenChange={setTeamEditorOpen}
+          matterId={matter.id}
+          matterMeta={{
+            internalCode: matter.internalCode,
+            intakeDate: matter.intakeDate ?? null,
+            category: matter.category,
+            title: matter.title,
+            causeId: matter.causeId ?? null,
+            causeFreeText: matter.causeFreeText ?? null,
+            claimAmount:
+              matter.claimAmount === null || matter.claimAmount === undefined
+                ? null
+                : Number(matter.claimAmount),
+            ourStanding: matter.ourStanding ?? null
+          }}
+          currentOwnerId={matter.ownerId}
+          currentMembers={matter.members.map((m) => ({
+            userId: m.userId,
+            role: m.role,
+            name: m.user.name
+          }))}
+          userOptions={userOptions}
+        />
+      )}
     </div>
   );
 }

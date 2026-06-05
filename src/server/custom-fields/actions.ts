@@ -12,6 +12,8 @@ import type { CustomFieldEntity } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
+import { assertMatterWritable } from "@/lib/archive/guard";
+import { assertCanLeadMatter } from "@/lib/permissions";
 
 const entitySchema = z.enum(["MATTER", "CLIENT"]);
 const typeSchema = z.enum(["TEXT", "NUMBER", "DATE", "SELECT"]);
@@ -121,16 +123,8 @@ export async function saveMatterCustomValues(
   values: Record<string, string>
 ) {
   const session = await requireSession();
-
-  // 权限：ADMIN / PRINCIPAL_LAWYER 或本案 LEAD / CO_LEAD
-  if (session.user.role !== "ADMIN" && session.user.role !== "PRINCIPAL_LAWYER") {
-    const member = await prisma.matterMember.findFirst({
-      where: { matterId, userId: session.user.id }
-    });
-    if (!member || (member.role !== "LEAD" && member.role !== "CO_LEAD")) {
-      throw new Error("仅案件主办/协办或管理员可编辑");
-    }
-  }
+  await assertMatterWritable(matterId);
+  await assertCanLeadMatter(session.user.id, matterId, "仅案件主办/协办可编辑");
 
   // 仅保留当前已启用字段定义的键，避免脏数据
   const defs = await prisma.customFieldDef.findMany({

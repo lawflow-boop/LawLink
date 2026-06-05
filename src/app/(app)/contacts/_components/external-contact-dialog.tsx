@@ -118,8 +118,12 @@ export function ExternalContactDialog({
           await updateExternalContact({ ...payload, id: editing.id });
           toast.success("已更新");
         } else {
-          await createExternalContact(payload);
-          toast.success("已添加");
+          const created = await createExternalContact(payload);
+          toast.success(
+            created.status === "PENDING_REVIEW"
+              ? "已提交审核，管理员通过后展示"
+              : "已添加"
+          );
         }
         onOpenChange(false);
         router.refresh();

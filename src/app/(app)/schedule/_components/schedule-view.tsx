@@ -609,7 +609,17 @@ function ScheduleItemDialog({
             <div className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
               <DetailLine label="时间" value={`${formatFullDate(item.occurredAt)} ${formatTime(item.occurredAt)}`} />
               <DetailLine label="客户" value={item.clientName ?? "未填写客户"} />
-              <DetailLine label="关联案件" value={`${item.matter.internalCode} ${item.matter.title}`} />
+              <DetailLine
+                label="关联案件"
+                value={
+                  <Link
+                    href={`/matters/${item.matter.id}`}
+                    className="font-medium text-primary underline-offset-4 hover:underline"
+                  >
+                    {item.matter.title}
+                  </Link>
+                }
+              />
               {item.procedureLabel && (
                 <DetailLine label="程序" value={formatProcedureLabel(item.procedureLabel)} />
               )}
@@ -645,7 +655,7 @@ function ScheduleItemDialog({
   );
 }
 
-function DetailLine({ label, value }: { label: string; value: string }) {
+function DetailLine({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="grid grid-cols-[4.5rem_1fr] gap-3 text-sm">
       <span className="text-[11px] text-muted-foreground">{label}</span>

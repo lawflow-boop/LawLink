@@ -21,6 +21,10 @@ export default async function IntakeDetailPage({ params }: { params: { id: strin
   const opposing = intake.parties.filter((p) => p.role === "OPPOSING_PARTY");
   const thirdParty = intake.parties.filter((p) => p.role === "THIRD_PARTY");
   const latestCheckRaw = intake.conflictChecks[0] ?? null;
+  const createdBy = await prisma.user.findUnique({
+    where: { id: intake.createdById },
+    select: { id: true, name: true }
+  });
 
   // 拉每条 hit 对应的 Matter 详情（编号 / 名 / 案由 / 主办 / 当事人角色）
   let latestCheck: Parameters<typeof ConflictSection>[0]["latestCheck"] = null;
@@ -148,10 +152,11 @@ export default async function IntakeDetailPage({ params }: { params: { id: strin
 
         <Separator className="my-5" />
 
-        <dl className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-4 text-sm md:grid-cols-5">
           <InfoItem label="案由">
             {intake.cause?.name ?? intake.causeFreeText ?? "—"}
           </InfoItem>
+          <InfoItem label="发起人">{createdBy?.name ?? "—"}</InfoItem>
           <InfoItem label="主办律师">{intake.ownerUser?.name ?? "—"}</InfoItem>
           <InfoItem label="客户">
             {intake.client ? (

@@ -158,12 +158,14 @@ export function ProcedureDocumentsSection({
   matterId,
   procedureId,
   documents,
-  procedureParties
+  procedureParties,
+  canManage
 }: {
   matterId: string;
   procedureId: string;
   documents: DocItem[];
   procedureParties: ProcedureParty[];
+  canManage: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -295,15 +297,17 @@ export function ProcedureDocumentsSection({
             ))}
           </div>
         </div>
-        <Button size="sm" onClick={() => setOpen(true)} className="h-6 gap-0.5 px-2 text-[11px] shrink-0">
-          <Plus className="h-2.5 w-2.5" />
-          上传
-        </Button>
+        {canManage && (
+          <Button size="sm" onClick={() => setOpen(true)} className="h-6 gap-0.5 px-2 text-[11px] shrink-0">
+            <Plus className="h-2.5 w-2.5" />
+            上传
+          </Button>
+        )}
       </header>
 
       {filtered.length === 0 ? (
         <p className="px-4 py-6 text-center text-xs text-muted-foreground">
-          {filter ? "该分类下暂无材料" : "本程序还没有材料，点击上方上传按钮添加"}
+          {filter ? "该分类下暂无材料" : "本程序还没有材料"}
         </p>
       ) : (
         // 紧凑列表，无外框
@@ -360,14 +364,16 @@ export function ProcedureDocumentsSection({
                   >
                     <Download className="h-3.5 w-3.5" />
                   </a>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(d.id, d.name)}
-                    className="p-1 text-muted-foreground hover:text-destructive"
-                    title="删除"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </button>
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(d.id, d.name)}
+                      className="p-1 text-muted-foreground hover:text-destructive"
+                      title="删除"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </li>
             );
@@ -375,7 +381,8 @@ export function ProcedureDocumentsSection({
         </ul>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      {canManage && (
+        <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>上传案件材料</DialogTitle>
@@ -458,7 +465,8 @@ export function ProcedureDocumentsSection({
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+        </Dialog>
+      )}
     </section>
   );
 }

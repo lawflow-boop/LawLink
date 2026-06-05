@@ -27,11 +27,13 @@ const FILTERS: { value: Filter; label: string }[] = [
 export function ApprovalsPanel({
   matterId,
   matterTitle,
-  sealContracts
+  sealContracts,
+  canRequest
 }: {
   matterId: string;
   matterTitle: string;
   sealContracts: SealContractItem[];
+  canRequest: boolean;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -93,19 +95,21 @@ export function ApprovalsPanel({
             ))}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={handleOpenSheet}
-          disabled={loadingConfigs}
-          className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-[12px] text-foreground transition-colors hover:bg-muted/50 disabled:opacity-60"
-        >
-          {loadingConfigs ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            <Plus className="h-3 w-3" />
-          )}
-          发起审批
-        </button>
+        {canRequest && (
+          <button
+            type="button"
+            onClick={handleOpenSheet}
+            disabled={loadingConfigs}
+            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-[12px] text-foreground transition-colors hover:bg-muted/50 disabled:opacity-60"
+          >
+            {loadingConfigs ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Plus className="h-3 w-3" />
+            )}
+            发起审批
+          </button>
+        )}
       </header>
 
       {filtered.length === 0 ? (
@@ -133,7 +137,7 @@ export function ApprovalsPanel({
         </ul>
       )}
 
-      {configs && (
+      {configs && canRequest && (
         <SealRequestSheet
           open={sheetOpen}
           onOpenChange={setSheetOpen}

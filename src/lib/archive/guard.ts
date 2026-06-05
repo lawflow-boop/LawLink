@@ -10,21 +10,41 @@
  *
  * 文档上传 / 删除 需要 isArchiveFolder() 配合放行 ARCHIVE 卷宗。
  */
+import { requireSession } from "@/lib/auth/session";
+import { matterAssociationFilter } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+
+type WritableGuardOptions = {
+  allowedIfArchivedReason?: string;
+  allowFinanceRole?: boolean;
+};
+
+async function findWritableMatter(
+  matterId: string,
+  opts?: Pick<WritableGuardOptions, "allowFinanceRole">
+) {
+  const session = await requireSession();
+  const allowByFinanceRole = opts?.allowFinanceRole && session.user.role === "FINANCE";
+  return prisma.matter.findFirst({
+    where: {
+      id: matterId,
+      deletedAt: null,
+      ...(allowByFinanceRole ? {} : matterAssociationFilter(session.user.id))
+    },
+    select: { status: true, archivedAt: true }
+  });
+}
 
 /**
  * 已归档案件视为只读。抛错（中文）由 UI catch 显示 toast。
  */
 export async function assertMatterWritable(
   matterId: string | null | undefined,
-  opts?: { allowedIfArchivedReason?: string }
+  opts?: WritableGuardOptions
 ): Promise<void> {
   if (!matterId) return;
-  const matter = await prisma.matter.findUnique({
-    where: { id: matterId },
-    select: { status: true, archivedAt: true }
-  });
-  if (!matter) throw new Error("案件不存在");
+  const matter = await findWritableMatter(matterId, opts);
+  if (!matter) throw new Error("案件不存在或无权处理");
   if (matter.status === "ARCHIVED") {
     const detail = opts?.allowedIfArchivedReason
       ? `（${opts.allowedIfArchivedReason}除外）`
@@ -49,14 +69,12 @@ export function isArchiveFolderName(name: string | null | undefined): boolean {
  */
 export async function assertDocumentWritable(
   matterId: string | null | undefined,
-  opts: { kind: "upload" | "modify"; folderName?: string | null }
+  opts: { kind: "upload" | "modify"; folderName?: string | null; allowFinanceRole?: boolean }
 ): Promise<void> {
   if (!matterId) return;
-  const matter = await prisma.matter.findUnique({
-    where: { id: matterId },
-    select: { status: true }
-  });
-  if (!matter || matter.status !== "ARCHIVED") return;
+  const matter = await findWritableMatter(matterId, opts);
+  if (!matter) throw new Error("案件不存在或无权处理");
+  if (matter.status !== "ARCHIVED") return;
 
   if (opts.kind === "modify") {
     throw new Error("案件已归档，材料不可修改或删除");

@@ -300,10 +300,6 @@ export function InvoiceRequestSheet({
           {/* 专票购方六要素（v0.42 项4，税法合规） */}
           {invoiceType === "SPECIAL" && (
             <div className="space-y-3 rounded-md border border-primary/30 bg-primary/5 p-3">
-              <p className="text-[11px] text-muted-foreground">
-                增值税专用发票需提供购方完整信息（依《增值税专用发票使用与管理通知》，开户行 /
-                账号 / 地址 / 电话均必填）
-              </p>
               <Field label="纳税人识别号（统一社会信用代码）" required>
                 <Input
                   className="font-mono"
@@ -354,6 +350,18 @@ export function InvoiceRequestSheet({
             label="开票依据"
             required
             hint="正常情况下必须上传扫描版委托合同，支付凭证可选；特殊情况请提交情况说明，单文件 ≤ 20MB"
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileRef.current?.click()}
+                className="h-7 gap-1.5 px-2 text-[11px]"
+              >
+                <Paperclip className="h-3.5 w-3.5" />
+                添加文件
+              </Button>
+            }
           >
             <div className="space-y-2">
               <input
@@ -364,16 +372,6 @@ export function InvoiceRequestSheet({
                 className="hidden"
                 onChange={(e) => handleFiles(e.target.files)}
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => fileRef.current?.click()}
-                className="h-8 gap-1.5"
-              >
-                <Paperclip className="h-3.5 w-3.5" />
-                添加文件
-              </Button>
               {evidenceFiles.length === 0 ? (
                 <p className="rounded-md border border-dashed border-border bg-background py-3 text-center text-xs text-muted-foreground">
                   未选择任何文件
@@ -441,19 +439,24 @@ function Field({
   label,
   required,
   hint,
+  action,
   children
 }: {
   label: string;
   required?: boolean;
   hint?: string;
+  action?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className={cn("flex items-center gap-1 text-xs")}>
-        {label}
-        {required && <span className="text-destructive">*</span>}
-      </Label>
+      <div className="flex items-center justify-between gap-2">
+        <Label className={cn("flex items-center gap-1 text-xs")}>
+          {label}
+          {required && <span className="text-destructive">*</span>}
+        </Label>
+        {action}
+      </div>
       {children}
       {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
     </div>

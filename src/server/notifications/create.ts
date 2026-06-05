@@ -1,6 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import type { NotificationPriority, NotificationType } from "@prisma/client";
 
 type CreateNotificationInput = {
   userId: string;
@@ -18,8 +19,8 @@ export async function createNotification(input: CreateNotificationInput) {
   return prisma.notification.create({
     data: {
       userId: input.userId,
-      type: input.type as "PRESERVATION_EXPIRY" | "HEARING_REMINDER" | "DEADLINE_REMINDER" | "SEAL_STATUS_CHANGE" | "SMS_ARRIVAL" | "TASK_ASSIGNED" | "SYSTEM",
-      priority: (input.priority ?? "NORMAL") as "LOW" | "NORMAL" | "HIGH" | "URGENT",
+      type: input.type as NotificationType,
+      priority: (input.priority ?? "NORMAL") as NotificationPriority,
       title: input.title,
       content: input.content,
       href: input.href,

@@ -9,6 +9,7 @@ import { assertMatterWritable } from "@/lib/archive/guard";
 import {
   assertCanAccessMatter,
   assertCanAssociateMatter,
+  assertCanLeadMatter,
   isManager,
   matterAssociationFilter,
   matterVisibilityFilter
@@ -21,13 +22,14 @@ import {
   type FeeEntryCreateInput,
   type CommissionPlanSetInput
 } from "./schemas";
+import { notifyRoleApprovers } from "@/server/notifications/approval";
 
 // ============ Billing ============
 
 export async function createBilling(input: BillingCreateInput) {
   const session = await requireSession();
   const data = billingCreateSchema.parse(input);
-  await assertMatterWritable(data.matterId);
+  await assertMatterWritable(data.matterId, { allowFinanceRole: true });
 
   const created = await prisma.billing.create({
     data: {
@@ -60,10 +62,12 @@ export async function deleteBilling(id: string) {
   });
   if (!billing) return { ok: false };
 
-  if (session.user.role !== "ADMIN" && session.user.role !== "PRINCIPAL_LAWYER") {
-    throw new Error("只有管理员或主办律师可以删除合同");
+  if (session.user.role === "FINANCE") {
+    await assertMatterWritable(billing.matterId, { allowFinanceRole: true });
+  } else {
+    await assertMatterWritable(billing.matterId);
+    await assertCanLeadMatter(session.user.id, billing.matterId, "仅案件主办/协办或财务可删除合同");
   }
-  await assertMatterWritable(billing.matterId);
 
   await prisma.billing.delete({ where: { id } });
   await audit({
@@ -86,7 +90,7 @@ export async function deleteBilling(id: string) {
 export async function createFeeEntry(input: FeeEntryCreateInput) {
   const session = await requireSession();
   const data = feeEntryCreateSchema.parse(input);
-  await assertMatterWritable(data.matterId);
+  await assertMatterWritable(data.matterId, { allowFinanceRole: true });
 
   const created = await prisma.$transaction(async (tx) => {
     const entry = await tx.feeEntry.create({
@@ -167,7 +171,7 @@ export async function deleteFeeEntry(id: string) {
     include: { commissionChildren: { select: { id: true } } }
   });
   if (!entry) return { ok: false };
-  await assertMatterWritable(entry.matterId);
+  await assertMatterWritable(entry.matterId, { allowFinanceRole: true });
 
   // 删父条目时同时删除自动派生的分成
   await prisma.$transaction(async (tx) => {
@@ -202,11 +206,9 @@ export async function deleteFeeEntry(id: string) {
  */
 export async function setCommissionPlan(input: CommissionPlanSetInput) {
   const session = await requireSession();
-  if (!isManager(session.user.role)) {
-    throw new Error("仅管理员或主办律师可设置分成方案");
-  }
   const data = commissionPlanSetSchema.parse(input);
   await assertMatterWritable(data.matterId);
+  await assertCanLeadMatter(session.user.id, data.matterId, "仅案件主办/协办可设置分成方案");
 
   await prisma.$transaction([
     prisma.commissionPlan.deleteMany({ where: { matterId: data.matterId } }),
@@ -441,7 +443,7 @@ export async function createInvoiceRequest(input: {
   }
 
   const isSpecial = input.invoiceType === "SPECIAL";
-  return prisma.invoiceRequest.create({
+  const created = await prisma.invoiceRequest.create({
     data: {
       matterId: input.matterId,
       noMatterReason: input.matterId ? null : input.noMatterReason?.trim() || null,
@@ -461,6 +463,30 @@ export async function createInvoiceRequest(input: {
     },
     select: { id: true }
   });
+
+  const matter = input.matterId
+    ? await prisma.matter.findUnique({
+        where: { id: input.matterId },
+        select: { internalCode: true, title: true }
+      })
+    : null;
+
+  await notifyRoleApprovers({
+    roles: ["ADMIN", "PRINCIPAL_LAWYER", "FINANCE"],
+    excludeUserId: session.user.id,
+    title: "新的发票审批待处理",
+    content: `${session.user.name ?? "有用户"} 提交了开票申请：${
+      matter ? `${matter.internalCode} ${matter.title}` : input.noMatterReason?.trim() || "无关联案件"
+    }，金额 ${input.amount.toLocaleString("zh-CN")} 元`,
+    href: "/finance",
+    refType: "InvoiceRequest",
+    refId: created.id,
+    priority: "HIGH"
+  });
+
+  revalidatePath("/finance");
+  if (input.matterId) revalidatePath(`/matters/${input.matterId}`);
+  return created;
 }
 
 /** v0.43 项5：财务页开票弹窗用——搜索当前用户可关联案件（轻量，返回编号+标题） */

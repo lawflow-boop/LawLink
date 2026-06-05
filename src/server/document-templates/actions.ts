@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { storage } from "@/lib/storage";
+import { assertMatterWritable } from "@/lib/archive/guard";
+import { assertCanLeadMatter } from "@/lib/permissions";
 import { decryptBuffer, encryptBuffer, sha256 } from "@/lib/storage/crypto";
 import { buildContext, renderDocxBuffer, detectMissing } from "@/lib/template-engine";
 import { suggestFolderByTemplateCategory } from "@/lib/default-folders";
@@ -95,15 +97,8 @@ export async function renderTemplate(input: z.infer<typeof templateRenderSchema>
   const session = await requireSession();
   const data = templateRenderSchema.parse(input);
 
-  // 权限：能编辑该案件（LEAD / CO_LEAD / ADMIN / PRINCIPAL_LAWYER）
-  if (session.user.role !== "ADMIN" && session.user.role !== "PRINCIPAL_LAWYER") {
-    const member = await prisma.matterMember.findUnique({
-      where: { matterId_userId: { matterId: data.matterId, userId: session.user.id } }
-    });
-    if (!member || (member.role !== "LEAD" && member.role !== "CO_LEAD")) {
-      throw new Error("仅案件主办/协办或管理员可生成文书");
-    }
-  }
+  await assertMatterWritable(data.matterId);
+  await assertCanLeadMatter(session.user.id, data.matterId, "仅案件主办/协办可生成文书");
 
   // 取模板 + docxBlob
   const tmpl = await prisma.documentTemplate.findUnique({

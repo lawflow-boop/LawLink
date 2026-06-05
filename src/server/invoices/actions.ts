@@ -10,12 +10,14 @@ import { assertMatterWritable } from "@/lib/archive/guard";
 import {
   assertCanAccessMatter,
   assertCanAssociateMatter,
+  assertCanLeadMatter,
   isManager,
   matterVisibilityFilter
 } from "@/lib/permissions";
 import { storage } from "@/lib/storage";
 import { validateUploadedFile } from "@/lib/storage/file-validator";
 import { encryptBuffer, sha256 } from "@/lib/storage/crypto";
+import { notifyRoleApprovers } from "@/server/notifications/approval";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 
@@ -61,18 +63,7 @@ export async function createInvoiceRequest(input: z.infer<typeof createSchema>) 
   await assertCanAssociateMatter(session.user.id, data.matterId);
   await assertMatterWritable(data.matterId);
 
-  // 申请权限：LEAD / CO_LEAD / ADMIN / PRINCIPAL_LAWYER
-  const isAdmin = session.user.role === "ADMIN" || session.user.role === "PRINCIPAL_LAWYER";
-  if (!isAdmin) {
-    const member = await prisma.matterMember.findUnique({
-      where: {
-        matterId_userId: { matterId: data.matterId, userId: session.user.id }
-      }
-    });
-    if (!member || (member.role !== "LEAD" && member.role !== "CO_LEAD")) {
-      throw new Error("仅案件主办/协办律师或管理员可申请开票");
-    }
-  }
+  await assertCanLeadMatter(session.user.id, data.matterId, "仅案件主办/协办律师可申请开票");
 
   const created = await prisma.invoiceRequest.create({
     data: {
@@ -91,6 +82,24 @@ export async function createInvoiceRequest(input: z.infer<typeof createSchema>) 
     targetType: "InvoiceRequest",
     targetId: created.id,
     detail: { matterId: data.matterId, amount: data.amount }
+  });
+
+  const matter = await prisma.matter.findUnique({
+    where: { id: data.matterId },
+    select: { internalCode: true, title: true }
+  });
+
+  await notifyRoleApprovers({
+    roles: ["ADMIN", "PRINCIPAL_LAWYER", "FINANCE"],
+    excludeUserId: session.user.id,
+    title: "新的发票审批待处理",
+    content: `${session.user.name ?? "有用户"} 提交了开票申请：${
+      matter ? `${matter.internalCode} ${matter.title}` : "关联案件"
+    }，金额 ${data.amount.toLocaleString("zh-CN")} 元`,
+    href: "/finance",
+    refType: "InvoiceRequest",
+    refId: created.id,
+    priority: "HIGH"
   });
 
   revalidatePath(`/matters/${data.matterId}`);

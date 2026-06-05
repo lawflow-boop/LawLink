@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { assertMatterWritable } from "@/lib/archive/guard";
-import { assertCanAccessMatter } from "@/lib/permissions";
+import { assertCanAccessMatter, assertCanLeadMatter } from "@/lib/permissions";
 import {
   folderCreateSchema,
   folderRenameSchema,
@@ -16,15 +16,9 @@ import {
   moveDocumentToFolderSchema
 } from "./schemas";
 
-/** 判断当前用户是否能编辑该案件的卷宗结构（LEAD / CO_LEAD / ADMIN / PRINCIPAL_LAWYER） */
+/** 判断当前用户是否能编辑该案件的卷宗结构（仅本案 LEAD / CO_LEAD） */
 async function requireFolderEditor(matterId: string, session: { user: { id: string; role: string } }) {
-  if (session.user.role === "ADMIN" || session.user.role === "PRINCIPAL_LAWYER") return;
-  const member = await prisma.matterMember.findUnique({
-    where: { matterId_userId: { matterId, userId: session.user.id } }
-  });
-  if (!member || (member.role !== "LEAD" && member.role !== "CO_LEAD")) {
-    throw new Error("仅案件主办/协办或管理员可管理卷宗");
-  }
+  await assertCanLeadMatter(session.user.id, matterId, "仅案件主办/协办可管理卷宗");
 }
 
 export async function listFoldersByMatter(matterId: string) {

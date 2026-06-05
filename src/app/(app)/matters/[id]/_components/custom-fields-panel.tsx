@@ -30,11 +30,13 @@ type FieldDef = Pick<
 export function CustomFieldsPanel({
   matterId,
   defs,
-  values
+  values,
+  canEdit
 }: {
   matterId: string;
   defs: FieldDef[];
   values: Record<string, string>;
+  canEdit: boolean;
 }) {
   const [editOpen, setEditOpen] = useState(false);
   if (defs.length === 0) return null;
@@ -46,10 +48,12 @@ export function CustomFieldsPanel({
           <ListChecks className="h-3.5 w-3.5 text-primary" />
           自定义信息
         </span>
-        <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={() => setEditOpen(true)}>
-          <Pencil className="h-3 w-3" />
-          编辑
-        </Button>
+        {canEdit && (
+          <Button variant="ghost" size="sm" className="h-7 gap-1" onClick={() => setEditOpen(true)}>
+            <Pencil className="h-3 w-3" />
+            编辑
+          </Button>
+        )}
       </header>
 
       <dl className="grid grid-cols-1 gap-x-8 gap-y-2 px-4 py-3 text-[13px] sm:grid-cols-2">
@@ -63,14 +67,16 @@ export function CustomFieldsPanel({
         ))}
       </dl>
 
-      <EditDialog
-        key={editOpen ? "open" : "closed"}
-        open={editOpen}
-        onClose={() => setEditOpen(false)}
-        matterId={matterId}
-        defs={defs}
-        values={values}
-      />
+      {canEdit && (
+        <EditDialog
+          key={editOpen ? "open" : "closed"}
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          matterId={matterId}
+          defs={defs}
+          values={values}
+        />
+      )}
     </section>
   );
 }

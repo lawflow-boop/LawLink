@@ -42,11 +42,11 @@ import { ArchiveWizardDialog } from "./archive-wizard";
 export function LifecycleActions({
   matterId,
   status,
-  userRole
+  canArchive
 }: {
   matterId: string;
   status: MatterStatus;
-  userRole: string;
+  canArchive: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -54,7 +54,6 @@ export function LifecycleActions({
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [text, setText] = useState("");
 
-  const canArchive = userRole === "ADMIN" || userRole === "PRINCIPAL_LAWYER";
   const isArchived = status === "ARCHIVED";
 
   function open(d: "close" | "hold") {

@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { assertMatterWritable } from "@/lib/archive/guard";
-import { assertCanAccessMatter } from "@/lib/permissions";
+import { assertCanAccessMatter, assertCanLeadMatter } from "@/lib/permissions";
 import {
   procedureCreateSchema,
   procedureUpdateSchema,
@@ -115,11 +115,9 @@ export async function deleteProcedure(id: string) {
   const procedure = await prisma.matterProcedure.findUnique({ where: { id } });
   if (!procedure) return { ok: false };
 
-  if (session.user.role !== "ADMIN" && session.user.role !== "PRINCIPAL_LAWYER") {
-    throw new Error("只有管理员或主办律师可以删除程序");
-  }
   await assertCanAccessMatter(session.user.id, session.user.role, procedure.matterId);
   await assertMatterWritable(procedure.matterId);
+  await assertCanLeadMatter(session.user.id, procedure.matterId, "仅案件主办/协办可以删除程序");
 
   await prisma.matterProcedure.delete({ where: { id } });
   await audit({

@@ -376,6 +376,7 @@ model User {
   // v0.27: 服务中心 - 公告发布者 / 外部联系人录入者
   publishedAnnouncements Announcement[]       @relation("AnnouncementAuthor")
   createdExternalContacts ExternalContact[]   @relation("ExternalContactCreator")
+  reviewedExternalContacts ExternalContact[]  @relation("ExternalContactReviewer")
   // v0.44: 程序主办律师
   leadProcedures         MatterProcedure[]     @relation("ProcedureLeadLawyer")
   createdAt             DateTime              @default(now())
@@ -1778,6 +1779,12 @@ enum ExternalContactCategory {
   OTHER       // 其他
 }
 
+enum ExternalContactStatus {
+  PENDING_REVIEW // 待审核
+  APPROVED       // 已通过
+  REJECTED       // 已驳回
+}
+
 model ExternalContact {
   id           String                  @id @default(cuid())
   name         String
@@ -1793,10 +1800,17 @@ model ExternalContact {
 
   createdById  String
   createdBy    User     @relation("ExternalContactCreator", fields: [createdById], references: [id])
+  status       ExternalContactStatus @default(APPROVED)
+  reviewedById String?
+  reviewedBy   User?                 @relation("ExternalContactReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+  reviewNote   String?
   archivedAt   DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   @@index([category, archivedAt, name])
+  @@index([status, archivedAt, createdAt])
+  @@index([reviewedById])
   @@index([name])
 }

@@ -166,7 +166,7 @@ export function TeamEditorDialog({
         <DialogHeader>
           <DialogTitle>编辑案件</DialogTitle>
           <DialogDescription className="text-xs">
-            系统编号、收案日期、类别不可修改；其他字段可改。仅 ADMIN / 主任律师 / 主办律师可编辑。
+            系统编号、收案日期、类别不可修改；其他字段由当前主办律师维护。
           </DialogDescription>
         </DialogHeader>
 

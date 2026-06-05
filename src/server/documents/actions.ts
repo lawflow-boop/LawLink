@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { assertDocumentWritable } from "@/lib/archive/guard";
-import { matterVisibilityFilter, isManager, assertCanAccessMatter } from "@/lib/permissions";
+import { matterVisibilityFilter, isManager, assertCanAccessMatter, assertCanLeadMatter } from "@/lib/permissions";
 import { storage } from "@/lib/storage";
 import { validateUploadedFile } from "@/lib/storage/file-validator";
 import { encryptBuffer, sha256 } from "@/lib/storage/crypto";
@@ -184,14 +184,18 @@ export async function deleteDocument(id: string) {
   const doc = await prisma.document.findUnique({ where: { id } });
   if (!doc) return { ok: false };
 
-  if (
+  if (doc.matterId) {
+    await assertDocumentWritable(doc.matterId, { kind: "modify" });
+    if (doc.uploadedById !== session.user.id) {
+      await assertCanLeadMatter(session.user.id, doc.matterId, "只能删除自己上传的材料，或由本案主办/协办删除");
+    }
+  } else if (
     doc.uploadedById !== session.user.id &&
     session.user.role !== "ADMIN" &&
     session.user.role !== "PRINCIPAL_LAWYER"
   ) {
-    throw new Error("只能删除自己上传的材料（或由 ADMIN/主办删除）");
+    throw new Error("只能删除自己上传的材料");
   }
-  await assertDocumentWritable(doc.matterId, { kind: "modify" });
 
   // 软删除（保留文件以备审计），如需物理删除走单独脚本
   await prisma.document.update({
@@ -281,8 +285,10 @@ export async function submitDocumentForReview(id: string) {
   const session = await requireSession();
   const doc = await prisma.document.findUnique({ where: { id, deletedAt: null } });
   if (!doc) throw new Error("材料不存在");
-  if (doc.matterId)
+  if (doc.matterId) {
     await assertCanAccessMatter(session.user.id, session.user.role, doc.matterId);
+    await assertDocumentWritable(doc.matterId, { kind: "modify" });
+  }
   if (doc.status !== "DRAFT") throw new Error("只有草稿状态的材料才能提交审核");
 
   await prisma.document.update({

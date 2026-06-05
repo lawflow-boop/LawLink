@@ -132,6 +132,8 @@ export function MatterDetailTabs({
   colleagues,
   currentUserRole,
   canAssociateThisMatter,
+  canLeadThisMatter,
+  canOwnThisMatter,
   sealContracts,
   expresses,
   latestArchive,
@@ -149,6 +151,8 @@ export function MatterDetailTabs({
   colleagues: PresUserOption[];
   currentUserRole: string | null;
   canAssociateThisMatter: boolean;
+  canLeadThisMatter: boolean;
+  canOwnThisMatter: boolean;
   sealContracts: SealContractItem[];
   expresses: ExpressItem[];
   latestArchive: {
@@ -230,11 +234,11 @@ export function MatterDetailTabs({
           {matterCategoryKind(matter.category) !== "project" && "案"}
         </h1>
         <MatterStatusPill status={matter.status} />
-        {currentUserRole && (
+        {currentUserRole && canLeadThisMatter && (
           <LifecycleActions
             matterId={matter.id}
             status={matter.status}
-            userRole={currentUserRole}
+            canArchive={canLeadThisMatter}
           />
         )}
       </motion.header>
@@ -250,7 +254,7 @@ export function MatterDetailTabs({
             record={latestArchive}
             onReArchive={
               latestArchive.status === "REJECTED" &&
-              (currentUserRole === "ADMIN" || currentUserRole === "PRINCIPAL_LAWYER")
+              canLeadThisMatter
                 ? () => setArchiveOpen(true)
                 : undefined
             }
@@ -272,6 +276,7 @@ export function MatterDetailTabs({
             userOptions={userOptions}
             finance={finance}
             contracts={intakeContracts.map((d) => ({ id: d.id, name: d.name }))}
+            canEditMatter={canOwnThisMatter}
             canManageRelatedMatters={canAssociateThisMatter}
           />
           <ProcedureRemindersAndMemos
@@ -279,6 +284,7 @@ export function MatterDetailTabs({
             procedures={engagedProcedures}
             currentProcedureId={currentProcedure?.id ?? ""}
             expresses={expresses}
+            canManage={canAssociateThisMatter}
           />
         </div>
         <CustomFieldsPanel
@@ -291,6 +297,7 @@ export function MatterDetailTabs({
               ? (matter.customValues as Record<string, string>)
               : {})
           }
+          canEdit={canLeadThisMatter}
         />
 
         {/* 2. 案件程序（新容器）：程序切换 + 程序基本信息 + 案件材料|快递 */}
@@ -329,32 +336,36 @@ export function MatterDetailTabs({
                         </Badge>
                       )}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const label = p.customLabel ?? procedureTypeLabel[p.type];
-                        if (confirm(`确定删除程序「${label}」？该程序下的所有开庭、期限、备忘和材料记录将被一并删除，此操作不可撤销。`)) {
-                          handleDeleteProcedure(p.id);
-                        }
-                      }}
-                      className="ml-0.5 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover/proc:opacity-100"
-                      title="删除此程序"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+                    {canLeadThisMatter && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const label = p.customLabel ?? procedureTypeLabel[p.type];
+                          if (confirm(`确定删除程序「${label}」？该程序下的所有开庭、期限、备忘和材料记录将被一并删除，此操作不可撤销。`)) {
+                            handleDeleteProcedure(p.id);
+                          }
+                        }}
+                        className="ml-0.5 rounded p-0.5 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover/proc:opacity-100"
+                        title="删除此程序"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
                   </span>
                 );
               })
             )}
-            <button
-              type="button"
-              onClick={() => setAddProcOpen(true)}
-              className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80"
-            >
-              <Plus className="h-3 w-3" strokeWidth={2} />
-              添加程序
-            </button>
-            {currentProcedure && (
+            {canAssociateThisMatter && (
+              <button
+                type="button"
+                onClick={() => setAddProcOpen(true)}
+                className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+              >
+                <Plus className="h-3 w-3" strokeWidth={2} />
+                添加程序
+              </button>
+            )}
+            {currentProcedure && canAssociateThisMatter && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -381,6 +392,7 @@ export function MatterDetailTabs({
                 procedureId={currentProcedure.id}
                 documents={procDocs}
                 procedureParties={currentProcedure.procedureParties}
+                canManage={canAssociateThisMatter}
               />
             </div>
           ) : (
@@ -396,26 +408,36 @@ export function MatterDetailTabs({
             matterId={matter.id}
             matterTitle={matter.title}
             sealContracts={sealContracts}
+            canRequest={canAssociateThisMatter}
           />
-          <FinancePanel matterId={matter.id} finance={finance} userOptions={userOptions} />
+          <FinancePanel
+            matterId={matter.id}
+            finance={finance}
+            userOptions={userOptions}
+            canRequestInvoice={canAssociateThisMatter}
+          />
         </div>
 
       </motion.div>
 
-      <AddProcedureSheet
-        open={addProcOpen}
-        onOpenChange={setAddProcOpen}
-        matterId={matter.id}
-        category={matter.category}
-        nextOrder={matter.procedures.length + 1}
-        colleagues={colleagues}
-        existingTypes={matter.procedures.map(p => p.type)}
-      />
-      <ArchiveWizardDialog
-        matterId={matter.id}
-        open={archiveOpen}
-        onOpenChange={setArchiveOpen}
-      />
+      {canAssociateThisMatter && (
+        <AddProcedureSheet
+          open={addProcOpen}
+          onOpenChange={setAddProcOpen}
+          matterId={matter.id}
+          category={matter.category}
+          nextOrder={matter.procedures.length + 1}
+          colleagues={colleagues}
+          existingTypes={matter.procedures.map(p => p.type)}
+        />
+      )}
+      {canLeadThisMatter && (
+        <ArchiveWizardDialog
+          matterId={matter.id}
+          open={archiveOpen}
+          onOpenChange={setArchiveOpen}
+        />
+      )}
     </div>
   );
 }

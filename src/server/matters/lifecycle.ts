@@ -5,6 +5,8 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
+import { assertMatterWritable } from "@/lib/archive/guard";
+import { assertCanLeadMatter } from "@/lib/permissions";
 
 const closeMatterSchema = z.object({
   id: z.string().cuid(),
@@ -26,6 +28,8 @@ export type HoldMatterInput = z.infer<typeof holdMatterSchema>;
 export async function closeMatter(input: CloseMatterInput) {
   const session = await requireSession();
   const data = closeMatterSchema.parse(input);
+  await assertMatterWritable(data.id);
+  await assertCanLeadMatter(session.user.id, data.id, "仅案件主办/协办可以结案");
 
   await prisma.$transaction(async (tx) => {
     await tx.matter.update({
@@ -72,6 +76,8 @@ export async function reopenMatter(id: string) {
   const session = await requireSession();
   const matter = await prisma.matter.findUnique({ where: { id }, select: { status: true } });
   if (!matter) throw new Error("案件不存在");
+  await assertMatterWritable(id);
+  await assertCanLeadMatter(session.user.id, id, "仅案件主办/协办可以重新开放案件");
   if (matter.status === "ARCHIVED") {
     throw new Error("已归档案件不能重新开放");
   }
@@ -112,6 +118,8 @@ export async function reopenMatter(id: string) {
 export async function holdMatter(input: HoldMatterInput) {
   const session = await requireSession();
   const data = holdMatterSchema.parse(input);
+  await assertMatterWritable(data.id);
+  await assertCanLeadMatter(session.user.id, data.id, "仅案件主办/协办可以暂停案件");
 
   await prisma.$transaction(async (tx) => {
     await tx.matter.update({

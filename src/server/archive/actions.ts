@@ -8,12 +8,14 @@ import { audit } from "@/server/audit";
 import { createNotification } from "@/server/notifications/create";
 import { checklistForCategory, evaluateChecklist } from "@/lib/archive/checklists";
 import { nextArchiveNo } from "@/lib/archive/archive-no";
+import { assertMatterWritable } from "@/lib/archive/guard";
+import { assertCanLeadMatter } from "@/lib/permissions";
 import { renderArchiveCover, renderArchiveCatalog } from "./render";
 import { archiveSubmitSchema, type ArchiveSubmitInput, CLOSED_REASON_CN } from "./schemas";
 
 /**
  * v0.9.4 归档：完整流程
- *   1. 权限 (ADMIN / PRINCIPAL_LAWYER)
+ *   1. 权限：本案主办 / 协办提交，ADMIN 审批
  *   2. 校验 checklist 缺必填项 → 若有且未 forceWithMissing 则拒绝
  *   3. 生成 archiveNo
  *   4. 渲染卷宗封皮 → 入 ARCHIVE 卷宗
@@ -26,9 +28,8 @@ export async function archiveMatter(input: ArchiveSubmitInput) {
   const session = await requireSession();
   const data = archiveSubmitSchema.parse(input);
 
-  if (session.user.role !== "ADMIN" && session.user.role !== "PRINCIPAL_LAWYER") {
-    throw new Error("只有管理员或主办律师可以归档");
-  }
+  await assertMatterWritable(data.matterId);
+  await assertCanLeadMatter(session.user.id, data.matterId, "仅案件主办/协办可以提交归档申请");
 
   const matter = await prisma.matter.findUnique({
     where: { id: data.matterId },
@@ -87,12 +88,8 @@ export async function archiveMatter(input: ArchiveSubmitInput) {
     throw new Error(`渲染卷宗目录失败：${err instanceof Error ? err.message : String(err)}`);
   }
 
-  // v0.16: 归档申请落 PENDING_REVIEW（管理员审批通过后才正式归档）
-  // 管理员自己提交时，自动通过（一步到位）
-  const autoApprove = session.user.role === "ADMIN";
-
   await prisma.$transaction(async (tx) => {
-    const archive = await tx.archiveRecord.create({
+    await tx.archiveRecord.create({
       data: {
         matterId: matter.id,
         archiveNo,
@@ -106,30 +103,17 @@ export async function archiveMatter(input: ArchiveSubmitInput) {
         catalogDocId,
         archivedBy: session.user.name ?? session.user.id,
         archivedById: session.user.id,
-        status: autoApprove ? "APPROVED" : "PENDING_REVIEW",
-        reviewedById: autoApprove ? session.user.id : null,
-        reviewedAt: autoApprove ? now : null
+        status: "PENDING_REVIEW",
+        reviewedById: null,
+        reviewedAt: null
       }
     });
-
-    if (autoApprove) {
-      await tx.matter.update({
-        where: { id: matter.id },
-        data: {
-          status: "ARCHIVED",
-          archivedAt: now,
-          closedAt: data.completedAt
-        }
-      });
-    }
 
     await tx.timelineEvent.create({
       data: {
         matterId: matter.id,
-        eventType: autoApprove ? "MATTER_ARCHIVED" : "MATTER_ARCHIVE_REQUESTED",
-        title: autoApprove
-          ? `案件已归档（${archiveNo}）`
-          : `归档申请已提交（${archiveNo}，待审批）`,
+        eventType: "MATTER_ARCHIVE_REQUESTED",
+        title: `归档申请已提交（${archiveNo}，待审批）`,
         content: `结案方式：${CLOSED_REASON_CN[data.closedReason]}。${data.summary}`,
         occurredAt: now
       }
@@ -152,7 +136,7 @@ export async function archiveMatter(input: ArchiveSubmitInput) {
   revalidatePath(`/matters/${matter.id}`);
   revalidatePath("/matters");
   revalidatePath("/archive");
-  return { ok: true, archiveNo, status: autoApprove ? "APPROVED" : "PENDING_REVIEW" };
+  return { ok: true, archiveNo, status: "PENDING_REVIEW" };
 }
 
 /**
@@ -304,7 +288,8 @@ export async function rejectArchiveRecord(input: { archiveId: string; note: stri
  * 获取案件的归档准备数据：当前 checklist 模板 + 已有 ArchiveRecord（若有）
  */
 export async function getArchivePrepData(matterId: string) {
-  await requireSession();
+  const session = await requireSession();
+  await assertCanLeadMatter(session.user.id, matterId, "仅案件主办/协办可以准备归档");
   const matter = await prisma.matter.findUnique({
     where: { id: matterId },
     select: {

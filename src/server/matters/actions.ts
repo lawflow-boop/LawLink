@@ -10,7 +10,8 @@ import {
   matterAssociationFilter,
   matterVisibilityFilter,
   assertCanAccessMatter,
-  assertCanAssociateMatter
+  assertCanAssociateMatter,
+  assertCanOwnMatter
 } from "@/lib/permissions";
 import { generateInternalCode, generateFirmCaseNo } from "./code-generator";
 import { seedDefaultFolders } from "@/lib/default-folders";
@@ -703,7 +704,7 @@ export async function createMatter(input: MatterCreateInput) {
 
 /**
  * v0.5: 更新案件团队。
- * - 仅 ADMIN / PRINCIPAL_LAWYER / 当前 LEAD 可操作
+ * - 仅当前主办律师可操作；管理角色只负责审批，不因角色放开他人案件处理权
  * - ownerId 改变时同步替换 MatterMember 中的 LEAD
  * - coLeadIds 和 assistantIds 覆盖式更新对应角色（不影响主办自动 LEAD）
  */
@@ -720,12 +721,7 @@ export async function updateMatterTeam(input: {
   });
   if (!matter) throw new Error("案件不存在");
   await assertMatterWritable(input.matterId);
-
-  const canEdit =
-    session.user.role === "ADMIN" ||
-    session.user.role === "PRINCIPAL_LAWYER" ||
-    matter.ownerId === session.user.id;
-  if (!canEdit) throw new Error("无权修改团队");
+  await assertCanOwnMatter(session.user.id, input.matterId, "只有当前主办律师可以修改承办团队");
 
   // 校验：coLeadIds / assistantIds 不能与 ownerId 重叠
   const co = input.coLeadIds.filter((id) => id !== input.ownerId);
@@ -796,12 +792,7 @@ export async function updateMatterBasicInfo(input: MatterUpdateBasicInput) {
   });
   if (!matter) throw new Error("案件不存在");
   await assertMatterWritable(data.id);
-
-  const canEdit =
-    session.user.role === "ADMIN" ||
-    session.user.role === "PRINCIPAL_LAWYER" ||
-    matter.ownerId === session.user.id;
-  if (!canEdit) throw new Error("无权编辑案件基本信息");
+  await assertCanOwnMatter(session.user.id, data.id, "只有当前主办律师可以编辑案件基本信息");
 
   await prisma.matter.update({
     where: { id: data.id },
@@ -831,9 +822,8 @@ export async function updateMatterBasicInfo(input: MatterUpdateBasicInput) {
 
 export async function softDeleteMatter(id: string) {
   const session = await requireSession();
-  if (session.user.role !== "ADMIN" && session.user.role !== "PRINCIPAL_LAWYER") {
-    throw new Error("只有管理员或主办律师可以删除案件");
-  }
+  await assertMatterWritable(id);
+  await assertCanOwnMatter(session.user.id, id, "只有当前主办律师可以删除案件");
 
   await prisma.matter.update({
     where: { id },

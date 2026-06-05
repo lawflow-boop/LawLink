@@ -85,12 +85,14 @@ export function ProcedureRemindersAndMemos({
   matterId,
   procedures,
   currentProcedureId,
-  expresses
+  expresses,
+  canManage
 }: {
   matterId: string;
   procedures: ProcedureWithChildren[];
   currentProcedureId: string;
   expresses: ExpressItem[];
+  canManage: boolean;
 }) {
   const multiProc = procedures.length > 1;
   const procOptions = procedures.map((p) => ({ id: p.id, label: procLabelOf(p) }));
@@ -122,6 +124,7 @@ export function ProcedureRemindersAndMemos({
         ])
       )}
       multiProc={multiProc}
+      canManage={canManage}
     />
   );
 }
@@ -138,7 +141,8 @@ function ImportantItemsCard({
   defaultProcedureId,
   hearingCounts,
   proceduresDetail,
-  multiProc
+  multiProc,
+  canManage
 }: {
   matterId: string;
   deadlines: DeadlineRowItem[];
@@ -150,6 +154,7 @@ function ImportantItemsCard({
   hearingCounts: Record<string, number>;
   proceduresDetail: Record<string, { handlingAgency?: string | null; panel?: string | null; jurisdiction?: string | null }>;
   multiProc: boolean;
+  canManage: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [filter, setFilter] = useState<ImportantFilter>("hearing");
@@ -261,14 +266,16 @@ function ImportantItemsCard({
             ))}
           </div>
         </div>
-        <Button
-          size="sm"
-          onClick={openAddDialog}
-          className="h-6 gap-0.5 px-2 text-[11px]"
-        >
-          <Plus className="h-2.5 w-2.5" />
-          添加
-        </Button>
+        {canManage && (
+          <Button
+            size="sm"
+            onClick={openAddDialog}
+            className="h-6 gap-0.5 px-2 text-[11px]"
+          >
+            <Plus className="h-2.5 w-2.5" />
+            添加
+          </Button>
+        )}
       </header>
 
       {currentCount === 0 ? (
@@ -284,6 +291,7 @@ function ImportantItemsCard({
                 h={h}
                 multiProc={multiProc}
                 onDelete={() => handleDeleteHearing(h.id)}
+                canManage={canManage}
               />
             ))}
           {filter === "deadline" &&
@@ -295,6 +303,7 @@ function ImportantItemsCard({
                 onToggle={() => handleToggle(d.id)}
                 onDelete={() => handleDeleteDeadline(d.id)}
                 pending={isPending}
+                canManage={canManage}
               />
             ))}
           {filter === "express" &&
@@ -303,6 +312,7 @@ function ImportantItemsCard({
                 key={e.id}
                 item={e}
                 onDelete={() => handleDeleteExpress(e.id)}
+                canManage={canManage}
               />
             ))}
           {filter === "memo" &&
@@ -312,21 +322,24 @@ function ImportantItemsCard({
                 memo={m}
                 multiProc={multiProc}
                 onDelete={() => handleDeleteMemo(m.id)}
+                canManage={canManage}
               />
             ))}
         </ul>
       )}
 
-      <ImportantItemDialog
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        matterId={matterId}
-        defaultType={addType}
-        procedures={procedures}
-        defaultProcedureId={defaultProcedureId}
-        hearingCounts={hearingCounts}
-        proceduresDetail={proceduresDetail}
-      />
+      {canManage && (
+        <ImportantItemDialog
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          matterId={matterId}
+          defaultType={addType}
+          procedures={procedures}
+          defaultProcedureId={defaultProcedureId}
+          hearingCounts={hearingCounts}
+          proceduresDetail={proceduresDetail}
+        />
+      )}
     </section>
   );
 }
@@ -348,13 +361,15 @@ function DeadlineRow({
   multiProc,
   onToggle,
   onDelete,
-  pending
+  pending,
+  canManage
 }: {
   d: DeadlineRowItem;
   multiProc: boolean;
   onToggle: () => void;
   onDelete: () => void;
   pending: boolean;
+  canManage: boolean;
 }) {
   const days = daysUntil(d.dueAt);
   const isOverdue = !d.completed && days < 0;
@@ -369,7 +384,7 @@ function DeadlineRow({
       <button
         type="button"
         onClick={onToggle}
-        disabled={pending}
+        disabled={pending || !canManage}
         className={cn(
           "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
           d.completed
@@ -420,14 +435,16 @@ function DeadlineRow({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onDelete}
-        className="opacity-0 transition-opacity group-hover:opacity-100"
-        aria-label="删除"
-      >
-        <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-      </button>
+      {canManage && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="opacity-0 transition-opacity group-hover:opacity-100"
+          aria-label="删除"
+        >
+          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+        </button>
+      )}
     </li>
   );
 }
@@ -435,11 +452,13 @@ function DeadlineRow({
 function HearingRow({
   h,
   multiProc,
-  onDelete
+  onDelete,
+  canManage
 }: {
   h: HearingRowItem;
   multiProc: boolean;
   onDelete: () => void;
+  canManage: boolean;
 }) {
   const upcoming = new Date(h.startsAt) > new Date();
   return (
@@ -471,23 +490,27 @@ function HearingRow({
           })}
         </span>
       </div>
-      <button
-        type="button"
-        onClick={onDelete}
-        className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-      >
-        <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-      </button>
+      {canManage && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+        >
+          <Trash2 className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+        </button>
+      )}
     </li>
   );
 }
 
 function ExpressRow({
   item,
-  onDelete
+  onDelete,
+  canManage
 }: {
   item: ExpressItem;
   onDelete: () => void;
+  canManage: boolean;
 }) {
   const isOutbound = item.direction === "OUTBOUND";
   return (
@@ -527,14 +550,16 @@ function ExpressRow({
             : new Date(item.createdAt).toLocaleDateString("zh-CN")}
         </div>
       </div>
-      <button
-        type="button"
-        onClick={onDelete}
-        className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-        aria-label="删除"
-      >
-        <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-      </button>
+      {canManage && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+          aria-label="删除"
+        >
+          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+        </button>
+      )}
     </li>
   );
 }
@@ -542,11 +567,13 @@ function ExpressRow({
 function MemoRow({
   memo,
   multiProc,
-  onDelete
+  onDelete,
+  canManage
 }: {
   memo: MemoRowItem;
   multiProc: boolean;
   onDelete: () => void;
+  canManage: boolean;
 }) {
   return (
     <li className="group flex items-start gap-3 py-2 text-xs">
@@ -564,14 +591,16 @@ function MemoRow({
           </span>
         </div>
       </div>
-      <button
-        type="button"
-        onClick={onDelete}
-        className="mt-1 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
-        aria-label="删除"
-      >
-        <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
-      </button>
+      {canManage && (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="mt-1 shrink-0 opacity-0 transition-opacity group-hover:opacity-100"
+          aria-label="删除"
+        >
+          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
+        </button>
+      )}
     </li>
   );
 }
