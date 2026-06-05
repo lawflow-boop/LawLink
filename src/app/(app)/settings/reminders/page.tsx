@@ -20,7 +20,7 @@ export default async function RemindersSettingsPage() {
       <header>
         <h2 className="text-lg font-semibold">提醒维护</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          系统每天 09:00 自动扫描任务 / 法定期限 / 开庭，对临近项推送站内通知（开庭提前 3 天 / 1 天 / 当天早上）。
+          系统每天 09:00 自动扫描法定期限 / 开庭，对临近项推送站内通知（开庭提前 3 天 / 1 天 / 当天早上）。
           自动扫描仅在生产环境运行，本地开发不触发——可在此手动立即扫一遍用于验证。
         </p>
       </header>

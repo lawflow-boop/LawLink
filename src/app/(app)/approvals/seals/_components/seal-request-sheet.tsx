@@ -35,6 +35,10 @@ import { MatterCombobox } from "./matter-combobox";
 const PURPOSE_PRESETS = ["委托合同", "法律意见书", "所函", "证明", "其他"] as const;
 type PurposePreset = typeof PURPOSE_PRESETS[number];
 
+function isPdfFile(file: File) {
+  return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+}
+
 export function SealRequestSheet({
   open,
   onOpenChange,
@@ -118,6 +122,10 @@ export function SealRequestSheet({
     }
     if (!hasExisting && !file) {
       toast.error("请上传待盖章稿");
+      return;
+    }
+    if (!hasExisting && file && !isPdfFile(file)) {
+      toast.error("需上传 pdf 格式文件");
       return;
     }
 
@@ -322,13 +330,22 @@ export function SealRequestSheet({
                       {file.name}
                     </span>
                   ) : (
-                    "选择 PDF / docx 文件"
+                    "选择 PDF 文件"
                   )}
                   <input
                     type="file"
-                    accept=".pdf,.doc,.docx"
+                    accept="application/pdf,.pdf"
                     className="hidden"
-                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                    onChange={(e) => {
+                      const picked = e.target.files?.[0] ?? null;
+                      if (picked && !isPdfFile(picked)) {
+                        toast.error("需上传 pdf 格式文件");
+                        e.target.value = "";
+                        setFile(null);
+                        return;
+                      }
+                      setFile(picked);
+                    }}
                   />
                 </label>
               </div>

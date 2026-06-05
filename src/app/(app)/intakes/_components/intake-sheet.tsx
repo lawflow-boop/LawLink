@@ -104,6 +104,7 @@ const FEE_TYPES: FeeType[] = ["FIXED", "CONTINGENCY", "TIMED"];
 // 我方为被动方时，可上传起诉状/申请书 OCR 识别对方
 const RECEIVING_STANDINGS = new Set<LitigationStanding>([
   "DEFENDANT",
+  "JOINT_DEFENDANT",
   "THIRD_PARTY",
   "COUNTERCLAIM_DEFENDANT",
   "APPELLEE",

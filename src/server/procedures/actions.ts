@@ -261,7 +261,9 @@ export async function addHearing(input: HearingCreateInput) {
       startsAt: data.startsAt,
       endsAt: data.endsAt,
       room: data.room || null,
+      address: data.address || null,
       judge: data.judge || null,
+      contact: data.contact || null,
       notes: data.notes || null
     }
   });

@@ -66,15 +66,18 @@ import { InvoiceCreateDialog } from "./invoice-create-dialog";
 
 export type InvoiceRequestRow = {
   id: string;
-  amount: { toString(): string };
+  amount: number;
   title: string | null;
   status: InvoiceRequestStatus;
   requestNote: string | null;
   requestedAt: Date;
   processedAt: Date | null;
   processNote: string | null;
+  invoiceNo: string | null;
+  issuedAt: Date | null;
   // v0.42 开票类型 + 抬头 + 专票六要素（来自 InvoiceRequest 标量字段）
   invoiceType: "PLAIN" | "SPECIAL" | null;
+  invoiceItem: "LAWYER_FEE" | "CONSULTING_FEE" | "AGENCY_FEE" | "OTHER" | null;
   buyerName: string | null;
   buyerTaxNo: string | null;
   buyerAddress: string | null;
@@ -86,6 +89,13 @@ export type InvoiceRequestRow = {
   noMatterReason: string | null;
   requestedBy: { id: string; name: string };
   processedBy: { id: string; name: string } | null;
+  evidenceDocs: {
+    id: string;
+    name: string;
+    size: number | null;
+    mimeType: string | null;
+    createdAt: Date;
+  }[];
   contractScan: { id: string; name: string } | null;
   invoiceFile: { id: string; name: string } | null;
 };
@@ -136,14 +146,20 @@ export function FinanceView({
       className="space-y-4"
     >
       <header className="space-y-2">
-        <div className="space-y-1">
-          <h1 className="text-xl font-medium tracking-tight">财务管理</h1>
-          <p className="text-[13px] text-muted-foreground">
-            全所收付流水 + 开票管理 ·{" "}
-            <Link href="/matters" className="text-primary hover:underline">
-              合同/流水/分成在各案件详情录入
-            </Link>
-          </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <h1 className="text-xl font-medium tracking-tight">财务管理</h1>
+            <p className="text-[13px] text-muted-foreground">
+              可见范围内的收付流水 + 开票申请 ·{" "}
+              <Link href="/matters" className="text-primary hover:underline">
+                合同/流水/分成在各案件详情录入
+              </Link>
+            </p>
+          </div>
+          <Button size="sm" className="w-fit gap-1.5" onClick={() => setInvoiceCreateOpen(true)}>
+            <Receipt className="h-3.5 w-3.5" />
+            申请开票
+          </Button>
         </div>
         <div className="ll-rule" />
       </header>
@@ -168,19 +184,10 @@ export function FinanceView({
 
       {tab === "invoices" ? (
         <div className="space-y-3">
-          {canApproveInvoice && (
-            <div className="flex justify-end">
-              <Button size="sm" className="gap-1.5" onClick={() => setInvoiceCreateOpen(true)}>
-                <Receipt className="h-3.5 w-3.5" />
-                申请开票
-              </Button>
-            </div>
-          )}
           <InvoiceManagementSection
             requests={invoiceRequests}
             canApprove={canApproveInvoice}
           />
-          <InvoiceCreateDialog open={invoiceCreateOpen} onOpenChange={setInvoiceCreateOpen} />
         </div>
       ) : (
         <>
@@ -376,6 +383,11 @@ export function FinanceView({
       </section>
         </>
       )}
+      <InvoiceCreateDialog
+        open={invoiceCreateOpen}
+        onOpenChange={setInvoiceCreateOpen}
+        canCreateUnlinkedInvoice={canApproveInvoice}
+      />
     </motion.div>
   );
 }

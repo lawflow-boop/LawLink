@@ -1,7 +1,6 @@
 import { getSession } from "@/lib/auth/session";
 import { DashboardGreeting } from "@/components/dashboard/dashboard-greeting";
 import { KpiCards } from "@/components/dashboard/kpi-cards";
-import { ScheduleList } from "@/components/dashboard/schedule-list";
 import { RevenueChart } from "@/components/dashboard/revenue-chart";
 import { CategoryChart } from "@/components/dashboard/category-chart";
 import {
@@ -24,11 +23,9 @@ export default async function DashboardPage() {
       getDashboardHeroData()
     ]);
 
-  const todaySchedule = scheduleItems.filter((s) => s.daysUntil <= 0);
-
   return (
     <div className="space-y-5 pb-8">
-      {/* v0.44：顶部问候区 + 右侧今日日程 */}
+      {/* v0.47：顶部问候区 + 右侧近期日程 */}
       <DashboardGreeting
         name={session?.user?.name ?? ""}
         summary={{
@@ -36,15 +33,12 @@ export default async function DashboardPage() {
           weekHearingCount: hero.weekHearingCount,
           nearTermCount: hero.nearTermCount
         }}
-        todaySchedule={todaySchedule}
+        scheduleItems={scheduleItems}
       />
 
       <div className="ll-rule" />
 
       <KpiCards data={kpis} />
-
-      {/* 近期日程（全宽） */}
-      <ScheduleList data={scheduleItems} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         <div className="lg:col-span-3">

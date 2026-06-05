@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { audit } from "@/server/audit";
 import { storage } from "@/lib/storage";
 import { decryptBuffer } from "@/lib/storage/crypto";
+import { normalizeUploadedFilename } from "@/lib/filename";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -74,13 +75,14 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   });
 
   const arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
+  const filename = normalizeUploadedFilename(doc.name);
 
   return new NextResponse(arrayBuffer, {
     status: 200,
     headers: {
       "Content-Type": doc.mimeType ?? "application/octet-stream",
       "Content-Length": String(buf.byteLength),
-      "Content-Disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(doc.name)}`
+      "Content-Disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(filename)}`
     }
   });
 }

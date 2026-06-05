@@ -6,7 +6,13 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { assertMatterWritable } from "@/lib/archive/guard";
-import { assertCanAccessMatter, isManager, matterVisibilityFilter } from "@/lib/permissions";
+import {
+  assertCanAccessMatter,
+  assertCanAssociateMatter,
+  isManager,
+  matterAssociationFilter,
+  matterVisibilityFilter
+} from "@/lib/permissions";
 import {
   billingCreateSchema,
   feeEntryCreateSchema,
@@ -405,7 +411,7 @@ export async function createInvoiceRequest(input: {
 }) {
   const session = await requireSession();
   if (input.matterId) {
-    await assertCanAccessMatter(session.user.id, session.user.role, input.matterId);
+    await assertCanAssociateMatter(session.user.id, input.matterId);
   } else {
     // 无关联案件开票仅财务 / 管理员 / 主任可发起，且必须说明原因
     if (!isManager(session.user.role) && session.user.role !== "FINANCE") {
@@ -457,14 +463,15 @@ export async function createInvoiceRequest(input: {
   });
 }
 
-/** v0.43 项5：财务页开票弹窗用——搜索可见案件（轻量，返回编号+标题） */
+/** v0.43 项5：财务页开票弹窗用——搜索当前用户可关联案件（轻量，返回编号+标题） */
 export async function searchMattersForInvoice(q: string) {
   const session = await requireSession();
   const query = q.trim();
+  if (!query) return [];
   return prisma.matter.findMany({
     where: {
       deletedAt: null,
-      ...matterVisibilityFilter(session.user.id, session.user.role),
+      ...matterAssociationFilter(session.user.id),
       ...(query
         ? {
             OR: [

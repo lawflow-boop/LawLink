@@ -2,9 +2,11 @@ import { getSession } from "@/lib/auth/session";
 import {
   listSealRequests,
   listSealTypeConfigs,
-  getSealStats
+  getSealStats,
+  getSealApprovalCapabilities
 } from "@/server/seals/actions";
 import { prisma } from "@/lib/prisma";
+import { matterAssociationFilter } from "@/lib/permissions";
 import { SealsView } from "./_components/seals-view";
 
 export default async function SealsPage({
@@ -15,14 +17,19 @@ export default async function SealsPage({
   const session = await getSession();
   if (!session?.user) return null;
 
+  const capabilities = await getSealApprovalCapabilities();
+
   const [mine, toApprove, all, configs, stats, recentMatters] = await Promise.all([
     listSealRequests({ scope: "mine" }),
-    listSealRequests({ scope: "approval" }),
-    listSealRequests({ scope: "all" }),
+    capabilities.canApprove ? listSealRequests({ scope: "approval" }) : Promise.resolve([]),
+    capabilities.canViewFirmQueue ? listSealRequests({ scope: "all" }) : Promise.resolve([]),
     listSealTypeConfigs(),
     getSealStats(),
     prisma.matter.findMany({
-      where: { deletedAt: null },
+      where: {
+        deletedAt: null,
+        ...matterAssociationFilter(session.user.id)
+      },
       orderBy: { updatedAt: "desc" },
       take: 200,
       select: { id: true, internalCode: true, title: true }
@@ -47,6 +54,7 @@ export default async function SealsPage({
       stats={stats}
       matters={recentMatters}
       currentUser={{ id: session.user.id, role: session.user.role }}
+      capabilities={capabilities}
       presetFromQuery={presetFromQuery}
     />
   );

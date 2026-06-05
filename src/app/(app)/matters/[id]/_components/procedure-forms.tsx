@@ -472,7 +472,9 @@ export function AddHearingDialog({
       startsAt: new Date(),
       endsAt: undefined,
       room: "",
+      address: "",
       judge: "",
+      contact: "",
       notes: ""
     }
   });
@@ -556,27 +558,6 @@ export function AddHearingDialog({
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-1 flex-col overflow-hidden">
           <div className="flex-1 space-y-3 overflow-y-auto px-6 py-5">
-            <Field label="所处程序" required>
-              <Select
-                value={watch("procedureId") || undefined}
-                onValueChange={(v) => {
-                  setValue("procedureId", v);
-                  autoTitle(v);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="选择所处程序" />
-                </SelectTrigger>
-                <SelectContent>
-                  {procedures.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-
             {/* 上传传票 */}
             <div className="flex items-center gap-2">
               <input
@@ -610,30 +591,65 @@ export function AddHearingDialog({
               <Input placeholder="如：第一次开庭" {...register("title")} />
             </Field>
 
-            <Field label="开庭时间" required>
-              <Input
-                type="datetime-local"
-                {...register("startsAt", { valueAsDate: true })}
-              />
+            {/* 所处程序 + 审理法院 一行 */}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="所处程序" required>
+                <Select
+                  value={watch("procedureId") || undefined}
+                  onValueChange={(v) => {
+                    setValue("procedureId", v);
+                    autoTitle(v);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="选择程序" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {procedures.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="审理法院">
+                <Input
+                  readOnly
+                  value={proceduresDetail?.[watch("procedureId")]?.handlingAgency ?? "—"}
+                  className="bg-muted/50 text-muted-foreground"
+                />
+              </Field>
+            </div>
+
+            {/* 开庭时间 + 法庭 一行 */}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="开庭时间" required>
+                <Input
+                  type="datetime-local"
+                  {...register("startsAt", { valueAsDate: true })}
+                />
+              </Field>
+              <Field label="法庭">
+                <Input placeholder="如：第三法庭" {...register("room")} />
+              </Field>
+            </div>
+
+            {/* 主审/仲裁员 + 联系方式 一行 */}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="主审 / 仲裁员">
+                <Input {...register("judge")} />
+              </Field>
+              <Field label="联系方式">
+                <Input placeholder="法官/书记员电话" {...register("contact")} />
+              </Field>
+            </div>
+
+            <Field label="开庭地址">
+              <Input placeholder="如：XX路XX号XX法院" {...register("address")} />
             </Field>
 
-            <Field label="审理法院">
-              <Input
-                readOnly
-                value={proceduresDetail?.[watch("procedureId")]?.handlingAgency ?? "—"}
-                className="bg-muted/50 text-muted-foreground"
-              />
-            </Field>
-
-            <Field label="开庭地点">
-              <Input placeholder="如：第三法庭" {...register("room")} />
-            </Field>
-
-            <Field label="主审 / 仲裁员">
-              <Input {...register("judge")} />
-            </Field>
-
-            <Field label="备注 / 庭审笔记">
+            <Field label="备注">
               <Textarea rows={4} {...register("notes")} />
             </Field>
           </div>

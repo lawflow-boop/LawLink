@@ -46,10 +46,12 @@ const INVOICE_ITEM_OPTIONS: { value: InvoiceItem; label: string }[] = [
 
 export function InvoiceCreateDialog({
   open,
-  onOpenChange
+  onOpenChange,
+  canCreateUnlinkedInvoice = false
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
+  canCreateUnlinkedInvoice?: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -100,21 +102,19 @@ export function InvoiceCreateDialog({
   useEffect(() => {
     if (open) {
       reset();
-      startSearch(async () => {
-        try {
-          setMatterResults(await searchMattersForInvoice(""));
-        } catch {
-          setMatterResults([]);
-        }
-      });
     }
   }, [open]);
 
   function runSearch(q: string) {
     setMatterQuery(q);
+    const query = q.trim();
+    if (!query) {
+      setMatterResults([]);
+      return;
+    }
     startSearch(async () => {
       try {
-        setMatterResults(await searchMattersForInvoice(q));
+        setMatterResults(await searchMattersForInvoice(query));
       } catch {
         setMatterResults([]);
       }
@@ -223,7 +223,9 @@ export function InvoiceCreateDialog({
             申请开具发票
           </DialogTitle>
           <DialogDescription className="text-xs">
-            从全所选择关联案件，或对无关联案件开票（须说明原因）
+            {canCreateUnlinkedInvoice
+              ? "选择本人可关联的案件，或对无关联案件开票（须说明原因）"
+              : "选择本人可关联的案件后提交开票申请"}
           </DialogDescription>
         </DialogHeader>
 
@@ -231,19 +233,21 @@ export function InvoiceCreateDialog({
           {/* 关联案件 */}
           <Field label="关联案件" required>
             <div className="space-y-2">
-              <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={noMatter}
-                  onChange={(e) => {
-                    setNoMatter(e.target.checked);
-                    if (e.target.checked) setSelectedMatter(null);
-                  }}
-                />
-                无关联案件（如所务、咨询等非案件收入）
-              </label>
+              {canCreateUnlinkedInvoice && (
+                <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={noMatter}
+                    onChange={(e) => {
+                      setNoMatter(e.target.checked);
+                      if (e.target.checked) setSelectedMatter(null);
+                    }}
+                  />
+                  无关联案件（如所务、咨询等非案件收入）
+                </label>
+              )}
 
-              {noMatter ? (
+              {canCreateUnlinkedInvoice && noMatter ? (
                 <Textarea
                   rows={2}
                   placeholder="请说明无关联案件的具体原因（必填）"
@@ -277,7 +281,11 @@ export function InvoiceCreateDialog({
                     />
                   </div>
                   <div className="max-h-40 space-y-1 overflow-y-auto">
-                    {searching ? (
+                    {!matterQuery.trim() ? (
+                      <p className="rounded-md border border-dashed border-border bg-background py-4 text-center text-xs text-muted-foreground">
+                        输入关键词后显示匹配案件
+                      </p>
+                    ) : searching ? (
                       <div className="flex justify-center py-4">
                         <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                       </div>

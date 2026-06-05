@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { assertMatterWritable } from "@/lib/archive/guard";
+import { assertCanAssociateMatter, matterAssociationFilter } from "@/lib/permissions";
 import {
   caseCreateSchema,
   caseUpdateSchema,
@@ -22,18 +23,29 @@ import {
 // ━━━━ Read ━━━━
 
 export async function listPreservationCases(input?: z.input<typeof caseListFilterSchema>) {
-  await requireSession();
+  const session = await requireSession();
   const filter = caseListFilterSchema.parse(input ?? {});
 
-  const where: Prisma.PreservationCaseWhereInput = {};
+  const accessWhere: Prisma.PreservationCaseWhereInput = {
+    OR: [
+      { matter: { deletedAt: null, ...matterAssociationFilter(session.user.id) } },
+      { matterId: null, ownerId: session.user.id }
+    ]
+  };
+  const where: Prisma.PreservationCaseWhereInput = { AND: [accessWhere] };
   if (filter.status !== "ALL") where.status = filter.status;
   if (filter.matterId) where.matterId = filter.matterId;
   if (filter.search) {
-    where.OR = [
-      { court: { contains: filter.search, mode: "insensitive" } },
-      { rulingNumber: { contains: filter.search, mode: "insensitive" } },
-      { matter: { title: { contains: filter.search, mode: "insensitive" } } },
-      { targets: { some: { name: { contains: filter.search, mode: "insensitive" } } } },
+    where.AND = [
+      accessWhere,
+      {
+        OR: [
+          { court: { contains: filter.search, mode: "insensitive" } },
+          { rulingNumber: { contains: filter.search, mode: "insensitive" } },
+          { matter: { title: { contains: filter.search, mode: "insensitive" } } },
+          { targets: { some: { name: { contains: filter.search, mode: "insensitive" } } } },
+        ]
+      }
     ];
   }
 
@@ -58,6 +70,33 @@ export async function listPreservationCases(input?: z.input<typeof caseListFilte
   });
 }
 
+type PreservationCaseAccess = {
+  id: string;
+  matterId: string | null;
+  ownerId: string | null;
+};
+
+async function assertCanAccessPreservationCaseRecord(
+  userId: string,
+  record: PreservationCaseAccess
+) {
+  if (record.matterId) {
+    await assertCanAssociateMatter(userId, record.matterId);
+    return;
+  }
+  if (record.ownerId !== userId) throw new Error("无权操作此保全记录");
+}
+
+async function assertCanAccessPreservationCase(userId: string, id: string) {
+  const record = await prisma.preservationCase.findUnique({
+    where: { id },
+    select: { id: true, matterId: true, ownerId: true }
+  });
+  if (!record) throw new Error("保全案件不存在");
+  await assertCanAccessPreservationCaseRecord(userId, record);
+  return record;
+}
+
 // ━━━━ Case CRUD ━━━━
 
 export async function createPreservationCase(input: z.infer<typeof caseCreateSchema>) {
@@ -67,6 +106,7 @@ export async function createPreservationCase(input: z.infer<typeof caseCreateSch
   if (data.matterId) {
     const m = await prisma.matter.findUnique({ where: { id: data.matterId } });
     if (!m) throw new Error("关联案件不存在");
+    await assertCanAssociateMatter(session.user.id, data.matterId);
     await assertMatterWritable(data.matterId);
   }
 
@@ -121,9 +161,12 @@ export async function updatePreservationCase(input: z.infer<typeof caseUpdateSch
   const data = caseUpdateSchema.parse(input);
   const { id, matterId, court, rulingNumber, note, ownerId, guaranteeType, ...rest } = data;
 
-  const existing = await prisma.preservationCase.findUnique({ where: { id }, select: { matterId: true } });
-  if (!existing) throw new Error("保全案件不存在");
+  const existing = await assertCanAccessPreservationCase(session.user.id, id);
   if (existing.matterId) await assertMatterWritable(existing.matterId);
+  if (matterId) {
+    await assertCanAssociateMatter(session.user.id, matterId);
+    await assertMatterWritable(matterId);
+  }
 
   const patch: Prisma.PreservationCaseUpdateInput = { ...rest };
   if (matterId !== undefined) patch.matter = matterId ? { connect: { id: matterId } } : { disconnect: true };
@@ -154,8 +197,7 @@ export async function deletePreservationCase(input: z.infer<typeof deleteSchema>
     throw new Error("仅管理员或主任律师可删除保全记录");
   }
 
-  const cs = await prisma.preservationCase.findUnique({ where: { id: data.id }, select: { matterId: true } });
-  if (!cs) throw new Error("保全案件不存在");
+  const cs = await assertCanAccessPreservationCase(session.user.id, data.id);
   if (cs.matterId) await assertMatterWritable(cs.matterId);
 
   await prisma.preservationCase.delete({ where: { id: data.id } });
@@ -178,8 +220,7 @@ export async function addTarget(input: z.infer<typeof targetCreateSchema>) {
   const session = await requireSession();
   const data = targetCreateSchema.parse(input);
 
-  const cs = await prisma.preservationCase.findUnique({ where: { id: data.caseId }, select: { matterId: true } });
-  if (!cs) throw new Error("保全案件不存在");
+  const cs = await assertCanAccessPreservationCase(session.user.id, data.caseId);
   if (cs.matterId) await assertMatterWritable(cs.matterId);
 
   const created = await prisma.preservationTarget.create({
@@ -192,8 +233,16 @@ export async function addTarget(input: z.infer<typeof targetCreateSchema>) {
 }
 
 export async function updateTarget(input: z.infer<typeof targetUpdateSchema>) {
-  await requireSession();
+  const session = await requireSession();
   const data = targetUpdateSchema.parse(input);
+  const target = await prisma.preservationTarget.findUnique({
+    where: { id: data.id },
+    include: { case: { select: { id: true, matterId: true, ownerId: true } } }
+  });
+  if (!target) throw new Error("被保全人不存在");
+  await assertCanAccessPreservationCaseRecord(session.user.id, target.case);
+  if (target.case.matterId) await assertMatterWritable(target.case.matterId);
+
   const patch: Prisma.PreservationTargetUpdateInput = {};
   if (data.name !== undefined) patch.name = data.name.trim();
   if (data.note !== undefined) patch.note = data.note?.trim() || null;
@@ -203,7 +252,15 @@ export async function updateTarget(input: z.infer<typeof targetUpdateSchema>) {
 }
 
 export async function deleteTarget(id: string) {
-  await requireSession();
+  const session = await requireSession();
+  const target = await prisma.preservationTarget.findUnique({
+    where: { id },
+    include: { case: { select: { id: true, matterId: true, ownerId: true } } }
+  });
+  if (!target) throw new Error("被保全人不存在");
+  await assertCanAccessPreservationCaseRecord(session.user.id, target.case);
+  if (target.case.matterId) await assertMatterWritable(target.case.matterId);
+
   await prisma.preservationTarget.delete({ where: { id } });
   revalidatePath("/preservation");
   return { ok: true };
@@ -218,9 +275,10 @@ export async function addProperty(input: z.infer<typeof propertyCreateSchema>) {
 
   const target = await prisma.preservationTarget.findUnique({
     where: { id: data.targetId },
-    include: { case: { select: { matterId: true } } }
+    include: { case: { select: { id: true, matterId: true, ownerId: true } } }
   });
   if (!target) throw new Error("被保全人不存在");
+  await assertCanAccessPreservationCaseRecord(session.user.id, target.case);
   if (target.case.matterId) await assertMatterWritable(target.case.matterId);
 
   const created = await prisma.preservationProperty.create({
@@ -253,6 +311,13 @@ export async function updateProperty(input: z.infer<typeof propertyUpdateSchema>
   const session = await requireSession();
   const data = propertyUpdateSchema.parse(input);
   const { id, amount, propertyDetail, ...rest } = data;
+  const property = await prisma.preservationProperty.findUnique({
+    where: { id },
+    include: { target: { include: { case: { select: { id: true, matterId: true, ownerId: true } } } } }
+  });
+  if (!property) throw new Error("保全财产不存在");
+  await assertCanAccessPreservationCaseRecord(session.user.id, property.target.case);
+  if (property.target.case.matterId) await assertMatterWritable(property.target.case.matterId);
 
   const patch: Prisma.PreservationPropertyUpdateInput = { ...rest };
   if (amount !== undefined) patch.amount = amount != null ? new Prisma.Decimal(amount) : null;
@@ -270,9 +335,10 @@ export async function renewProperty(input: z.infer<typeof propertyRenewSchema>) 
 
   const prop = await prisma.preservationProperty.findUnique({
     where: { id: data.propertyId },
-    include: { target: { include: { case: { select: { matterId: true } } } } }
+    include: { target: { include: { case: { select: { id: true, matterId: true, ownerId: true } } } } }
   });
   if (!prop) throw new Error("保全财产不存在");
+  await assertCanAccessPreservationCaseRecord(session.user.id, prop.target.case);
   if (prop.status === "LIFTED") throw new Error("已解除的保全不可续保");
   if (prop.target.case.matterId) await assertMatterWritable(prop.target.case.matterId);
   if (data.newExpiryDate <= prop.expiryDate) {
@@ -306,9 +372,10 @@ export async function liftProperty(propertyId: string, note?: string) {
   const session = await requireSession();
   const prop = await prisma.preservationProperty.findUnique({
     where: { id: propertyId },
-    include: { target: { include: { case: { select: { matterId: true } } } } }
+    include: { target: { include: { case: { select: { id: true, matterId: true, ownerId: true } } } } }
   });
   if (!prop) throw new Error("保全财产不存在");
+  await assertCanAccessPreservationCaseRecord(session.user.id, prop.target.case);
   if (prop.target.case.matterId) await assertMatterWritable(prop.target.case.matterId);
 
   await prisma.preservationProperty.update({
@@ -324,7 +391,15 @@ export async function liftProperty(propertyId: string, note?: string) {
 }
 
 export async function deleteProperty(id: string) {
-  await requireSession();
+  const session = await requireSession();
+  const property = await prisma.preservationProperty.findUnique({
+    where: { id },
+    include: { target: { include: { case: { select: { id: true, matterId: true, ownerId: true } } } } }
+  });
+  if (!property) throw new Error("保全财产不存在");
+  await assertCanAccessPreservationCaseRecord(session.user.id, property.target.case);
+  if (property.target.case.matterId) await assertMatterWritable(property.target.case.matterId);
+
   await prisma.preservationProperty.delete({ where: { id } });
   revalidatePath("/preservation");
   return { ok: true };
@@ -332,14 +407,22 @@ export async function deleteProperty(id: string) {
 
 // for dashboard alerts
 export async function listExpiringProperties(daysAhead = 60) {
-  await requireSession();
+  const session = await requireSession();
   const end = new Date();
   end.setDate(end.getDate() + daysAhead);
 
   return prisma.preservationProperty.findMany({
     where: {
       status: { in: ["ACTIVE", "RENEWED"] },
-      expiryDate: { lte: end }
+      expiryDate: { lte: end },
+      target: {
+        case: {
+          OR: [
+            { matter: { deletedAt: null, ...matterAssociationFilter(session.user.id) } },
+            { matterId: null, ownerId: session.user.id }
+          ]
+        }
+      }
     },
     orderBy: { expiryDate: "asc" },
     include: {

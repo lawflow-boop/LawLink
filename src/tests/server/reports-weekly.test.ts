@@ -33,7 +33,7 @@ describe("weekPeriod", () => {
 });
 
 describe("formatWeeklyDigestContent", () => {
-  it("拼接 5 项数据，金额带千分位 + 2 位小数", () => {
+  it("拼接 4 项数据，金额带千分位 + 2 位小数", () => {
     const text = formatWeeklyDigestContent({
       userId: "u1",
       userName: "张三",
@@ -41,14 +41,12 @@ describe("formatWeeklyDigestContent", () => {
       newIntake: 3,
       closed: 1,
       archived: 2,
-      receivedAmount: 125000.5,
-      tasksDueThisWeek: 7
+      receivedAmount: 125000.5
     });
     expect(text).toContain("新收 3 件");
     expect(text).toContain("已结 1 件");
     expect(text).toContain("已归档 2 件");
     expect(text).toContain("125,000.50 元");
-    expect(text).toContain("本周到期任务 7 项");
   });
 
   it("零值也照常拼", () => {
@@ -59,10 +57,9 @@ describe("formatWeeklyDigestContent", () => {
       newIntake: 0,
       closed: 0,
       archived: 0,
-      receivedAmount: 0,
-      tasksDueThisWeek: 0
+      receivedAmount: 0
     });
     expect(text).toContain("0.00 元");
-    expect(text.split("·")).toHaveLength(5);
+    expect(text.split("·")).toHaveLength(4);
   });
 });

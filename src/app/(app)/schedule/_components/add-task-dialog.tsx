@@ -63,7 +63,7 @@ export function AddTaskDialog({
       return;
     }
     if (!title.trim()) {
-      toast.warning("请填写任务标题");
+      toast.warning("请填写事项标题");
       return;
     }
     if (!date) {
@@ -93,7 +93,7 @@ export function AddTaskDialog({
           assigneeId: "",
           stageId: ""
         });
-        toast.success("任务已添加");
+        toast.success("事项已添加");
         onOpenChange(false);
         router.refresh();
       } catch (err) {
@@ -110,7 +110,7 @@ export function AddTaskDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="h-4 w-4 text-primary" />
-            添加任务
+            添加事项
           </DialogTitle>
           <DialogDescription className="text-xs">
             {date
@@ -148,7 +148,7 @@ export function AddTaskDialog({
 
           <div className="space-y-1.5">
             <Label className="text-xs">
-              任务标题 <span className="text-destructive">*</span>
+              事项标题 <span className="text-destructive">*</span>
             </Label>
             <Input
               placeholder="如：起草起诉状 / 提交证据清单"
@@ -187,7 +187,7 @@ export function AddTaskDialog({
             <Label className="text-xs">描述（可选）</Label>
             <Textarea
               rows={2}
-              placeholder="任务详情、相关材料等"
+              placeholder="事项详情、相关材料等"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />

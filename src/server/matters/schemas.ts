@@ -21,7 +21,9 @@ export const matterStatusSchema = z.enum([
 
 export const litigationStandingSchema = z.enum([
   "PLAINTIFF",
+  "JOINT_PLAINTIFF",
   "DEFENDANT",
+  "JOINT_DEFENDANT",
   "THIRD_PARTY",
   "COUNTERCLAIM_PLAINTIFF",
   "COUNTERCLAIM_DEFENDANT",
@@ -195,6 +197,8 @@ export const matterListQuerySchema = z.object({
   clientId: z.string().cuid().optional(),
   intakeDateFrom: z.coerce.date().optional(),
   intakeDateTo: z.coerce.date().optional(),
+  sortBy: z.enum(["hearing", "intakeDate", "claimAmount"]).default("intakeDate"),
+  sortDir: z.enum(["asc", "desc"]).default("desc"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20)
 });

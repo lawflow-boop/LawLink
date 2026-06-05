@@ -9,19 +9,15 @@
  * - 预览：pdf/图片/文本走 download?inline=1；docx/xlsx 走 /preview 转 HTML
  */
 import { useMemo, useRef, useState, useTransition } from "react";
+import Image from "next/image";
 import {
-  File as FileIcon,
-  FileImage,
-  FileText,
-  FileSpreadsheet,
-  FileArchive,
   Loader2,
   Plus,
   Trash2,
   Download,
   Eye
 } from "lucide-react";
-import type { DocumentCategory } from "@prisma/client";
+import type { DocumentCategory, LitigationStanding } from "@prisma/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -42,42 +38,37 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { ChevronDown } from "lucide-react";
 import { uploadDocument, deleteDocument } from "@/server/documents/actions";
 import { canPreview, officePreviewKind } from "@/lib/storage/mime-ext";
 import { cn, formatDate } from "@/lib/utils";
+import { litigationStandingLabel } from "@/lib/enums";
 
 // v0.42: 类别标签按律师习惯改名
 const categoryLabel: Record<DocumentCategory, string> = {
   PLEADING: "诉辩文件",
-  EVIDENCE: "证据文件",
+  EVIDENCE: "证据",
   PROCEDURE: "程序文件",
-  JUDGMENT: "裁判文件",
-  CONTRACT: "合同 / 协议",
-  OTHER: "其他文件"
+  JUDGMENT: "裁决",
+  CONTRACT: "其他",
+  OTHER: "其他"
 };
 const CATEGORY_OPTIONS: DocumentCategory[] = [
   "PLEADING",
   "EVIDENCE",
   "PROCEDURE",
   "JUDGMENT",
-  "CONTRACT",
   "OTHER"
 ];
 // 需要标注来源方的类别（诉辩 / 证据）
 const SOURCE_CATEGORIES: DocumentCategory[] = ["PLEADING", "EVIDENCE"];
+const COURT_PROCEDURE_SOURCE = "法院程序文件";
 
-const ROLE_LABEL: Record<string, string> = {
-  CLIENT_PARTY: "我方",
-  OPPOSING_PARTY: "对方",
-  THIRD_PARTY: "第三人",
-  CO_LITIGANT: "共同当事人",
-  AGENT: "代理人",
-  WITNESS: "证人",
-  OTHER: "其他"
+type ProcedureParty = {
+  id: string;
+  standing: LitigationStanding;
+  ordinal: number;
+  party: { id: string; name: string };
 };
-
-type Party = { id: string; name: string; role: string };
 
 type DocItem = {
   id: string;
@@ -90,14 +81,66 @@ type DocItem = {
   path: string;
 };
 
-function iconFor(mimeType: string | null) {
-  if (!mimeType) return FileIcon;
-  if (mimeType.startsWith("image/")) return FileImage;
-  if (mimeType.includes("spreadsheet") || mimeType.includes("excel")) return FileSpreadsheet;
-  if (mimeType.includes("pdf") || mimeType.includes("word") || mimeType.startsWith("text/"))
-    return FileText;
-  if (mimeType.includes("zip") || mimeType.includes("rar")) return FileArchive;
-  return FileIcon;
+function iconFor(d: Pick<DocItem, "mimeType" | "name">) {
+  const mime = d.mimeType?.toLowerCase() ?? "";
+  const ext = d.name.split(".").pop()?.toLowerCase() ?? "";
+
+  if (mime.startsWith("image/") || ["jpg", "jpeg", "png", "gif", "webp", "heic"].includes(ext)) {
+    return { src: "/file-icons/image.svg", alt: "图片文件" };
+  }
+  if (mime.includes("pdf") || ext === "pdf") {
+    return { src: "/file-icons/pdf.svg", alt: "PDF 文件" };
+  }
+  if (
+    mime.includes("word") ||
+    mime.includes("msword") ||
+    ["doc", "docx"].includes(ext)
+  ) {
+    return { src: "/file-icons/word.svg", alt: "Word 文件" };
+  }
+  if (
+    mime.includes("spreadsheet") ||
+    mime.includes("excel") ||
+    ["xls", "xlsx", "csv"].includes(ext)
+  ) {
+    return { src: "/file-icons/excel.svg", alt: "Excel 文件" };
+  }
+  if (
+    mime.includes("presentation") ||
+    mime.includes("powerpoint") ||
+    ["ppt", "pptx"].includes(ext)
+  ) {
+    return { src: "/file-icons/presentation.svg", alt: "演示文稿" };
+  }
+  if (mime.includes("json") || ext === "json") {
+    return { src: "/file-icons/json.svg", alt: "JSON 文件" };
+  }
+  if (
+    mime.includes("xml") ||
+    ["xml", "html", "htm", "css", "js", "jsx", "ts", "tsx", "java", "py", "go", "rb", "php", "sh", "yml", "yaml"].includes(ext)
+  ) {
+    return { src: "/file-icons/code.svg", alt: "代码文件" };
+  }
+  if (
+    mime.startsWith("text/") ||
+    ["txt", "md", "rtf", "log"].includes(ext)
+  ) {
+    return { src: "/file-icons/text.svg", alt: "文本文件" };
+  }
+  if (
+    mime.includes("zip") ||
+    mime.includes("rar") ||
+    ["zip", "rar", "7z", "tar", "gz"].includes(ext)
+  ) {
+    return { src: "/file-icons/archive.svg", alt: "压缩包" };
+  }
+  if (mime.startsWith("audio/") || ["mp3", "wav", "m4a", "aac"].includes(ext)) {
+    return { src: "/file-icons/audio.svg", alt: "音频文件" };
+  }
+  if (mime.startsWith("video/") || ["mp4", "mov", "avi", "mkv"].includes(ext)) {
+    return { src: "/file-icons/video.svg", alt: "视频文件" };
+  }
+  return { src: "/file-icons/generic.svg", alt: "文件" };
 }
 
 // 预览 URL：office 文档走转 HTML，其余走 inline
@@ -115,12 +158,12 @@ export function ProcedureDocumentsSection({
   matterId,
   procedureId,
   documents,
-  parties
+  procedureParties
 }: {
   matterId: string;
   procedureId: string;
   documents: DocItem[];
-  parties: Party[];
+  procedureParties: ProcedureParty[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -133,13 +176,25 @@ export function ProcedureDocumentsSection({
   // 当前分类筛选（全部 = null）
   const [filter, setFilter] = useState<DocumentCategory | null>(null);
 
-  // 来源方选项：本案当事人（角色·名称）
+  // 归属/来源选项：当前程序当事人（诉讼地位 + 名称）
   const sourceOptions = useMemo(
-    () =>
-      parties
-        .filter((p) => p.name?.trim())
-        .map((p) => `${ROLE_LABEL[p.role] ?? "其他"}·${p.name}`),
-    [parties]
+    () => {
+      const seen = new Set<string>([COURT_PROCEDURE_SOURCE]);
+      const partyOptions = [...procedureParties]
+        .sort((a, b) => a.ordinal - b.ordinal || a.party.name.localeCompare(b.party.name, "zh-Hans-CN"))
+        .map((row) => {
+          const name = row.party.name.trim();
+          if (!name) return null;
+          return `${litigationStandingLabel[row.standing] ?? row.standing}·${name}`;
+        })
+        .filter((label): label is string => {
+          if (!label || seen.has(label)) return false;
+          seen.add(label);
+          return true;
+        });
+      return [COURT_PROCEDURE_SOURCE, ...partyOptions];
+    },
+    [procedureParties]
   );
 
   const filtered = useMemo(
@@ -254,14 +309,14 @@ export function ProcedureDocumentsSection({
         // 紧凑列表，无外框
         <ul className="divide-y divide-border px-4">
           {filtered.map((d) => {
-            const Icon = iconFor(d.mimeType);
+            const icon = iconFor(d);
             const pUrl = previewUrl(d);
             return (
               <li
                 key={d.id}
                 className="group flex items-center gap-2 py-1.5"
               >
-                <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <Image src={icon.src} alt={icon.alt} width={20} height={20} className="h-5 w-5 shrink-0" />
                 <div className="min-w-0 flex-1 flex items-center gap-2">
                   {pUrl ? (
                     <a
@@ -346,16 +401,16 @@ export function ProcedureDocumentsSection({
               </Select>
             </div>
 
-            {/* v0.42 来源方：诉辩/证据类才出现，选项=本案当事人 */}
+            {/* v0.42 归属/来源：诉辩/证据类才出现，选项=当前程序当事人 */}
             {SOURCE_CATEGORIES.includes(category) && sourceOptions.length > 0 && (
               <div className="space-y-1.5">
-                <Label className="text-xs">来源方（可选）</Label>
+                <Label className="text-xs">归属/来源（可选）</Label>
                 <Select
                   value={sourceParty || "__none__"}
                   onValueChange={(v) => setSourceParty(v === "__none__" ? "" : v)}
                 >
                   <SelectTrigger className="h-10 bg-background">
-                    <SelectValue placeholder="选择来源方" />
+                    <SelectValue placeholder="选择归属/来源" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">不标注</SelectItem>

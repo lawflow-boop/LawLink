@@ -1,7 +1,7 @@
 "use server";
 
 /**
- * v0.22: cron 任务的手动触发入口（admin only）
+ * v0.22: cron 定时作业的手动触发入口（admin only）
  *
  * 用于测试 / 应急触发，不等到定时点。
  */

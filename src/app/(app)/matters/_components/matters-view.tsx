@@ -3,7 +3,7 @@
 import { useState, useTransition, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Plus, Search, X, Clock, CheckCircle2, Archive, AlertCircle, FolderOpen, SlidersHorizontal } from "lucide-react";
+import { Plus, Search, X, Clock, CheckCircle2, Archive, AlertCircle, FolderOpen } from "lucide-react";
 import type { MatterCategory, ClientType, UserRole } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,39 +14,18 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuCheckboxItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
 import { matterCategoryLabel } from "@/lib/enums";
 import { cn } from "@/lib/utils";
 import { IntakeSheet } from "@/app/(app)/intakes/_components/intake-sheet";
-import {
-  MattersTable,
-  MATTER_COLUMNS,
-  type MatterRow,
-  type MatterColumnKey,
-  type ColumnVisibility
-} from "./matters-table";
+import { MattersTable, type MatterRow } from "./matters-table";
 import { IntakesTable, type IntakeRow } from "./intakes-table";
-
-const COLUMN_PREF_KEY = "lawlink:matters:columns:v1";
-
-function defaultColumns(): ColumnVisibility {
-  return MATTER_COLUMNS.reduce((acc, c) => {
-    acc[c.key] = true;
-    return acc;
-  }, {} as ColumnVisibility);
-}
 
 export type ClientOption = { id: string; name: string; type: ClientType };
 export type ColleagueOption = { id: string; name: string; role: UserRole };
 
 type Tab = "intake" | "active" | "archived" | "revision" | "all";
+type SortBy = "hearing" | "intakeDate" | "claimAmount";
+type SortDir = "asc" | "desc";
 
 type Props = {
   tab: Tab;
@@ -60,6 +39,8 @@ type Props = {
     status?: string; // all tab 下 status 筛选
     from?: string; // 收案时间起
     to?: string; // 收案时间止
+    sortBy?: SortBy;
+    sortDir?: SortDir;
   };
   autoOpenIntake?: boolean;
 };
@@ -91,6 +72,33 @@ const ALL_STATUS_FILTERS: { value: string; label: string }[] = [
   { value: "archived", label: "已归档" }
 ];
 
+const SORT_OPTIONS: { value: SortBy; label: string }[] = [
+  { value: "hearing", label: "按开庭时间" },
+  { value: "intakeDate", label: "按收案时间" },
+  { value: "claimAmount", label: "按标的金额" }
+];
+
+const SORT_DIR_OPTIONS: { value: SortDir; label: string }[] = [
+  { value: "desc", label: "倒序" },
+  { value: "asc", label: "正序" }
+];
+
+function defaultSortByForTab(tab: Tab): SortBy {
+  return tab === "active" ? "hearing" : "intakeDate";
+}
+
+function sortOptionsForTab(tab: Tab) {
+  if (tab === "active" || tab === "all") return SORT_OPTIONS;
+  return SORT_OPTIONS.filter((option) => option.value !== "hearing");
+}
+
+function normalizeSortByForTab(tab: Tab, sortBy: SortBy): SortBy {
+  if (sortBy === "hearing" && tab !== "active" && tab !== "all") {
+    return defaultSortByForTab(tab);
+  }
+  return sortBy;
+}
+
 export function MattersView({
   tab,
   matterData,
@@ -107,30 +115,30 @@ export function MattersView({
   const [statusFilter, setStatusFilter] = useState<string>(initialFilters.status ?? "ALL");
   const [dateFrom, setDateFrom] = useState<string>(initialFilters.from ?? "");
   const [dateTo, setDateTo] = useState<string>(initialFilters.to ?? "");
+  const [sortBy, setSortBy] = useState<SortBy>(initialFilters.sortBy ?? defaultSortByForTab(tab));
+  const [sortDir, setSortDir] = useState<SortDir>(initialFilters.sortDir ?? "desc");
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [columns, setColumns] = useState<ColumnVisibility>(defaultColumns);
+  const currentDefaultSortBy = defaultSortByForTab(tab);
+  const sortOptions = sortOptionsForTab(tab);
 
-  // 列偏好持久化到 localStorage（避免 SSR 不一致：挂载后再读）
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(COLUMN_PREF_KEY);
-      if (raw) setColumns({ ...defaultColumns(), ...JSON.parse(raw) });
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  function toggleColumn(key: MatterColumnKey, value: boolean) {
-    setColumns((prev) => {
-      const next = { ...prev, [key]: value };
-      try {
-        localStorage.setItem(COLUMN_PREF_KEY, JSON.stringify(next));
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  }
+    setSearch(initialFilters.search);
+    setCategory(initialFilters.category);
+    setStatusFilter(initialFilters.status ?? "ALL");
+    setDateFrom(initialFilters.from ?? "");
+    setDateTo(initialFilters.to ?? "");
+    setSortBy(initialFilters.sortBy ?? defaultSortByForTab(tab));
+    setSortDir(initialFilters.sortDir ?? "desc");
+  }, [
+    tab,
+    initialFilters.search,
+    initialFilters.category,
+    initialFilters.status,
+    initialFilters.from,
+    initialFilters.to,
+    initialFilters.sortBy,
+    initialFilters.sortDir
+  ]);
 
   // ?new=1 自动打开
   useEffect(() => {
@@ -141,6 +149,13 @@ export function MattersView({
       if (tab !== "active") params.set("tab", tab);
       if (initialFilters.search) params.set("search", initialFilters.search);
       if (initialFilters.category !== "ALL") params.set("category", initialFilters.category);
+      if (tab === "all" && initialFilters.status && initialFilters.status !== "ALL") {
+        params.set("status", initialFilters.status);
+      }
+      if (initialFilters.from) params.set("from", initialFilters.from);
+      if (initialFilters.to) params.set("to", initialFilters.to);
+      if (initialFilters.sortBy && initialFilters.sortBy !== defaultSortByForTab(tab)) params.set("sortBy", initialFilters.sortBy);
+      if (initialFilters.sortDir && initialFilters.sortDir !== "desc") params.set("sortDir", initialFilters.sortDir);
       router.replace(`/matters${params.toString() ? `?${params.toString()}` : ""}`, {
         scroll: false
       });
@@ -156,6 +171,8 @@ export function MattersView({
       status?: string;
       from?: string;
       to?: string;
+      sortBy?: SortBy;
+      sortDir?: SortDir;
     }) => {
       const params = new URLSearchParams();
       const t = override.tab ?? tab;
@@ -164,19 +181,27 @@ export function MattersView({
       const st = override.status ?? statusFilter;
       const f = override.from ?? dateFrom;
       const to_ = override.to ?? dateTo;
+      const sb = normalizeSortByForTab(t, override.sortBy ?? sortBy);
+      const sd = override.sortDir ?? sortDir;
+      const defaultSortBy = defaultSortByForTab(t);
       if (t !== "active") params.set("tab", t);
       if (s) params.set("search", s);
       if (c && c !== "ALL") params.set("category", c);
       if (t === "all" && st && st !== "ALL") params.set("status", st);
-      if (t === "all" && f) params.set("from", f);
-      if (t === "all" && to_) params.set("to", to_);
+      if (f) params.set("from", f);
+      if (to_) params.set("to", to_);
+      if (sb !== defaultSortBy) params.set("sortBy", sb);
+      if (sd !== "desc") params.set("sortDir", sd);
       return `/matters${params.toString() ? `?${params.toString()}` : ""}`;
     },
-    [tab, search, category, statusFilter, dateFrom, dateTo]
+    [tab, search, category, statusFilter, dateFrom, dateTo, sortBy, sortDir]
   );
 
   function switchTab(next: Tab) {
-    startTransition(() => router.replace(buildUrl({ tab: next })));
+    const nextSortBy = defaultSortByForTab(next);
+    setSortBy(nextSortBy);
+    setSortDir("desc");
+    startTransition(() => router.replace(buildUrl({ tab: next, sortBy: nextSortBy, sortDir: "desc" })));
   }
 
   function applyFilters() {
@@ -189,6 +214,8 @@ export function MattersView({
     setStatusFilter("ALL");
     setDateFrom("");
     setDateTo("");
+    setSortBy(currentDefaultSortBy);
+    setSortDir("desc");
     startTransition(() =>
       router.replace(`/matters${tab !== "active" ? `?tab=${tab}` : ""}`)
     );
@@ -199,7 +226,11 @@ export function MattersView({
   const hasFilters =
     search ||
     category !== "ALL" ||
-    (isAll && (statusFilter !== "ALL" || dateFrom || dateTo));
+    (isAll && statusFilter !== "ALL") ||
+    dateFrom ||
+    dateTo ||
+    sortBy !== currentDefaultSortBy ||
+    sortDir !== "desc";
   const total =
     isIntakeStyle ? (intakeData?.total ?? 0) : (matterData?.total ?? 0);
 
@@ -263,14 +294,14 @@ export function MattersView({
         })}
       </div>
 
-      {/* 筛选 */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* 搜索 */}
+      <div className="rounded-md border border-border bg-card px-3 py-2 shadow-sm">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             applyFilters();
           }}
-          className="relative flex min-w-0 sm:min-w-64 flex-1 items-center gap-2"
+          className="relative flex min-w-0 items-center gap-2"
         >
           <div className="relative flex-1">
             <Search
@@ -280,122 +311,124 @@ export function MattersView({
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={
-                isIntakeStyle
-                  ? "搜索标题 / 客户 / 描述"
-                  : "搜索案件名称 / 编号 / 客户"
-              }
-              className="h-9 border-border bg-card pl-9"
+              placeholder="搜索案件名称 / 客户"
+              className="h-9 rounded-md border-input bg-background pl-9 text-[13px]"
             />
           </div>
-          <Button type="submit" size="sm" variant="outline" className="h-9 gap-1">
+          <Button type="submit" size="sm" variant="outline" className="h-9 gap-1 bg-background px-3">
             <Search className="h-3.5 w-3.5" />
             搜索
           </Button>
         </form>
+      </div>
 
-        {!isIntakeStyle && (
-          <Select
-            value={category}
-            onValueChange={(v) => {
-              const next = v as MatterCategory | "ALL";
-              setCategory(next);
-              startTransition(() => router.replace(buildUrl({ category: next })));
-            }}
-          >
-            <SelectTrigger className="h-9 w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {ALL_CATEGORIES.map((c) => (
-                <SelectItem key={c} value={c}>
-                  {c === "ALL" ? "全部类型" : matterCategoryLabel[c as MatterCategory]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
+      {/* 筛选 / 排序 */}
+      <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-muted/60 px-2 py-2">
+        <CompactSelect
+          label="类型"
+          value={category}
+          onValueChange={(v) => {
+            const next = v as MatterCategory | "ALL";
+            setCategory(next);
+            startTransition(() => router.replace(buildUrl({ category: next })));
+          }}
+          className="w-[8.5rem]"
+        >
+          {ALL_CATEGORIES.map((c) => (
+            <SelectItem key={c} value={c}>
+              {c === "ALL" ? "全部类型" : matterCategoryLabel[c as MatterCategory]}
+            </SelectItem>
+          ))}
+        </CompactSelect>
 
         {isAll && (
-          <>
-            <Select
-              value={statusFilter}
-              onValueChange={(v) => {
-                setStatusFilter(v);
-                startTransition(() => router.replace(buildUrl({ status: v })));
-              }}
-            >
-              <SelectTrigger className="h-9 w-28">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ALL_STATUS_FILTERS.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex items-center gap-1 text-[12px] text-muted-foreground">
-              <span>收案</span>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                onBlur={applyFilters}
-                className="h-9 w-36 px-2"
-                title="收案时间起"
-              />
-              <span>→</span>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                onBlur={applyFilters}
-                className="h-9 w-36 px-2"
-                title="收案时间止"
-              />
-            </div>
-          </>
+          <CompactSelect
+            label="状态"
+            value={statusFilter}
+            onValueChange={(v) => {
+              setStatusFilter(v);
+              startTransition(() => router.replace(buildUrl({ status: v })));
+            }}
+            className="w-[7.5rem]"
+          >
+            {ALL_STATUS_FILTERS.map((s) => (
+              <SelectItem key={s.value} value={s.value}>
+                {s.label}
+              </SelectItem>
+            ))}
+          </CompactSelect>
         )}
+
+        <div className="flex h-8 items-center gap-1 rounded-md border border-border bg-background px-2 shadow-sm">
+          <span className="text-[10px] text-muted-foreground">收案</span>
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            onBlur={applyFilters}
+            className="h-7 w-[7.25rem] border-0 bg-transparent px-0 text-[11px] shadow-none focus-visible:ring-0"
+            title="收案时间起"
+          />
+          <span className="text-[11px] text-muted-foreground">至</span>
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            onBlur={applyFilters}
+            className="h-7 w-[7.25rem] border-0 bg-transparent px-0 text-[11px] shadow-none focus-visible:ring-0"
+            title="收案时间止"
+          />
+        </div>
+
+        <span className="mx-1 h-5 w-px bg-border" />
+        <CompactSelect
+          label="排序"
+          value={sortBy}
+          onValueChange={(v) => {
+            const next = v as SortBy;
+            setSortBy(next);
+            startTransition(() => router.replace(buildUrl({ sortBy: next })));
+          }}
+          className="w-36"
+        >
+          {sortOptions.map((s) => (
+            <SelectItem key={s.value} value={s.value}>
+              {s.label}
+            </SelectItem>
+          ))}
+        </CompactSelect>
+        <CompactSelect
+          label="方向"
+          value={sortDir}
+          onValueChange={(v) => {
+            const next = v as SortDir;
+            setSortDir(next);
+            startTransition(() => router.replace(buildUrl({ sortDir: next })));
+          }}
+          className="w-[6.5rem]"
+        >
+          {SORT_DIR_OPTIONS.map((s) => (
+            <SelectItem key={s.value} value={s.value}>
+              {s.label}
+            </SelectItem>
+          ))}
+        </CompactSelect>
 
         {hasFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1">
+          <Button variant="outline" size="sm" onClick={clearFilters} className="h-8 gap-1 bg-background px-2 text-muted-foreground">
             <X className="h-3.5 w-3.5" />
-            清除筛选
+            清除
           </Button>
-        )}
-
-        {!isIntakeStyle && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-9 gap-1" title="列设置">
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                列设置
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuLabel>显示列</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {MATTER_COLUMNS.map((c) => (
-                <DropdownMenuCheckboxItem
-                  key={c.key}
-                  checked={columns[c.key]}
-                  onCheckedChange={(v) => toggleColumn(c.key, !!v)}
-                  onSelect={(e) => e.preventDefault()}
-                >
-                  {c.label}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
         )}
       </div>
 
       {isIntakeStyle ? (
         <IntakesTable items={intakeData?.items ?? []} kind={tab as "intake" | "revision"} />
       ) : (
-        <MattersTable items={matterData?.items ?? []} visible={columns} />
+        <MattersTable
+          items={matterData?.items ?? []}
+          metaColumn={tab === "archived" ? "firmCaseNo" : "hearing"}
+        />
       )}
 
       <IntakeSheet
@@ -405,5 +438,34 @@ export function MattersView({
         colleagues={colleagues}
       />
     </motion.div>
+  );
+}
+
+function CompactSelect({
+  label,
+  value,
+  onValueChange,
+  className,
+  children
+}: {
+  label: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  className: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Select value={value} onValueChange={onValueChange}>
+      <SelectTrigger
+        className={cn(
+          "h-8 gap-1 rounded-md border border-border bg-background px-2 text-[12px] shadow-sm focus:ring-0",
+          className
+        )}
+      >
+        <span className="shrink-0 text-[10px] text-muted-foreground">{label}</span>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>{children}</SelectContent>
+    </Select>
   );
 }

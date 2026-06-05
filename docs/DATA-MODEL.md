@@ -1,7 +1,7 @@
 # LawLink 数据模型设计
 
-> 版本：v0.3（参考 SAAS 截图后的修订）
-> 最后更新：2026-05-22
+> 版本：v0.46（程序当事人修订）
+> 最后更新：2026-06-05
 > 对应 PRD：v0.3
 > 状态：已与叶森确认，可作为 Prisma schema 实现依据
 >
@@ -12,6 +12,7 @@
 > - `Matter` 新增 `ourStanding`（我方诉讼地位）、`intakeDate`（收案时间）
 > - 反诉补充：`counterclaimAsPlaintiff` / `counterclaimAsDefendant`
 > - `internalCode` 类型代码改为 2 字母：CC/CR/AD/NL/GC/SP
+> - `ProcedureParty`：同一当事人可在不同案件程序中记录不同诉讼地位。
 
 ---
 
@@ -230,8 +231,12 @@ enum MatterStatus {
 enum LitigationStanding {
   // 民商事 + 行政共用
   PLAINTIFF                  // 原告 / 行政原告
+  JOINT_PLAINTIFF            // 兼容旧值；UI 不再作为独立选项
   DEFENDANT                  // 被告 / 行政被告
+  JOINT_DEFENDANT            // 兼容旧值；UI 不再作为独立选项
   THIRD_PARTY                // 第三人
+  COUNTERCLAIM_PLAINTIFF     // 反诉原告
+  COUNTERCLAIM_DEFENDANT     // 反诉被告
   // 刑事专用
   CRIMINAL_DEFENDANT         // 刑事被告人
   CRIMINAL_VICTIM            // 被害人
@@ -458,6 +463,7 @@ model MatterProcedure {
   hearings      Hearing[]
   deadlines     Deadline[]
   documents     Document[]       // 通过 procedureId 归集
+  procedureParties ProcedureParty[] // 本程序下的当事人及诉讼地位
 
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
@@ -467,6 +473,42 @@ model MatterProcedure {
   @@unique([matterId, order])
 }
 ```
+
+#### ProcedureParty（程序当事人 / 程序内诉讼地位）
+
+> 当事人本体仍在 `Party`，但诉讼地位下沉到具体 `MatterProcedure`。这样同一当事人在一审可以是"被告"，在二审可以是"上诉人"，在执行中可以是"申请执行人"。
+
+```prisma
+model ProcedureParty {
+  id          String             @id @default(cuid())
+  procedureId String
+  procedure   MatterProcedure    @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+  partyId     String
+  party       Party              @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  standing    LitigationStanding
+  ordinal     Int                @default(1)
+  note        String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([procedureId, partyId, standing])
+  @@index([procedureId, standing, ordinal])
+  @@index([partyId])
+  @@map("procedure_parties")
+}
+```
+
+程序内诉讼地位显示规则：
+
+| 程序类型 | 必备地位 | 可选地位 |
+|---|---|---|
+| 一审 / 重审一审 | 原告、被告 | 第三人、反诉原告、反诉被告 |
+| 二审 / 重审二审 | 上诉人、被上诉人 | 第三人 |
+| 再审审查 / 再审 / 检察监督 | 再审申请人、再审被申请人 | 第三人 |
+| 执行 / 执行异议 | 申请执行人、被执行人 | 第三人 |
+| 仲裁 / 劳动仲裁 | 仲裁申请人、仲裁被申请人 | 第三人 |
+| 行政复议 | 复议申请人、复议被申请人 | 第三人 |
+| 非诉 / 自定义 | 项目当事人 | - |
 
 **按案件类型的典型程序链**：
 
@@ -524,6 +566,7 @@ model Party {
   matterId  String?
   matter    Matter?    @relation(fields: [matterId], references: [id])
   role      PartyRole
+  standing  LitigationStanding? // 旧的案件级/首程序地位，后续程序以 ProcedureParty 为准
   /// 同一角色下的序号（"被告 1"、"被告 2"）
   ordinal   Int        @default(1)
   name      String
@@ -532,6 +575,7 @@ model Party {
   address   String?
   legalRep  String?    // 法定代表人（公司当事人时）
   notes     String?
+  procedureParties ProcedureParty[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 

@@ -26,6 +26,16 @@ export function matterVisibilityFilter(
   return { members: { some: { userId } } };
 }
 
+/** 操作/关联案件用：不因 ADMIN / PRINCIPAL_LAWYER / FINANCE 角色放大全所范围 */
+export function matterAssociationFilter(userId: string): Prisma.MatterWhereInput {
+  return {
+    OR: [
+      { ownerId: userId },
+      { members: { some: { userId } } }
+    ]
+  };
+}
+
 /** 单条访问断言：查不到或无权限一律 throw "案件不存在"（避免泄露 ID） */
 export async function assertCanAccessMatter(
   userId: string,
@@ -49,6 +59,22 @@ export async function assertCanAccessMatter(
     select: { id: true }
   });
   if (!row) throw new Error("案件不存在");
+}
+
+/** 操作/关联断言：只允许主办或案件成员，不因管理角色放开 */
+export async function assertCanAssociateMatter(
+  userId: string,
+  matterId: string
+): Promise<void> {
+  const row = await prisma.matter.findFirst({
+    where: {
+      id: matterId,
+      deletedAt: null,
+      ...matterAssociationFilter(userId)
+    },
+    select: { id: true }
+  });
+  if (!row) throw new Error("案件不存在或无权关联");
 }
 
 /** 修改断言：owner 或 manager */

@@ -8,7 +8,7 @@ import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { createNotification } from "@/server/notifications/create";
 import { assertMatterWritable } from "@/lib/archive/guard";
-import { assertCanAccessMatter } from "@/lib/permissions";
+import { assertCanAccessMatter, assertCanAssociateMatter } from "@/lib/permissions";
 import { parseSms, splitSmsBatch, toDate, type ParsedSms } from "@/lib/sms-parser";
 import { enrichWithAi } from "@/lib/sms-parser-ai";
 import {
@@ -163,7 +163,10 @@ export async function getSmsMessage(id: string) {
 export async function matchSmsToMatter(input: z.infer<typeof smsMatchToMatterSchema>) {
   const session = await requireSession();
   const data = smsMatchToMatterSchema.parse(input);
-  if (data.matterId) await assertMatterWritable(data.matterId);
+  if (data.matterId) {
+    await assertCanAssociateMatter(session.user.id, data.matterId);
+    await assertMatterWritable(data.matterId);
+  }
 
   await prisma.smsMessage.update({
     where: { id: data.smsId },

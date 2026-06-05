@@ -118,6 +118,11 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
 
   // v0.22: 本案 AI 审查总览（聚合 ReviewRecord）
   const reviewSummary = await getMatterReviewSummary(matter.id);
+  const canAssociateThisMatter = Boolean(
+    session?.user.id &&
+      (matter.ownerId === session.user.id ||
+        matter.members.some((member) => member.userId === session.user.id))
+  );
 
   // v0.8: 卷宗对应文档（含 templateId 标识）
   const folderDocuments = documents.map((d) => ({
@@ -156,6 +161,7 @@ export default async function MatterDetailPage({ params }: { params: { id: strin
         preservations={preservations}
         colleagues={allColleagues.map((c) => ({ id: c.id, name: c.name }))}
         currentUserRole={session?.user.role ?? null}
+        canAssociateThisMatter={canAssociateThisMatter}
         sealContracts={sealContracts}
         expresses={expresses}
         latestArchive={latestArchive}

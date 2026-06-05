@@ -1,12 +1,14 @@
-import { prisma } from "@/lib/prisma";
-import { matterVisibilityFilter } from "@/lib/permissions";
-import { getSession } from "@/lib/auth/session";
 import { listScheduleItems } from "@/server/schedule/actions";
+import { getSession } from "@/lib/auth/session";
+import { prisma } from "@/lib/prisma";
+import { matterAssociationFilter } from "@/lib/permissions";
 import { ScheduleView } from "./_components/schedule-view";
 
 export default async function SchedulePage() {
-  // 拉前后各 3 个月覆盖月历前后翻页
   const session = await getSession();
+  if (!session?.user) return null;
+
+  // 拉前后各 3 个月覆盖月历前后翻页
   const now = new Date();
   now.setHours(0, 0, 0, 0);
   const from = new Date(now.getFullYear(), now.getMonth() - 3, 1);
@@ -17,12 +19,11 @@ export default async function SchedulePage() {
     prisma.matter.findMany({
       where: {
         deletedAt: null,
-        ...(session ? matterVisibilityFilter(session.user.id, session.user.role) : {}),
-        status: { notIn: ["ARCHIVED"] }
+        ...matterAssociationFilter(session.user.id)
       },
-      select: { id: true, internalCode: true, title: true },
       orderBy: { updatedAt: "desc" },
-      take: 200
+      take: 200,
+      select: { id: true, internalCode: true, title: true }
     })
   ]);
 

@@ -22,9 +22,10 @@ export type ScheduleItem = {
   date: string;
   weekday: string;
   time?: string;
-  type: "deadline" | "hearing" | "task";
+  type: "deadline" | "hearing";
   title: string;
   matter: string;
+  clientName: string | null;
   matterId: string | null;
   procedure?: string;
   daysUntil: number; // 距今天数（0=今天）
@@ -209,41 +210,46 @@ export async function getDashboardCategoryDistribution() {
   return result;
 }
 
-// ============ Schedule (next 30 days：开庭 + 期限 + 任务) ============
+// ============ Schedule (past 2 days to next 15 days：开庭 + 期限) ============
 
 export async function getDashboardSchedule(): Promise<ScheduleItem[]> {
   const session = await requireSession();
   const visFilter = matterVisibilityFilter(session.user.id, session.user.role);
 
   const now = new Date();
-  const in30d = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const from = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000);
+  const to = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
   const procWhere = { engagement: "ENGAGED" as const, matter: { deletedAt: null, ...visFilter } };
   const procSelect = {
     type: true,
     customLabel: true,
-    matter: { select: { id: true, internalCode: true, title: true } }
+    matter: {
+      select: {
+        id: true,
+        internalCode: true,
+        title: true,
+        primaryClient: { select: { name: true } },
+        clientLinks: {
+          select: {
+            isPrimary: true,
+            client: { select: { name: true } }
+          },
+          orderBy: [{ isPrimary: "desc" as const }, { addedAt: "asc" as const }]
+        }
+      }
+    }
   };
 
-  const [hearings, deadlines, tasks] = await Promise.all([
+  const [hearings, deadlines] = await Promise.all([
     prisma.hearing.findMany({
-      where: { startsAt: { gte: now, lte: in30d }, procedure: procWhere },
+      where: { startsAt: { gte: from, lte: to }, procedure: procWhere },
       include: { procedure: { select: procSelect } },
       orderBy: { startsAt: "asc" },
       take: 12
     }),
     prisma.deadline.findMany({
-      where: { dueAt: { gte: now, lte: in30d }, completed: false, procedure: procWhere },
+      where: { dueAt: { gte: from, lte: to }, completed: false, procedure: procWhere },
       include: { procedure: { select: procSelect } },
-      orderBy: { dueAt: "asc" },
-      take: 12
-    }),
-    prisma.task.findMany({
-      where: {
-        dueAt: { gte: now, lte: in30d },
-        completed: false,
-        matter: { deletedAt: null, ...visFilter }
-      },
-      include: { matter: { select: { id: true, internalCode: true, title: true } } },
       orderBy: { dueAt: "asc" },
       take: 12
     })
@@ -254,13 +260,22 @@ export async function getDashboardSchedule(): Promise<ScheduleItem[]> {
   const DAY = 1000 * 60 * 60 * 24;
   const daysFrom = (d: Date) => Math.ceil((d.getTime() - now.getTime()) / DAY);
   const fmt = (d: Date) => ({
-    date: `${d.getMonth() + 1}月 ${d.getDate()}`,
+    date: `${d.getMonth() + 1}月${d.getDate()}日`,
     weekday: weekdays[d.getDay()],
     time: d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false })
   });
+  const clientNameOf = (matter: {
+    primaryClient: { name: string } | null;
+    clientLinks: { isPrimary: boolean; client: { name: string } }[];
+  }) =>
+    matter.primaryClient?.name ??
+    matter.clientLinks.find((link) => link.isPrimary)?.client.name ??
+    matter.clientLinks[0]?.client.name ??
+    null;
 
   for (const h of hearings) {
     const d = new Date(h.startsAt);
+    const matter = h.procedure.matter;
     itemsWithSort.push({
       ts: d.getTime(),
       item: {
@@ -268,8 +283,9 @@ export async function getDashboardSchedule(): Promise<ScheduleItem[]> {
         ...fmt(d),
         type: "hearing",
         title: h.title,
-        matter: h.procedure.matter.title,
-        matterId: h.procedure.matter.id,
+        matter: matter.title,
+        clientName: clientNameOf(matter),
+        matterId: matter.id,
         procedure: h.procedure.customLabel ?? h.procedure.type,
         daysUntil: daysFrom(d)
       }
@@ -278,6 +294,7 @@ export async function getDashboardSchedule(): Promise<ScheduleItem[]> {
 
   for (const dl of deadlines) {
     const d = new Date(dl.dueAt);
+    const matter = dl.procedure.matter;
     itemsWithSort.push({
       ts: d.getTime(),
       item: {
@@ -285,25 +302,10 @@ export async function getDashboardSchedule(): Promise<ScheduleItem[]> {
         ...fmt(d),
         type: "deadline",
         title: dl.title,
-        matter: dl.procedure.matter.title,
-        matterId: dl.procedure.matter.id,
+        matter: matter.title,
+        clientName: clientNameOf(matter),
+        matterId: matter.id,
         procedure: dl.procedure.customLabel ?? dl.procedure.type,
-        daysUntil: daysFrom(d)
-      }
-    });
-  }
-
-  for (const t of tasks) {
-    const d = new Date(t.dueAt!);
-    itemsWithSort.push({
-      ts: d.getTime(),
-      item: {
-        id: `t-${t.id}`,
-        ...fmt(d),
-        type: "task",
-        title: t.title,
-        matter: t.matter.title,
-        matterId: t.matter.id,
         daysUntil: daysFrom(d)
       }
     });

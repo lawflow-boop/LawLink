@@ -174,7 +174,7 @@
 ```
 
 - **Topbar**：左侧 Logo + 当前模块面包屑 / 右侧搜索框（`⌘K`）+ 通知 + 头像菜单
-- **Sidebar**：8 个一级菜单（仪表盘 / 收案 / 冲突 / 案件 / 客户 / 财务 / 日程 / 材料 / 设置），活动项左侧 2px 强调色亮条
+- **Sidebar**：8 个一级菜单（工作台 / 收案 / 冲突 / 案件 / 客户 / 财务 / 日程 / 材料 / 设置），活动项左侧 2px 强调色亮条
 - **Main**：内边距 32×24，最大宽度 1440px 居中
 
 ### 6.2 响应式
@@ -204,7 +204,7 @@
 
 ## 七、关键页面 Wireframe
 
-### 7.1 仪表盘 `/`（去掉流水线，重新设计）
+### 7.1 工作台 `/`（去掉流水线，重新设计）
 
 **布局四段（垂直）**：①Hero 聚焦区 → ②KPI 卡片 → ③日程 + 待办双栏 → ④双图表区
 
@@ -442,7 +442,7 @@
 |---|---|
 | 全局快捷面板 `⌘K` | shadcn `Command` 组件，搜索案件/客户/跳页面 |
 | 列表行悬停 | 背景色 `--bg-overlay`，左侧 2px 强调色亮条 |
-| 数字滚动 | 仪表盘 KPI 数字加载时 400ms count-up |
+| 数字滚动 | 工作台 KPI 数字加载时 400ms count-up |
 | 状态切换 | 按钮微弹 + 状态徽章颜色 cross-fade |
 | 抽屉打开 | 右侧 `Sheet` 滑入 200ms，背景 `bg-glass` 渐显 |
 | 表单错误 | 字段红描边 + 左侧 shake 8px 一次 |
@@ -484,5 +484,5 @@
 3. `npx shadcn@latest init`（暗色 + Slate 基色）→ 按 §五"必装清单"逐个 `add`
 4. 在 `src/styles/globals.css` 定义 §二色板 CSS 变量
 5. 写 `src/components/layout/AppShell.tsx`（Sidebar + Topbar）
-6. 写仪表盘 `/`（按 §7.1 wireframe），先用 mock data
+6. 写工作台 `/`（按 §7.1 wireframe），先用 mock data
 7. 走通 `npm run lint && typecheck && build`

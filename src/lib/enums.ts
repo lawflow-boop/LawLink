@@ -177,7 +177,9 @@ export const userRoleLabel: Record<UserRole, string> = {
 
 export const litigationStandingLabel: Record<LitigationStanding, string> = {
   PLAINTIFF: "原告",
+  JOINT_PLAINTIFF: "共同原告",
   DEFENDANT: "被告",
+  JOINT_DEFENDANT: "共同被告",
   THIRD_PARTY: "第三人",
   COUNTERCLAIM_PLAINTIFF: "反诉原告",
   COUNTERCLAIM_DEFENDANT: "反诉被告",

@@ -7,7 +7,7 @@ import {
   matterCategoryShort,
   intakeStatusLabel
 } from "@/lib/enums";
-import { CaseListCard } from "./matters-table";
+import { CaseListCard, CaseListHeader } from "./matters-table";
 
 export type IntakeRow = {
   id: string;
@@ -54,33 +54,33 @@ export function IntakesTable({
   }
 
   return (
-    <ul className="space-y-2.5">
-      {items.map((it) => {
-        const statusLabel =
-          kind === "revision" ? "待补正" : intakeStatusLabel[it.status] ?? it.status;
-        const dot =
-          kind === "revision"
-            ? "#f97316" // orange
-            : it.status === "PENDING_CONFIRMATION"
-              ? "#f59e0b" // amber
-              : "#10b981"; // emerald
-        return (
-          <CaseListCard
-            key={it.id}
-            href={`/intakes/${it.id}`}
-            title={it.title}
-            accent={matterCategoryColor[it.category]}
-            status={{ label: statusLabel, dot }}
-            categoryShort={matterCategoryShort[it.category]}
-            internalCode={it.matter?.internalCode ?? null}
-            owner={it.ownerName ?? null}
-            intakeDate={it.receivedAt}
-            clientName={it.client?.name ?? null}
-            causeText={it.cause?.name ?? null}
-            claimAmount={it.claimAmount ?? null}
-          />
-        );
-      })}
-    </ul>
+    <div className="ll-surface overflow-hidden rounded-lg">
+      <CaseListHeader />
+      <ul>
+        {items.map((it) => {
+          const statusLabel =
+            kind === "revision" ? "待补正" : intakeStatusLabel[it.status] ?? it.status;
+          const dot =
+            kind === "revision"
+              ? "#f97316" // orange
+              : it.status === "PENDING_CONFIRMATION"
+                ? "#f59e0b" // amber
+                : "#10b981"; // emerald
+          return (
+            <CaseListCard
+              key={it.id}
+              href={`/intakes/${it.id}`}
+              title={it.title}
+              accent={matterCategoryColor[it.category]}
+              status={{ label: statusLabel, dot }}
+              categoryShort={matterCategoryShort[it.category]}
+              intakeDate={it.receivedAt}
+              claimAmount={it.claimAmount ?? null}
+              inTable
+            />
+          );
+        })}
+      </ul>
+    </div>
   );
 }

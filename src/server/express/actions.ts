@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { assertMatterWritable } from "@/lib/archive/guard";
-import { assertCanAccessMatter } from "@/lib/permissions";
+import { assertCanAssociateMatter, matterAssociationFilter } from "@/lib/permissions";
 import { trackExpress, detectCompany } from "@/lib/express/track";
 import {
   saveExpressSettings as saveSettings,
@@ -28,17 +28,28 @@ export async function listExpress(input?: z.input<typeof expressListFilterSchema
   const session = await requireSession();
   const filter = expressListFilterSchema.parse(input ?? {});
 
-  const where: Prisma.ExpressTrackingWhereInput = {};
+  const accessWhere: Prisma.ExpressTrackingWhereInput = {
+    OR: [
+      { matter: { deletedAt: null, ...matterAssociationFilter(session.user.id) } },
+      { matterId: null, createdById: session.user.id }
+    ]
+  };
+  const where: Prisma.ExpressTrackingWhereInput = { AND: [accessWhere] };
   if (filter.scope === "mine") where.createdById = session.user.id;
   if (filter.direction !== "ALL") where.direction = filter.direction;
   if (filter.matterId) where.matterId = filter.matterId;
   if (filter.search) {
-    where.OR = [
-      { trackingNo: { contains: filter.search, mode: "insensitive" } },
-      { purpose: { contains: filter.search, mode: "insensitive" } },
-      { recipient: { contains: filter.search, mode: "insensitive" } },
-      { matter: { internalCode: { contains: filter.search, mode: "insensitive" } } },
-      { matter: { title: { contains: filter.search, mode: "insensitive" } } }
+    where.AND = [
+      accessWhere,
+      {
+        OR: [
+          { trackingNo: { contains: filter.search, mode: "insensitive" } },
+          { purpose: { contains: filter.search, mode: "insensitive" } },
+          { recipient: { contains: filter.search, mode: "insensitive" } },
+          { matter: { internalCode: { contains: filter.search, mode: "insensitive" } } },
+          { matter: { title: { contains: filter.search, mode: "insensitive" } } }
+        ]
+      }
     ];
   }
 
@@ -53,7 +64,8 @@ export async function listExpress(input?: z.input<typeof expressListFilterSchema
 }
 
 export async function getExpress(id: string) {
-  await requireSession();
+  const session = await requireSession();
+  await assertCanAccessExpressRecord(session.user.id, id);
   return prisma.expressTracking.findUnique({
     where: { id },
     include: {
@@ -61,6 +73,20 @@ export async function getExpress(id: string) {
       createdBy: { select: { id: true, name: true } }
     }
   });
+}
+
+async function assertCanAccessExpressRecord(userId: string, id: string) {
+  const record = await prisma.expressTracking.findUnique({
+    where: { id },
+    select: { id: true, matterId: true, createdById: true }
+  });
+  if (!record) throw new Error("快递记录不存在");
+  if (record.matterId) {
+    await assertCanAssociateMatter(userId, record.matterId);
+    return record;
+  }
+  if (record.createdById !== userId) throw new Error("无权操作此快递记录");
+  return record;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -81,7 +107,7 @@ export async function createExpress(input: z.infer<typeof expressCreateSchema>) 
       select: { id: true }
     });
     if (!m) throw new Error("关联案件不存在");
-    await assertCanAccessMatter(session.user.id, session.user.role, data.matterId);
+    await assertCanAssociateMatter(session.user.id, data.matterId);
     await assertMatterWritable(data.matterId);
   }
 
@@ -138,11 +164,11 @@ export async function refreshExpress(input: z.infer<typeof expressIdSchema>) {
   const session = await requireSession();
   const data = expressIdSchema.parse(input);
 
-  const e = await prisma.expressTracking.findUnique({
+  await assertCanAccessExpressRecord(session.user.id, data.id);
+  const e = await prisma.expressTracking.findUniqueOrThrow({
     where: { id: data.id },
     select: { id: true, trackingNo: true, companyCode: true, matterId: true }
   });
-  if (!e) throw new Error("快递记录不存在");
 
   const r = await trackExpress({
     trackingNo: e.trackingNo,
@@ -176,14 +202,7 @@ export async function deleteExpress(input: z.infer<typeof expressIdSchema>) {
   const session = await requireSession();
   const data = expressIdSchema.parse(input);
 
-  const e = await prisma.expressTracking.findUnique({
-    where: { id: data.id },
-    select: { createdById: true, matterId: true }
-  });
-  if (!e) throw new Error("记录不存在");
-  if (e.createdById !== session.user.id && session.user.role !== "ADMIN") {
-    throw new Error("仅创建人或管理员可删除");
-  }
+  const e = await assertCanAccessExpressRecord(session.user.id, data.id);
 
   await prisma.expressTracking.delete({ where: { id: data.id } });
 

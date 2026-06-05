@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
+import { matterAssociationFilter, matterVisibilityFilter } from "@/lib/permissions";
 
 export type ScheduleItem = {
   id: string;
@@ -9,12 +10,13 @@ export type ScheduleItem = {
   title: string;
   occurredAt: Date;
   matter: { id: string; internalCode: string; title: string };
+  clientName: string | null;
   procedureLabel?: string;
   completed?: boolean;
   remindDays?: number;
   category?: string;
+  description?: string | null;
   priority?: number;
-  assigneeId?: string | null;
 };
 
 export async function listScheduleItems(params: {
@@ -28,14 +30,9 @@ export async function listScheduleItems(params: {
   const to = params.to ?? new Date(from.getTime() + 365 * 24 * 60 * 60 * 1000);
   const userId = session.user.id;
 
-  const memberFilter = params.onlyMine
-    ? {
-        OR: [
-          { ownerId: userId },
-          { members: { some: { userId } } }
-        ]
-      }
-    : {};
+  const matterFilter = params.onlyMine
+    ? matterAssociationFilter(userId)
+    : matterVisibilityFilter(userId, session.user.role);
 
   const [hearings, deadlines, tasks] = await Promise.all([
     prisma.hearing.findMany({
@@ -43,7 +40,7 @@ export async function listScheduleItems(params: {
         startsAt: { gte: from, lte: to },
         procedure: {
           engagement: "ENGAGED",
-          matter: { deletedAt: null, ...memberFilter }
+          matter: { deletedAt: null, ...matterFilter }
         }
       },
       include: {
@@ -51,7 +48,21 @@ export async function listScheduleItems(params: {
           select: {
             type: true,
             customLabel: true,
-            matter: { select: { id: true, internalCode: true, title: true } }
+            matter: {
+              select: {
+                id: true,
+                internalCode: true,
+                title: true,
+                primaryClient: { select: { name: true } },
+                clientLinks: {
+                  select: {
+                    isPrimary: true,
+                    client: { select: { name: true } }
+                  },
+                  orderBy: [{ isPrimary: "desc" }, { addedAt: "asc" }]
+                }
+              }
+            }
           }
         }
       }
@@ -62,7 +73,7 @@ export async function listScheduleItems(params: {
         ...(params.includeCompleted ? {} : { completed: false }),
         procedure: {
           engagement: "ENGAGED",
-          matter: { deletedAt: null, ...memberFilter }
+          matter: { deletedAt: null, ...matterFilter }
         }
       },
       include: {
@@ -70,51 +81,87 @@ export async function listScheduleItems(params: {
           select: {
             type: true,
             customLabel: true,
-            matter: { select: { id: true, internalCode: true, title: true } }
+            matter: {
+              select: {
+                id: true,
+                internalCode: true,
+                title: true,
+                primaryClient: { select: { name: true } },
+                clientLinks: {
+                  select: {
+                    isPrimary: true,
+                    client: { select: { name: true } }
+                  },
+                  orderBy: [{ isPrimary: "desc" }, { addedAt: "asc" }]
+                }
+              }
+            }
           }
         }
       }
     }),
     prisma.task.findMany({
       where: {
-        dueAt: { gte: from, lte: to, not: null },
+        dueAt: { gte: from, lte: to },
         ...(params.includeCompleted ? {} : { completed: false }),
-        ...(params.onlyMine
-          ? {
-              OR: [
-                { assigneeId: userId },
-                { matter: { ownerId: userId } },
-                { matter: { members: { some: { userId } } } }
-              ]
-            }
-          : {}),
-        matter: { deletedAt: null }
+        matter: { deletedAt: null, ...matterFilter }
       },
       include: {
-        matter: { select: { id: true, internalCode: true, title: true } }
+        matter: {
+          select: {
+            id: true,
+            internalCode: true,
+            title: true,
+            primaryClient: { select: { name: true } },
+            clientLinks: {
+              select: {
+                isPrimary: true,
+                client: { select: { name: true } }
+              },
+              orderBy: [{ isPrimary: "desc" }, { addedAt: "asc" }]
+            }
+          }
+        }
       }
     })
   ]);
 
   const items: ScheduleItem[] = [];
+  const clientNameOf = (matter: {
+    primaryClient: { name: string } | null;
+    clientLinks: { isPrimary: boolean; client: { name: string } }[];
+  }) =>
+    matter.primaryClient?.name ??
+    matter.clientLinks.find((link) => link.isPrimary)?.client.name ??
+    matter.clientLinks[0]?.client.name ??
+    null;
+  const matterBrief = (matter: { id: string; internalCode: string; title: string }) => ({
+    id: matter.id,
+    internalCode: matter.internalCode,
+    title: matter.title
+  });
 
   for (const h of hearings) {
+    const matter = h.procedure.matter;
     items.push({
       id: `h-${h.id}`,
       type: "hearing",
       title: h.title,
       occurredAt: h.startsAt,
-      matter: h.procedure.matter,
+      matter: matterBrief(matter),
+      clientName: clientNameOf(matter),
       procedureLabel: h.procedure.customLabel ?? h.procedure.type
     });
   }
   for (const d of deadlines) {
+    const matter = d.procedure.matter;
     items.push({
       id: `d-${d.id}`,
       type: "deadline",
       title: d.title,
       occurredAt: d.dueAt,
-      matter: d.procedure.matter,
+      matter: matterBrief(matter),
+      clientName: clientNameOf(matter),
       procedureLabel: d.procedure.customLabel ?? d.procedure.type,
       completed: d.completed,
       remindDays: d.remindDays,
@@ -128,13 +175,13 @@ export async function listScheduleItems(params: {
       type: "task",
       title: t.title,
       occurredAt: t.dueAt,
-      matter: t.matter,
+      matter: matterBrief(t.matter),
+      clientName: clientNameOf(t.matter),
       completed: t.completed,
-      priority: t.priority,
-      assigneeId: t.assigneeId
+      description: t.description,
+      priority: t.priority
     });
   }
-
   items.sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
   return items;
 }

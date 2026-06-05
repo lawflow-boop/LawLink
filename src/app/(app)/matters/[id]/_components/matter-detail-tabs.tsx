@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import type { Prisma } from "@prisma/client";
+import type { ClientType, Prisma } from "@prisma/client";
 import {
   Info,
   Plus,
@@ -19,13 +19,12 @@ import { FinancePanel } from "./finance-panel";
 import { ProcedureRemindersAndMemos } from "./procedure-content";
 import { ProcedureDocumentsSection } from "./procedure-documents-section";
 import { ProcedureInfoPanel } from "./procedure-info-panel";
-import { TimelinePanel } from "./timeline-panel";
+
 import { ApprovalsPanel } from "./approvals-panel";
-import { ExpressMiniCard, type SealContractItem, type ExpressItem } from "./info-extras";
+import type { SealContractItem, ExpressItem } from "./info-extras";
 import { AddProcedureSheet } from "./procedure-forms";
 import { deleteProcedure } from "@/server/procedures/actions";
 import { useRouter } from "next/navigation";
-import { MatterPreservationPanel } from "./matter-preservation-panel";
 import { CustomFieldsPanel } from "./custom-fields-panel";
 import { LifecycleActions } from "./lifecycle-actions";
 import { ArchiveStatusBanner } from "./archive-status-banner";
@@ -36,7 +35,7 @@ import type { PreservationCaseRow, UserOption as PresUserOption } from "@/app/(a
 type MatterPayload = Prisma.MatterGetPayload<{
   include: {
     primaryClient: { include: { contacts: { where: { isPrimary: true }; take: 1 } } };
-    clientLinks: { include: { client: { select: { id: true; name: true; type: true } } } };
+    clientLinks: { include: { client: { select: { id: true; name: true; type: true; idNumber: true } } } };
     owner: { select: { id: true; name: true; role: true } };
     members: { include: { user: { select: { id: true; name: true; role: true } } } };
     cause: true;
@@ -54,10 +53,10 @@ type MatterPayload = Prisma.MatterGetPayload<{
         deadlines: true;
         hearings: true;
         stages: true;
+        procedureParties: { include: { party: true } };
         memos: true;
       };
     };
-    tasks: true;
     timelineEvents: true;
   };
 }>;
@@ -132,6 +131,7 @@ export function MatterDetailTabs({
   preservations,
   colleagues,
   currentUserRole,
+  canAssociateThisMatter,
   sealContracts,
   expresses,
   latestArchive,
@@ -148,6 +148,7 @@ export function MatterDetailTabs({
   preservations: PreservationCaseRow[];
   colleagues: PresUserOption[];
   currentUserRole: string | null;
+  canAssociateThisMatter: boolean;
   sealContracts: SealContractItem[];
   expresses: ExpressItem[];
   latestArchive: {
@@ -213,6 +214,7 @@ export function MatterDetailTabs({
           path: d.path
         }))
     : [];
+  const procedureParties = buildProcedurePartyOptions(matter);
 
   return (
     <div className="space-y-4">
@@ -263,13 +265,22 @@ export function MatterDetailTabs({
         transition={{ duration: 0.4, delay: 0.05 }}
         className="space-y-4"
       >
-        {/* 1. 案件信息 + 自定义字段 */}
-        <InfoPanel
-          matter={matter}
-          userOptions={userOptions}
-          finance={finance}
-          contracts={intakeContracts.map((d) => ({ id: d.id, name: d.name }))}
-        />
+        {/* 1. 案件信息 + 重要事项：左右两列 */}
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <InfoPanel
+            matter={matter}
+            userOptions={userOptions}
+            finance={finance}
+            contracts={intakeContracts.map((d) => ({ id: d.id, name: d.name }))}
+            canManageRelatedMatters={canAssociateThisMatter}
+          />
+          <ProcedureRemindersAndMemos
+            matterId={matter.id}
+            procedures={engagedProcedures}
+            currentProcedureId={currentProcedure?.id ?? ""}
+            expresses={expresses}
+          />
+        </div>
         <CustomFieldsPanel
           matterId={matter.id}
           defs={customFieldDefs}
@@ -356,24 +367,21 @@ export function MatterDetailTabs({
             )}
           </header>
 
-          {/* 当前程序内容：基本信息 + 案件材料|快递 */}
+          {/* 当前程序内容：基本信息 + 案件材料 */}
           {currentProcedure ? (
             <div className="space-y-4">
-              <ProcedureInfoPanel procedure={currentProcedure} editOpen={procEditOpen} onEditOpenChange={setProcEditOpen} />
-              {/* v0.45: 案件材料(2/3) + 快递记录(1/3) 并列 */}
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-                <div className="lg:col-span-8 h-full">
-                  <ProcedureDocumentsSection
-                    matterId={matter.id}
-                    procedureId={currentProcedure.id}
-                    documents={procDocs}
-                    parties={matter.parties}
-                  />
-                </div>
-                <div className="lg:col-span-4 h-full">
-                  <ExpressMiniCard expresses={expresses} matterId={matter.id} />
-                </div>
-              </div>
+              <ProcedureInfoPanel
+                procedure={currentProcedure}
+                parties={procedureParties}
+                editOpen={procEditOpen}
+                onEditOpenChange={setProcEditOpen}
+              />
+              <ProcedureDocumentsSection
+                matterId={matter.id}
+                procedureId={currentProcedure.id}
+                documents={procDocs}
+                procedureParties={currentProcedure.procedureParties}
+              />
             </div>
           ) : (
             <p className="py-8 text-center text-xs text-muted-foreground">
@@ -382,33 +390,16 @@ export function MatterDetailTabs({
           )}
         </section>
 
-        {/* 3. 提醒 | 备忘（全案聚合，独立模块） */}
-        <ProcedureRemindersAndMemos
-          procedures={engagedProcedures}
-          currentProcedureId={currentProcedure?.id ?? ""}
-        />
+        {/* 5. 页面底部：用印审批 + 财务费用 */}
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+          <ApprovalsPanel
+            matterId={matter.id}
+            matterTitle={matter.title}
+            sealContracts={sealContracts}
+          />
+          <FinancePanel matterId={matter.id} finance={finance} userOptions={userOptions} />
+        </div>
 
-        {/* 4. 用印审批 */}
-        <ApprovalsPanel
-          matterId={matter.id}
-          matterTitle={matter.title}
-          sealContracts={sealContracts}
-        />
-
-        {/* 5. 财务费用 */}
-        <FinancePanel matterId={matter.id} finance={finance} userOptions={userOptions} />
-
-        {/* 5. 保全 */}
-        <MatterPreservationPanel
-          matterId={matter.id}
-          matterCode={matter.internalCode}
-          matterTitle={matter.title}
-          preservations={preservations}
-          users={colleagues}
-        />
-
-        {/* 6. 时间线 */}
-        <TimelinePanel events={matter.timelineEvents} />
       </motion.div>
 
       <AddProcedureSheet
@@ -463,6 +454,53 @@ function MatterStatusPill({ status }: { status: MatterPayload["status"] }) {
       {m.label}
     </span>
   );
+}
+
+function clientTypeToPartyType(type: ClientType) {
+  if (type === "INDIVIDUAL") return "NATURAL_PERSON";
+  if (type === "COMPANY") return "COMPANY";
+  return "OTHER_ORG";
+}
+
+function buildProcedurePartyOptions(matter: MatterPayload) {
+  const parties = [...matter.parties];
+  const seenClientNames = new Set(
+    parties.filter((party) => party.role === "CLIENT_PARTY").map((party) => party.name.trim())
+  );
+  const clients = [
+    ...(matter.primaryClient ? [matter.primaryClient] : []),
+    ...matter.clientLinks.map((link) => link.client)
+  ];
+  const seenClientIds = new Set<string>();
+
+  for (const client of clients) {
+    if (seenClientIds.has(client.id) || seenClientNames.has(client.name.trim())) continue;
+    seenClientIds.add(client.id);
+    parties.push({
+      id: `client:${client.id}`,
+      matterId: matter.id,
+      intakeId: null,
+      role: "CLIENT_PARTY",
+      standing: null,
+      ordinal: 0,
+      name: client.name,
+      partyType: clientTypeToPartyType(client.type),
+      idNumber: client.type === "INDIVIDUAL" ? client.idNumber : null,
+      phone: null,
+      address: null,
+      legalRep: null,
+      contactName: null,
+      enterpriseId: null,
+      enterpriseSocialCode: client.type === "INDIVIDUAL" ? null : client.idNumber,
+      enterpriseName: client.type === "INDIVIDUAL" ? null : client.name,
+      enterpriseBoundAt: null,
+      notes: "案件关联客户",
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+  }
+
+  return parties;
 }
 
 export type { MatterPayload, UserOption };

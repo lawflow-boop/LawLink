@@ -24,7 +24,7 @@
 | 样式 | **Tailwind CSS** | 暗色优先 |
 | 动效 | **Framer Motion** | 微交互、页面切换 |
 | 图标 | lucide-react | |
-| 图表 | Recharts | 仪表盘、财务统计 |
+| 图表 | Recharts | 工作台、财务统计 |
 | 表单 | React Hook Form + Zod | |
 | 表格 | TanStack Table | 表头筛选、排序、分页 |
 | 数据库 | PostgreSQL 16 + Prisma 5 | |

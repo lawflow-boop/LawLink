@@ -15,7 +15,7 @@ export default async function ContactsPage() {
     listExternalContacts(),
     prisma.user.findMany({
       where: { active: true },
-      select: { id: true, name: true, email: true, phone: true, role: true },
+      select: { id: true, name: true, email: true, phone: true, role: true, avatar: true },
       orderBy: { name: "asc" }
     })
   ]);

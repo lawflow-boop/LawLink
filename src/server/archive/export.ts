@@ -60,7 +60,6 @@ export async function buildArchiveZip(matterId: string): Promise<ZipResult> {
       timelineEvents: { orderBy: { occurredAt: "asc" } },
       preservations: { orderBy: { startDate: "asc" } },
       notes: { where: { deletedAt: null }, orderBy: { occurredAt: "asc" } },
-      tasks: { orderBy: { createdAt: "asc" } },
       billings: true,
       feeEntries: { orderBy: { occurredAt: "asc" } },
       archiveRecords: { orderBy: { archivedAt: "desc" }, take: 1 },
@@ -181,14 +180,6 @@ export async function buildArchiveZip(matterId: string): Promise<ZipResult> {
       occurredAt: n.occurredAt.toISOString(),
       content: n.content,
       tags: n.tags
-    })),
-    tasks: matter.tasks.map((t) => ({
-      title: t.title,
-      description: t.description,
-      completed: t.completed,
-      completedAt: t.completedAt?.toISOString() ?? null,
-      dueAt: t.dueAt?.toISOString() ?? null,
-      priority: t.priority
     })),
     billings: matter.billings.map((b) => ({
       title: b.title,

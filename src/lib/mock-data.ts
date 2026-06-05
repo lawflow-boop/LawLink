@@ -1,5 +1,5 @@
 /**
- * 仪表盘 mock 数据。Stage 1 用来打磨 UI，Stage 2 替换为 Prisma 查询。
+ * 工作台 mock 数据。Stage 1 用来打磨 UI，Stage 2 替换为 Prisma 查询。
  */
 
 export type TrendDirection = "up" | "down" | "warn";
@@ -58,7 +58,7 @@ export type ScheduleItem = {
   date: string;
   weekday: string;
   time?: string;
-  type: "deadline" | "hearing" | "task";
+  type: "deadline" | "hearing";
   title: string;
   matter: string;
   procedure?: string;

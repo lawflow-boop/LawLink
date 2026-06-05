@@ -59,7 +59,9 @@ const EMPTY_PARTY: PartySnapshot = {
 
 const STANDING_CN: Record<string, string> = {
   PLAINTIFF: "原告",
+  JOINT_PLAINTIFF: "共同原告",
   DEFENDANT: "被告",
+  JOINT_DEFENDANT: "共同被告",
   THIRD_PARTY: "第三人",
   APPELLANT: "上诉人",
   APPELLEE: "被上诉人",

@@ -8,10 +8,11 @@ import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { createNotification } from "@/server/notifications/create";
 import { assertMatterWritable } from "@/lib/archive/guard";
-import { assertCanAccessMatter } from "@/lib/permissions";
+import { assertCanAssociateMatter } from "@/lib/permissions";
 import { storage } from "@/lib/storage";
 import { validateUploadedFile } from "@/lib/storage/file-validator";
 import { decryptBuffer, encryptBuffer, sha256 } from "@/lib/storage/crypto";
+import { normalizeUploadedFilename } from "@/lib/filename";
 import {
   sealCreateSchema,
   sealApproveSchema,
@@ -22,6 +23,14 @@ import {
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024;
 const FIRM_LEGAL_REP_KEY = "firmLegalRepUserId";
+
+function assertPdfDocument(file: { name?: string | null; type?: string | null; mimeType?: string | null }) {
+  const type = file.type ?? file.mimeType ?? "";
+  const name = file.name ?? "";
+  if (type !== "application/pdf" && !name.toLowerCase().endsWith(".pdf")) {
+    throw new Error("需上传 pdf 格式文件");
+  }
+}
 
 // ============================================================
 // 流水号 SEAL-YYYY-NNNN
@@ -128,6 +137,18 @@ async function pickApprovableSealTypes(user: { id: string; role: string }): Prom
     .map((c) => c.type);
 }
 
+export async function getSealApprovalCapabilities() {
+  const session = await requireSession();
+  const approvableTypes = await pickApprovableSealTypes(session.user);
+  return {
+    canApprove: approvableTypes.length > 0,
+    canViewFirmQueue:
+      session.user.role === "ADMIN" ||
+      session.user.role === "PRINCIPAL_LAWYER" ||
+      session.user.role === "FINANCE"
+  };
+}
+
 export async function getSealRequest(id: string) {
   await requireSession();
   return prisma.sealRequest.findUnique({
@@ -211,7 +232,7 @@ export async function createSealRequest(formData: FormData) {
 
   // 若有 matterId 校验存在
   if (data.matterId) {
-    await assertCanAccessMatter(session.user.id, session.user.role, data.matterId);
+    await assertCanAssociateMatter(session.user.id, data.matterId);
     await assertMatterWritable(data.matterId);
     const m = await prisma.matter.findUnique({
       where: { id: data.matterId },
@@ -240,6 +261,7 @@ export async function createSealRequest(formData: FormData) {
       where: { id: existingDraftDocId }
     });
     if (!src) throw new Error("待盖章文档不存在");
+    assertPdfDocument(src);
     const srcCt = await storage.readFile(src.path);
     plainBuf =
       src.encrypted && src.iv && src.authTag
@@ -261,6 +283,7 @@ export async function createSealRequest(formData: FormData) {
       authTag: enc.authTag.toString("base64")
     };
   } else if (draftFile instanceof File && draftFile.size > 0) {
+    assertPdfDocument(draftFile);
     validateUploadedFile(draftFile, { purpose: "seal", maxBytes: MAX_FILE_SIZE });
     plainBuf = Buffer.from(await draftFile.arrayBuffer());
     const enc = encryptBuffer(plainBuf);
@@ -269,7 +292,7 @@ export async function createSealRequest(formData: FormData) {
       enc.ciphertext
     );
     draftDocPrepare = {
-      name: draftFile.name,
+      name: normalizeUploadedFilename(draftFile.name),
       mimeType: draftFile.type || "application/octet-stream",
       size: draftFile.size,
       sha: sha256(plainBuf),
@@ -531,19 +554,21 @@ export async function stampSealRequest(formData: FormData) {
 
   const seal = await prisma.sealRequest.findUnique({
     where: { id },
-    select: { id: true, status: true, sealType: true, matterId: true }
+    select: { id: true, status: true, sealType: true, matterId: true, requestedById: true }
   });
   if (!seal) throw new Error("申请不存在");
   if (seal.status !== "APPROVED") throw new Error("仅已批准的申请可回填盖章件");
 
-  // 权限：审批人 / ADMIN；财务章额外允许 FINANCE
+  // 权限：申请人可回填；审批人 / ADMIN 可回填；财务章额外允许 FINANCE
   const okApprover = await canApproveSealType(seal.sealType, session.user);
-  if (!okApprover) throw new Error("无权回填盖章件");
+  const okRequester = seal.requestedById === session.user.id;
+  if (!okRequester && !okApprover) throw new Error("无权回填盖章件");
 
   const stampedFile = formData.get("stampedDoc");
   if (!(stampedFile instanceof File) || stampedFile.size === 0) {
     throw new Error("请上传盖章后扫描件");
   }
+  assertPdfDocument(stampedFile);
   validateUploadedFile(stampedFile, { purpose: "stamp", maxBytes: MAX_FILE_SIZE });
 
   const buf = Buffer.from(await stampedFile.arrayBuffer());
@@ -557,7 +582,7 @@ export async function stampSealRequest(formData: FormData) {
     const stampedDoc = await tx.document.create({
       data: {
         matterId: seal.matterId ?? undefined,
-        name: stampedFile.name,
+        name: normalizeUploadedFilename(stampedFile.name),
         category: "OTHER",
         path,
         mimeType: stampedFile.type || "application/octet-stream",

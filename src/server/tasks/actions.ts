@@ -7,11 +7,11 @@ import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { createNotification } from "@/server/notifications/create";
 import { assertMatterWritable } from "@/lib/archive/guard";
-import { assertCanAccessMatter } from "@/lib/permissions";
+import { assertCanAssociateMatter } from "@/lib/permissions";
 
 const taskCreateSchema = z.object({
   matterId: z.string().cuid(),
-  title: z.string().min(1, "任务标题必填").max(200),
+  title: z.string().min(1, "事项标题必填").max(200),
   description: z.string().max(2000).optional().or(z.literal("")),
   assigneeId: z.string().cuid().optional().or(z.literal("")),
   dueAt: z.coerce.date().optional(),
@@ -29,7 +29,7 @@ export type TaskUpdateInput = z.infer<typeof taskUpdateSchema>;
 export async function createTask(input: TaskCreateInput) {
   const session = await requireSession();
   const data = taskCreateSchema.parse(input);
-  await assertCanAccessMatter(session.user.id, session.user.role, data.matterId);
+  await assertCanAssociateMatter(session.user.id, data.matterId);
   await assertMatterWritable(data.matterId);
 
   const created = await prisma.task.create({
@@ -57,7 +57,7 @@ export async function createTask(input: TaskCreateInput) {
     data: {
       matterId: data.matterId,
       eventType: "TASK_ADDED",
-      title: `新增任务：${created.title}`,
+      title: `新增事项：${created.title}`,
       occurredAt: new Date(),
       refType: "Task",
       refId: created.id
@@ -69,8 +69,8 @@ export async function createTask(input: TaskCreateInput) {
     await createNotification({
       userId: data.assigneeId,
       type: "TASK_ASSIGNED",
-      title: "您有新任务",
-      content: `任务「${created.title}」已指派给您`,
+      title: "您有新事项",
+      content: `事项「${created.title}」已指派给您`,
       href: `/matters/${data.matterId}`,
       refType: "Task",
       refId: created.id
@@ -84,7 +84,7 @@ export async function createTask(input: TaskCreateInput) {
 export async function updateTask(input: TaskUpdateInput) {
   const session = await requireSession();
   const data = taskUpdateSchema.parse(input);
-  await assertCanAccessMatter(session.user.id, session.user.role, data.matterId);
+  await assertCanAssociateMatter(session.user.id, data.matterId);
   await assertMatterWritable(data.matterId);
   const { id, matterId, ...rest } = data;
 
@@ -115,7 +115,7 @@ export async function toggleTaskCompleted(id: string) {
   const session = await requireSession();
   const current = await prisma.task.findUnique({ where: { id } });
   if (!current) return { ok: false };
-  await assertCanAccessMatter(session.user.id, session.user.role, current.matterId);
+  await assertCanAssociateMatter(session.user.id, current.matterId);
   await assertMatterWritable(current.matterId);
 
   const next = !current.completed;
@@ -142,7 +142,7 @@ export async function deleteTask(id: string) {
   const session = await requireSession();
   const current = await prisma.task.findUnique({ where: { id } });
   if (!current) return { ok: false };
-  await assertCanAccessMatter(session.user.id, session.user.role, current.matterId);
+  await assertCanAssociateMatter(session.user.id, current.matterId);
   await assertMatterWritable(current.matterId);
 
   await prisma.task.delete({ where: { id } });

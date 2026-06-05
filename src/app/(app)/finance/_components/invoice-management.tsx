@@ -12,6 +12,7 @@ import {
   Upload,
   Download,
   FileCheck2,
+  FileText,
   X
 } from "lucide-react";
 import type { InvoiceRequestStatus } from "@prisma/client";
@@ -36,6 +37,7 @@ import {
   approveInvoiceRequest,
   rejectInvoiceRequest
 } from "@/server/invoices/actions";
+import { recognizeInvoiceFromImage, type RecognizedInvoice } from "@/server/ai/actions";
 import type { InvoiceRequestRow } from "./finance-view";
 
 const STATUS_TABS: { key: InvoiceRequestStatus | "ALL"; label: string }[] = [
@@ -44,6 +46,18 @@ const STATUS_TABS: { key: InvoiceRequestStatus | "ALL"; label: string }[] = [
   { key: "REJECTED", label: "已驳回" },
   { key: "ALL", label: "全部" }
 ];
+
+const INVOICE_TYPE_LABEL = {
+  PLAIN: "普通发票",
+  SPECIAL: "增值税专用发票"
+} as const;
+
+const INVOICE_ITEM_LABEL = {
+  LAWYER_FEE: "律师服务费",
+  CONSULTING_FEE: "法律咨询费",
+  AGENCY_FEE: "代理费",
+  OTHER: "其他法律服务"
+} as const;
 
 export function InvoiceManagementSection({
   requests,
@@ -152,12 +166,9 @@ export function InvoiceManagementSection({
                       <div className="mt-1 rounded-md border border-border bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
                         <div>
                           <span className="text-foreground/70">
-                            {r.invoiceType === "SPECIAL"
-                              ? "增值税专用发票"
-                              : r.invoiceType === "PLAIN"
-                                ? "普通发票"
-                                : "发票"}
+                            {r.invoiceType ? INVOICE_TYPE_LABEL[r.invoiceType] : "发票"}
                           </span>
+                          {r.invoiceItem && <> · 名目：{INVOICE_ITEM_LABEL[r.invoiceItem]}</>}
                           {r.buyerName && <> · 抬头：{r.buyerName}</>}
                           {r.buyerTaxNo && (
                             <> · 税号：<span className="font-mono">{r.buyerTaxNo}</span></>
@@ -179,6 +190,22 @@ export function InvoiceManagementSection({
                           )}
                       </div>
                     )}
+                    {r.evidenceDocs.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {r.evidenceDocs.map((doc) => (
+                          <a
+                            key={doc.id}
+                            href={`/api/documents/${doc.id}/download`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex max-w-64 items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                          >
+                            <FileText className="h-3 w-3 shrink-0" />
+                            <span className="truncate">{doc.name}</span>
+                          </a>
+                        ))}
+                      </div>
+                    )}
                     {r.processNote && (
                       <div className="mt-1 text-[11px] text-destructive/80">
                         财务备注：{r.processNote}
@@ -194,7 +221,7 @@ export function InvoiceManagementSection({
                         className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
                       >
                         <FileCheck2 className="h-3 w-3" />
-                        合同
+                        历史合同
                       </a>
                     )}
                     {r.invoiceFile && (
@@ -267,17 +294,49 @@ function ProcessDialog({
   open: boolean;
   onOpenChange: (o: boolean) => void;
 }) {
-  const [contractFile, setContractFile] = useState<File | null>(null);
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [note, setNote] = useState("");
-  const [invoiceNo, setInvoiceNo] = useState("");
+  const [invoiceNo, setInvoiceNo] = useState(request.invoiceNo ?? "");
+  const [recognized, setRecognized] = useState<RecognizedInvoice | null>(null);
+  const [ocrPending, setOcrPending] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const contractRef = useRef<HTMLInputElement>(null);
   const invoiceRef = useRef<HTMLInputElement>(null);
 
+  async function handleInvoicePick(file: File | null) {
+    setInvoiceFile(file);
+    setRecognized(null);
+    if (!file) {
+      setInvoiceNo(request.invoiceNo ?? "");
+      return;
+    }
+    if (file.size > 6 * 1024 * 1024) {
+      toast.warning("发票文件超过 6MB，已选择文件，请手动填写发票号");
+      return;
+    }
+    setOcrPending(true);
+    try {
+      const fd = new FormData();
+      fd.set("file", file);
+      const res = await recognizeInvoiceFromImage(fd);
+      if (!res.ok) {
+        toast.warning("发票识别未完成", { description: res.message });
+        return;
+      }
+      setRecognized(res.data);
+      if (res.data.invoiceNumber) setInvoiceNo(res.data.invoiceNumber);
+      toast.success(res.data.invoiceNumber ? "已识别并填入发票号" : "已识别发票信息");
+    } catch (err) {
+      toast.warning("发票识别失败", {
+        description: err instanceof Error ? err.message : ""
+      });
+    } finally {
+      setOcrPending(false);
+    }
+  }
+
   function handleSubmit() {
-    if (!contractFile && !invoiceFile && !request.contractScan && !request.invoiceFile) {
-      toast.warning("请至少上传扫描件合同或电子发票");
+    if (request.status === "APPROVED" && !invoiceFile && !request.invoiceFile) {
+      toast.warning("请上传电子发票");
       return;
     }
     if (invoiceFile && !invoiceNo.trim()) {
@@ -289,7 +348,6 @@ function ProcessDialog({
         const fd = new FormData();
         fd.set("requestId", request.id);
         if (note.trim()) fd.set("processNote", note.trim());
-        if (contractFile) fd.set("contractScan", contractFile);
         if (invoiceFile) fd.set("invoiceFile", invoiceFile);
         if (invoiceNo.trim()) fd.set("invoiceNo", invoiceNo.trim());
         const res = await approveInvoiceRequest(fd);
@@ -307,7 +365,7 @@ function ProcessDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-h-[88vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Receipt className="h-4 w-4 text-primary" />
@@ -318,28 +376,42 @@ function ProcessDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 py-2">
-          <FileSlot
-            label="扫描件合同"
-            file={contractFile}
-            existing={request.contractScan?.name ?? null}
-            inputRef={contractRef}
-            onPick={setContractFile}
-          />
-          <FileSlot
-            label="电子发票"
-            file={invoiceFile}
-            existing={request.invoiceFile?.name ?? null}
-            inputRef={invoiceRef}
-            onPick={setInvoiceFile}
-          />
+        <div className="space-y-4 py-2">
+          <RequestSummary request={request} />
+          <EvidencePanel request={request} />
+
+          <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium">电子发票</div>
+                <p className="text-[11px] text-muted-foreground">
+                  选择文件后自动识别发票号、金额、购销方等信息；识别失败时可手动填写。
+                </p>
+              </div>
+            </div>
+            <FileSlot
+              label="上传电子发票"
+              file={invoiceFile}
+              existing={request.invoiceFile}
+              inputRef={invoiceRef}
+              accept="image/*,application/pdf"
+              onPick={handleInvoicePick}
+            />
+            {ocrPending && (
+              <div className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                正在识别发票信息...
+              </div>
+            )}
+            {recognized && <OcrPreview data={recognized} requestedAmount={Number(request.amount)} />}
+          </div>
+
           <div className="space-y-1.5">
             <Label className="text-xs">
               发票号 {invoiceFile && <span className="text-destructive">*</span>}
             </Label>
-            <input
-              type="text"
-              className="h-9 w-full rounded-md border border-input bg-background px-3 font-mono text-sm tabular"
+            <Input
+              className="font-mono tabular"
               placeholder="如 24432000000123456789（上传电子发票时必填）"
               value={invoiceNo}
               onChange={(e) => setInvoiceNo(e.target.value)}
@@ -362,11 +434,162 @@ function ProcessDialog({
           </Button>
           <Button onClick={handleSubmit} disabled={isPending} className="gap-1.5">
             {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            确认
+            {invoiceFile ? "确认开具" : "批准待开票"}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function RequestSummary({ request }: { request: InvoiceRequestRow }) {
+  return (
+    <section className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
+      <div className="text-sm font-medium">申请信息</div>
+      <div className="grid gap-x-4 gap-y-2 text-xs sm:grid-cols-2">
+        <FieldLine label="申请人" value={request.requestedBy.name} />
+        <FieldLine
+          label="申请时间"
+          value={new Date(request.requestedAt).toLocaleString("zh-CN")}
+        />
+        <FieldLine label="开票金额" value={formatCurrency(Number(request.amount))} />
+        <FieldLine
+          label="开票类型"
+          value={request.invoiceType ? INVOICE_TYPE_LABEL[request.invoiceType] : "未填写"}
+        />
+        <FieldLine
+          label="开票名目"
+          value={request.invoiceItem ? INVOICE_ITEM_LABEL[request.invoiceItem] : "未填写"}
+        />
+        <FieldLine label="开票抬头" value={request.buyerName ?? "未填写"} />
+        <FieldLine label="税号" value={request.buyerTaxNo ?? "未填写"} mono />
+        <FieldLine
+          label="关联案件"
+          value={
+            request.matter
+              ? `${request.matter.internalCode} ${request.matter.title}`
+              : `无关联案件${request.noMatterReason ? `：${request.noMatterReason}` : ""}`
+          }
+        />
+        {request.invoiceType === "SPECIAL" && (
+          <>
+            <FieldLine label="购方地址" value={request.buyerAddress ?? "未填写"} />
+            <FieldLine label="购方电话" value={request.buyerPhone ?? "未填写"} mono />
+            <FieldLine label="开户银行" value={request.buyerBank ?? "未填写"} />
+            <FieldLine label="银行账号" value={request.buyerBankAccount ?? "未填写"} mono />
+          </>
+        )}
+      </div>
+      {request.requestNote && (
+        <div className="rounded-md border border-border bg-background px-3 py-2 text-xs text-muted-foreground">
+          申请备注：{request.requestNote}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function EvidencePanel({ request }: { request: InvoiceRequestRow }) {
+  return (
+    <section className="space-y-2 rounded-lg border border-border bg-muted/20 p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-sm font-medium">申请附件</div>
+        <span className="text-[11px] text-muted-foreground">
+          {request.evidenceDocs.length} 个依据附件
+        </span>
+      </div>
+      {request.evidenceDocs.length === 0 && !request.contractScan ? (
+        <p className="rounded-md border border-dashed border-border bg-background py-3 text-center text-xs text-muted-foreground">
+          未随申请上传开票依据
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {request.evidenceDocs.map((doc) => (
+            <DocLink key={doc.id} id={doc.id} name={doc.name} label="依据" />
+          ))}
+          {request.contractScan && (
+            <DocLink id={request.contractScan.id} name={request.contractScan.name} label="历史合同" />
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function OcrPreview({
+  data,
+  requestedAmount
+}: {
+  data: RecognizedInvoice;
+  requestedAmount: number;
+}) {
+  const recognizedAmount = data.totalWithTax ?? data.totalAmount;
+  const mismatch =
+    typeof recognizedAmount === "number" &&
+    Math.abs(recognizedAmount - requestedAmount) >= 0.01;
+
+  return (
+    <div className="rounded-md border border-border bg-background px-3 py-2 text-xs">
+      <div className="mb-1 font-medium text-foreground">识别结果</div>
+      <div className="grid gap-x-4 gap-y-1 text-muted-foreground sm:grid-cols-2">
+        {data.invoiceType && <span>类型：{data.invoiceType}</span>}
+        {data.invoiceNumber && (
+          <span>
+            发票号：<span className="font-mono text-foreground/80">{data.invoiceNumber}</span>
+          </span>
+        )}
+        {data.invoiceDate && <span>开票日：{data.invoiceDate}</span>}
+        {typeof recognizedAmount === "number" && (
+          <span>
+            识别金额：<span className="font-mono text-foreground/80">{formatCurrency(recognizedAmount)}</span>
+          </span>
+        )}
+        {typeof data.taxAmount === "number" && (
+          <span>
+            税额：<span className="font-mono text-foreground/80">{formatCurrency(data.taxAmount)}</span>
+          </span>
+        )}
+        {data.buyerName && <span>购买方：{data.buyerName}</span>}
+        {data.sellerName && <span>销售方：{data.sellerName}</span>}
+      </div>
+      {mismatch && (
+        <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-700 dark:text-amber-300">
+          识别金额与申请金额不一致，请复核后再开具。
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FieldLine({
+  label,
+  value,
+  mono
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="min-w-0">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className={cn("truncate text-foreground/85", mono && "font-mono tabular")}>{value}</div>
+    </div>
+  );
+}
+
+function DocLink({ id, name, label }: { id: string; name: string; label: string }) {
+  return (
+    <a
+      href={`/api/documents/${id}/download`}
+      target="_blank"
+      rel="noreferrer"
+      className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+    >
+      <Download className="h-3.5 w-3.5 shrink-0" />
+      <span className="shrink-0 text-[11px]">{label}</span>
+      <span className="truncate">{name}</span>
+    </a>
   );
 }
 
@@ -375,12 +598,14 @@ function FileSlot({
   file,
   existing,
   inputRef,
+  accept,
   onPick
 }: {
   label: string;
   file: File | null;
-  existing: string | null;
+  existing: { id: string; name: string } | null;
   inputRef: React.RefObject<HTMLInputElement>;
+  accept?: string;
   onPick: (f: File | null) => void;
 }) {
   return (
@@ -389,6 +614,7 @@ function FileSlot({
       <input
         ref={inputRef}
         type="file"
+        accept={accept}
         className="hidden"
         onChange={(e) => onPick(e.target.files?.[0] ?? null)}
       />
@@ -416,9 +642,14 @@ function FileSlot({
           </>
         )}
         {!file && existing && (
-          <span className="flex-1 truncate text-[11px] text-muted-foreground">
-            已存：{existing}（可重传覆盖）
-          </span>
+          <a
+            href={`/api/documents/${existing.id}/download`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex-1 truncate text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            已存：{existing.name}（可重传覆盖）
+          </a>
         )}
       </div>
     </div>

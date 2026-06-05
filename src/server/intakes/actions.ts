@@ -47,9 +47,29 @@ export async function listIntakes(input: Partial<IntakeListQuery> = {}) {
   const session = await requireSession();
   const query = intakeListQuerySchema.parse(input);
 
+  const statusWhere: Prisma.IntakeWhereInput = query.statusIn?.length
+    ? { status: { in: query.statusIn } }
+    : query.status
+      ? { status: query.status }
+      : {};
+
+  const orderBy: Prisma.IntakeOrderByWithRelationInput[] =
+    query.sortBy === "claimAmount"
+      ? [{ claimAmount: query.sortDir }, { receivedAt: "desc" }]
+      : [{ receivedAt: query.sortDir }];
+
   const where: Prisma.IntakeWhereInput = {
     ...intakeVisibilityFilter(session.user.id, session.user.role),
-    ...(query.status ? { status: query.status } : {}),
+    ...statusWhere,
+    ...(query.category ? { category: query.category } : {}),
+    ...(query.receivedAtFrom || query.receivedAtTo
+      ? {
+          receivedAt: {
+            ...(query.receivedAtFrom ? { gte: query.receivedAtFrom } : {}),
+            ...(query.receivedAtTo ? { lte: query.receivedAtTo } : {})
+          }
+        }
+      : {}),
     ...(query.search
       ? {
           OR: [
@@ -64,7 +84,7 @@ export async function listIntakes(input: Partial<IntakeListQuery> = {}) {
   const [items, total] = await Promise.all([
     prisma.intake.findMany({
       where,
-      orderBy: { receivedAt: "desc" },
+      orderBy,
       skip: (query.page - 1) * query.pageSize,
       take: query.pageSize,
       include: {
@@ -435,8 +455,12 @@ export async function convertIntakeToMatter(intakeId: string) {
         ourStanding: intake.ourStanding,
         claimAmount: intake.claimAmount,
         // 是否反诉：按我方地位推断角色（被告提反诉→反诉原告；原告被反诉→反诉被告）
-        counterclaimAsPlaintiff: !!intake.counterclaim && intake.ourStanding === "DEFENDANT",
-        counterclaimAsDefendant: !!intake.counterclaim && intake.ourStanding === "PLAINTIFF",
+        counterclaimAsPlaintiff:
+          !!intake.counterclaim &&
+          (intake.ourStanding === "DEFENDANT" || intake.ourStanding === "JOINT_DEFENDANT"),
+        counterclaimAsDefendant:
+          !!intake.counterclaim &&
+          (intake.ourStanding === "PLAINTIFF" || intake.ourStanding === "JOINT_PLAINTIFF"),
         barFiling: intake.barFiling,
         // v0.35: 非诉/顾问/专项 专属字段带入
         businessType: intake.businessType,

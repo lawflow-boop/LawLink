@@ -76,7 +76,9 @@ export const hearingCreateSchema = z.object({
   startsAt: z.coerce.date(),
   endsAt: z.coerce.date().optional(),
   room: z.string().max(40).optional().or(z.literal("")),
+  address: z.string().max(200).optional().or(z.literal("")),
   judge: z.string().max(40).optional().or(z.literal("")),
+  contact: z.string().max(80).optional().or(z.literal("")),
   notes: z.string().max(2000).optional().or(z.literal(""))
 });
 

@@ -58,7 +58,9 @@ enum IntakeStatus {
 
 enum LitigationStanding {
   PLAINTIFF
+  JOINT_PLAINTIFF
   DEFENDANT
+  JOINT_DEFENDANT
   THIRD_PARTY
   COUNTERCLAIM_PLAINTIFF
   COUNTERCLAIM_DEFENDANT
@@ -715,6 +717,7 @@ model MatterProcedure {
   hearings  Hearing[]
   deadlines Deadline[]
   documents Document[]
+  procedureParties ProcedureParty[]
   // v0.42: 程序备忘录（待办/已办）
   memos     ProcedureMemo[]
 
@@ -772,7 +775,9 @@ model Hearing {
   procedure   MatterProcedure @relation(fields: [procedureId], references: [id], onDelete: Cascade)
   title       String
   room        String?
+  address     String?
   judge       String?
+  contact     String?
   startsAt    DateTime
   endsAt      DateTime?
   notes       String?
@@ -845,6 +850,7 @@ model Party {
   enterpriseSocialCode String?
   enterpriseName       String?
   enterpriseBoundAt    DateTime?
+  procedureParties     ProcedureParty[]
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
 
@@ -852,6 +858,24 @@ model Party {
   @@index([name])
   @@index([idNumber])
   @@index([enterpriseSocialCode])
+}
+
+model ProcedureParty {
+  id          String             @id @default(cuid())
+  procedureId String
+  procedure   MatterProcedure    @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+  partyId     String
+  party       Party              @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  standing    LitigationStanding
+  ordinal     Int                @default(1)
+  note        String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@unique([procedureId, partyId, standing])
+  @@index([procedureId, standing, ordinal])
+  @@index([partyId])
+  @@map("procedure_parties")
 }
 
 model RelatedEntity {

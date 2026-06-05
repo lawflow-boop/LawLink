@@ -7,9 +7,9 @@
  * - **仅在 next start（生产）下生效**。dev 模式不跑（避免开发时误推通知）。
  * - 不支持 serverless（Vercel Edge / Lambda）。LawLink 自部署场景默认是
  *   长驻 Node 进程，OK。
- * - 进程重启会重新注册任务；如果在任务触发时间点重启，可能错过本次。
+ * - 进程重启会重新注册定时作业；如果在触发时间点重启，可能错过本次。
  *
- * 当前任务：
+ * 当前定时作业：
  * - 每周一 09:00 推送本周报告
  * - 每天 09:00 扫描归档逾期 30 天的案件
  * - 每天 03:00 清理超过 N 天的 AuditLog
@@ -25,6 +25,7 @@ import { runWeeklyReportPush } from "@/server/reports/push-weekly";
 import { scanArchiveOverdue } from "./jobs/archive-overdue";
 import { runAuditCleanup } from "./jobs/audit-cleanup";
 import { scanDueReminders } from "./jobs/scan-due-reminders";
+import { scanSealBackfillReminders } from "./jobs/scan-seal-backfill-reminders";
 import { audit } from "@/server/audit";
 
 const TIMEZONE = "Asia/Shanghai";
@@ -103,7 +104,7 @@ export function registerCronJobs() {
     { timezone: TIMEZONE }
   );
 
-  // v0.27: 每天 09:00 扫到期任务/期限（T-3/T-1/T/T+1 四档），发 DEADLINE_REMINDER
+  // v0.27: 每天 09:00 扫到期期限（T-3/T-1/T/T+1 四档），发 DEADLINE_REMINDER
   cron.schedule(
     "0 9 * * *",
     () =>
@@ -115,7 +116,19 @@ export function registerCronJobs() {
     { timezone: TIMEZONE }
   );
 
+  // 每天 09:10 扫描已审批但未回填盖章件的用章申请；同一申请 3 天内不重复提醒
+  cron.schedule(
+    "10 9 * * *",
+    () =>
+      runWithFailureAudit(
+        "用章盖章件回填提醒扫描",
+        "SEAL_BACKFILL_REMINDER_SCAN_FAILED_CRON",
+        () => scanSealBackfillReminders()
+      ),
+    { timezone: TIMEZONE }
+  );
+
   console.log(
-    "[cron] 已注册 4 个定时任务（周报推送 / 归档逾期扫描 / AuditLog 清理 / 到期提醒扫描），时区 Asia/Shanghai"
+    "[cron] 已注册 5 个定时作业（周报推送 / 归档逾期扫描 / AuditLog 清理 / 到期提醒扫描 / 用章回填提醒扫描），时区 Asia/Shanghai"
   );
 }

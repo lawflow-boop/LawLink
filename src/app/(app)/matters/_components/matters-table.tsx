@@ -19,48 +19,43 @@ export type MatterRow = Matter & {
   archiveRecords?: { id: string }[];
   _count: { procedures: number };
   claimAmount: Prisma.Decimal | null;
+  firmCaseNo: string | null;
   intakeDate: Date | null;
+  latestHearingAt: Date | null;
 };
 
-/**
- * v0.28: 列设置。标题 + 状态恒显示，其余 6 列可由用户在列表页勾选显隐。
- * 左侧网格列（收案时间/客户/案由/标的）支持动态显隐并重算列宽。
- */
-export const MATTER_COLUMNS = [
-  { key: "intakeDate", label: "收案时间", side: "left", width: "max-content" },
-  { key: "client", label: "客户", side: "left", width: "18ch" },
-  { key: "cause", label: "案由", side: "left", width: "16ch" },
-  { key: "claim", label: "标的", side: "left", width: "minmax(0, 1fr)" },
-  { key: "code", label: "系统编号", side: "right", width: "" },
-  { key: "owner", label: "主办律师", side: "right", width: "" }
-] as const;
+type MetaColumn = "hearing" | "firmCaseNo";
 
-export type MatterColumnKey = (typeof MATTER_COLUMNS)[number]["key"];
+const MATTER_ROW_GRID =
+  "grid gap-x-4 gap-y-2 lg:grid-cols-[7.5rem_minmax(25rem,1fr)_9rem_8rem_7rem] lg:items-center";
 
-export type ColumnVisibility = Record<MatterColumnKey, boolean>;
+export function CaseListHeader({
+  metaColumn = "hearing"
+}: {
+  metaColumn?: MetaColumn;
+}) {
+  return (
+    <div
+      className={cn(
+        MATTER_ROW_GRID,
+        "hidden border-b border-border bg-muted/30 px-3 py-2 text-[10px] uppercase tracking-wider text-muted-foreground lg:grid"
+      )}
+    >
+      <div>收案时间</div>
+      <div>案件名称</div>
+      <div>标的</div>
+      <div>{metaColumn === "firmCaseNo" ? "所内案号" : "开庭时间"}</div>
+      <div>状态</div>
+    </div>
+  );
+}
 
-const ALL_VISIBLE: ColumnVisibility = {
-  intakeDate: true,
-  client: true,
-  cause: true,
-  claim: true,
-  code: true,
-  owner: true
-};
-
-/**
- * v0.17: 案件列表卡片 - 统一两行 + 角落定位
- * 布局：
- *   左上: 标题 + 状态 chip          | 右上: 系统编号
- *   左下: 收案/委托/案由/标的 4 列   | 右下: 主办律师
- * 左侧 3px category 竖条作为唯一彩色装饰
- */
 export function MattersTable({
   items,
-  visible = ALL_VISIBLE
+  metaColumn = "hearing"
 }: {
   items: MatterRow[];
-  visible?: ColumnVisibility;
+  metaColumn?: MetaColumn;
 }) {
   if (items.length === 0) {
     return (
@@ -74,34 +69,36 @@ export function MattersTable({
   }
 
   return (
-    <ul className="space-y-2.5">
-      {items.map((m) => (
-        <CaseListCard
-          key={m.id}
-          href={`/matters/${m.id}`}
-          title={m.title}
-          accent={matterCategoryColor[m.category]}
-          status={{
-            label:
-              (m.archiveRecords?.length ?? 0) > 0
-                ? "归档中"
-                : matterStatusLabel[m.status],
-            dot:
-              (m.archiveRecords?.length ?? 0) > 0
-                ? MATTER_STATUS_DOT.ARCHIVED
-                : MATTER_STATUS_DOT[m.status]
-          }}
-          categoryShort={matterCategoryShort[m.category]}
-          internalCode={m.internalCode}
-          owner={m.owner?.name ?? null}
-          intakeDate={m.intakeDate}
-          clientName={m.primaryClient?.name ?? null}
-          causeText={m.cause?.name ?? m.causeFreeText ?? null}
-          claimAmount={m.claimAmount ? Number(m.claimAmount) : null}
-          visible={visible}
-        />
-      ))}
-    </ul>
+    <div className="ll-surface overflow-hidden rounded-lg">
+      <CaseListHeader metaColumn={metaColumn} />
+      <ul>
+        {items.map((m) => (
+          <CaseListCard
+            key={m.id}
+            href={`/matters/${m.id}`}
+            title={m.title}
+            accent={matterCategoryColor[m.category]}
+            status={{
+              label:
+                (m.archiveRecords?.length ?? 0) > 0
+                  ? "归档中"
+                  : matterStatusLabel[m.status],
+              dot:
+                (m.archiveRecords?.length ?? 0) > 0
+                  ? MATTER_STATUS_DOT.ARCHIVED
+                  : MATTER_STATUS_DOT[m.status]
+            }}
+            categoryShort={matterCategoryShort[m.category]}
+            intakeDate={m.intakeDate}
+            latestHearingAt={m.latestHearingAt}
+            firmCaseNo={m.firmCaseNo}
+            claimAmount={m.claimAmount ? Number(m.claimAmount) : null}
+            metaColumn={metaColumn}
+            inTable
+          />
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -120,159 +117,140 @@ export function CaseListCard({
   accent,
   status,
   categoryShort,
-  internalCode,
-  owner,
   intakeDate,
-  clientName,
-  causeText,
+  latestHearingAt = null,
+  firmCaseNo = null,
   claimAmount,
-  visible = ALL_VISIBLE
+  metaColumn = "hearing",
+  inTable = false
 }: {
   href: string;
   title: string;
   accent: string;
   status: { label: string; dot: string };
   categoryShort: string;
-  internalCode: string | null;
-  owner: string | null;
   intakeDate: Date | null;
-  clientName: string | null;
-  causeText: string | null;
+  latestHearingAt?: Date | null;
+  firmCaseNo?: string | null;
   claimAmount: number | null;
-  visible?: ColumnVisibility;
+  metaColumn?: MetaColumn;
+  inTable?: boolean;
 }) {
-  // 左侧网格列按显隐重算 grid-template-columns，保证对齐
-  const leftCols = MATTER_COLUMNS.filter(
-    (c) => c.side === "left" && visible[c.key]
-  );
-  const gridTemplate =
-    leftCols.length > 0
-      ? leftCols.map((c) => c.width).join(" ")
-      : "minmax(0, 1fr)";
   return (
-    <li>
+    <li className={cn(inTable ? "border-t border-border first:border-t-0" : "rounded-lg border border-border bg-card")}>
       <Link
         href={href}
-        className="group block rounded-lg border border-border bg-card px-5 py-4 transition-colors hover:border-foreground/30"
+        className={cn(
+          "group block transition-colors",
+          inTable ? "px-3 py-2.5 hover:bg-muted/30" : "rounded-lg px-4 py-3 hover:bg-muted/40"
+        )}
       >
-        {/* 两列布局：左主信息 + 右编号/主办 */}
-        <div className="flex items-stretch gap-4">
+        <div className={MATTER_ROW_GRID}>
+          <DataCell label="收案时间">
+            <span className="font-mono tabular-nums text-foreground/70">
+              {formatDate(intakeDate)}
+            </span>
+          </DataCell>
+
           <div className="min-w-0 flex-1">
-            {/* 左上：类别图标 + 标题 */}
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <div className="flex min-w-0 items-center gap-2">
               <span
                 aria-hidden
-                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] font-semibold leading-none text-white"
-                style={{ background: accent }}
+                className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-sm border px-1 text-[10.5px] font-medium leading-none"
+                style={{
+                  background: `${accent}14`,
+                  borderColor: `${accent}66`,
+                  color: accent
+                }}
               >
                 {categoryShort}
               </span>
-              <span className="text-[15px] font-medium text-foreground transition-colors group-hover:text-primary">
+              <span className="min-w-0 truncate text-[12px] font-normal leading-5 text-primary">
                 {title || "（未命名）"}
               </span>
             </div>
+          </div>
 
-            {/* 左下：列宽 grid（按显隐动态重算），位置永远对齐 */}
-            {leftCols.length > 0 && (
-              <div
-                className="mt-2 grid items-baseline gap-x-6 gap-y-1 text-[12.5px]"
-                style={{ gridTemplateColumns: gridTemplate }}
+          <DataCell label="标的">
+            <span className="font-mono tabular-nums text-foreground/75">
+              {claimAmount != null ? formatCurrency(claimAmount) : "—"}
+            </span>
+          </DataCell>
+
+          <DataCell label={metaColumn === "firmCaseNo" ? "所内案号" : "开庭时间"}>
+            {metaColumn === "firmCaseNo" ? (
+              <span className="font-mono tabular-nums text-foreground/75">
+                {firmCaseNo || "—"}
+              </span>
+            ) : (
+              <span
+                className={cn(
+                  "font-mono tabular-nums",
+                  latestHearingAt ? "text-primary" : "text-muted-foreground/55"
+                )}
               >
-                {visible.intakeDate && (
-                  <Cell label="收案时间" noTruncate>
-                    {intakeDate ? (
-                      <span className="font-mono">
-                        {new Date(intakeDate).toLocaleDateString("zh-CN")}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground/60">—</span>
-                    )}
-                  </Cell>
-                )}
-                {visible.client && (
-                  <Cell label="客户" title={clientName ?? undefined}>
-                    {clientName ?? <span className="text-muted-foreground/60">—</span>}
-                  </Cell>
-                )}
-                {visible.cause && (
-                  <Cell label="案由" title={causeText ?? undefined}>
-                    {causeText ?? <span className="text-muted-foreground/60">—</span>}
-                  </Cell>
-                )}
-                {visible.claim && (
-                  <Cell label="标的">
-                    {claimAmount != null ? (
-                      <span className="font-mono">
-                        {formatCurrency(claimAmount, { compact: true })}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground/60">—</span>
-                    )}
-                  </Cell>
-                )}
-              </div>
+                {formatDateTime(latestHearingAt)}
+              </span>
             )}
-          </div>
+          </DataCell>
 
-          {/* 右侧上下分：上=系统编号 + 状态 chip；下=主办律师 */}
-          <div className="hidden w-52 shrink-0 sm:flex flex-col items-end justify-between gap-2 text-[12.5px] text-muted-foreground">
-            <div className="flex items-center gap-2">
-              {visible.code && internalCode && (
-                <span className="font-mono text-[12px]">{internalCode}</span>
-              )}
-              <StatusChip label={status.label} dot={status.dot} />
-            </div>
-            {visible.owner && (
-              <div className="flex items-baseline gap-1">
-                <span>主办：</span>
-                <span className="text-foreground/80">{owner ?? "—"}</span>
-              </div>
-            )}
-          </div>
-          {/* 移动端：编号+状态+律师一行 */}
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground sm:hidden">
-            {visible.code && internalCode && (
-              <span className="font-mono text-[11px]">{internalCode}</span>
-            )}
+          <DataCell label="状态">
             <StatusChip label={status.label} dot={status.dot} />
-            {visible.owner && <span>主办：{owner ?? "—"}</span>}
-          </div>
+          </DataCell>
         </div>
       </Link>
     </li>
   );
 }
 
-function Cell({
+function DataCell({
   label,
-  title,
-  noTruncate,
+  className,
   children
 }: {
   label: string;
-  title?: string;
-  noTruncate?: boolean;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 items-baseline gap-1">
-      <span className="shrink-0 text-[11px] text-muted-foreground/70">{label}：</span>
-      <span
-        className={cn("text-foreground/90", noTruncate ? "whitespace-nowrap" : "truncate")}
-        title={title}
-      >
-        {children}
+    <div className={cn("flex min-w-0 items-center gap-1 text-[12px] text-muted-foreground lg:block", className)}>
+      <span className="shrink-0 text-[11px] text-muted-foreground/60 lg:hidden">
+        {label}：
       </span>
+      {children}
     </div>
   );
+}
+
+function formatDate(value: Date | null) {
+  if (!value) return "—";
+  return new Date(value).toLocaleDateString("zh-CN");
+}
+
+function formatDateTime(value: Date | null) {
+  if (!value) return "暂无开庭";
+  const date = new Date(value);
+  const yyyy = date.getFullYear();
+  const mm = pad2(date.getMonth() + 1);
+  const dd = pad2(date.getDate());
+  const hh = pad2(date.getHours());
+  const min = pad2(date.getMinutes());
+  return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+}
+
+function pad2(value: number) {
+  return value.toString().padStart(2, "0");
 }
 
 function StatusChip({ label, dot }: { label: string; dot: string }) {
   return (
     <span
-      className={cn(
-        "inline-flex h-5 items-center gap-1.5 rounded-full border border-border bg-muted/60 px-2 text-[11px] text-foreground/75"
-      )}
+      className="inline-flex h-5 items-center gap-1.5 whitespace-nowrap rounded-full border px-2 text-[10.5px]"
+      style={{
+        background: `${dot}12`,
+        borderColor: `${dot}55`,
+        color: dot
+      }}
     >
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: dot }} />
       {label}

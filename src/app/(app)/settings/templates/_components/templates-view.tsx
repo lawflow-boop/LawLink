@@ -8,8 +8,7 @@ import {
   Trash2,
   Loader2,
   Pencil,
-  Save,
-  X
+  Save
 } from "lucide-react";
 import type { ProcedureType, StageTemplate } from "@prisma/client";
 import { Button } from "@/components/ui/button";
@@ -32,7 +31,6 @@ import {
 } from "@/components/ui/dialog";
 import { upsertStageTemplate } from "@/server/settings/actions";
 import { procedureTypeLabel } from "@/lib/enums";
-import { cn } from "@/lib/utils";
 
 const ALL_PROCEDURE_TYPES: ProcedureType[] = [
   "FIRST_INSTANCE",
@@ -59,7 +57,7 @@ const ALL_PROCEDURE_TYPES: ProcedureType[] = [
   "CUSTOM"
 ];
 
-type Step = { name: string; order: number; defaultTasks: string[] };
+type Step = { name: string; order: number; defaultTasks?: string[] };
 
 export function TemplatesView({ templates }: { templates: StageTemplate[] }) {
   const [selected, setSelected] = useState<ProcedureType>(
@@ -97,7 +95,7 @@ export function TemplatesView({ templates }: { templates: StageTemplate[] }) {
               {procedureTypeLabel[selected]} — {current?.name ?? "未配置"}
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              新建程序时将自动套用此模板的阶段；每个阶段可携带默认任务
+              新建程序时将自动套用此模板的阶段
             </p>
           </div>
           <Button size="sm" onClick={() => setEditing(true)} className="gap-1.5">
@@ -126,16 +124,6 @@ export function TemplatesView({ templates }: { templates: StageTemplate[] }) {
                     </span>
                     <span className="text-sm font-medium">{s.name}</span>
                   </div>
-                  {s.defaultTasks.length > 0 && (
-                    <ul className="ml-8 mt-2 space-y-1 text-xs text-muted-foreground">
-                      {s.defaultTasks.map((t, i) => (
-                        <li key={i} className="flex items-center gap-1.5">
-                          <span className="h-1 w-1 rounded-full bg-muted-foreground/50" />
-                          {t}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
                 </li>
               ))}
           </ol>
@@ -189,24 +177,10 @@ function EditTemplateDialog({
     setSteps(next);
   }
 
-  function addTask(idx: number, text: string) {
-    const t = text.trim();
-    if (!t) return;
-    updateStep(idx, {
-      defaultTasks: [...steps[idx].defaultTasks, t]
-    });
-  }
-
-  function removeTask(stepIdx: number, taskIdx: number) {
-    updateStep(stepIdx, {
-      defaultTasks: steps[stepIdx].defaultTasks.filter((_, i) => i !== taskIdx)
-    });
-  }
-
   function handleSave() {
     const cleaned = steps
       .filter((s) => s.name.trim())
-      .map((s, i) => ({ ...s, name: s.name.trim(), order: i + 1 }));
+      .map((s, i) => ({ name: s.name.trim(), order: i + 1, defaultTasks: [] }));
     if (cleaned.length === 0) {
       toast.warning("至少需要一个阶段");
       return;
@@ -270,39 +244,6 @@ function EditTemplateDialog({
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
-                </div>
-                <div className="ml-7 mt-2">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {s.defaultTasks.map((t, ti) => (
-                      <span
-                        key={ti}
-                        className={cn(
-                          "inline-flex items-center gap-1 rounded-md border border-border bg-popover px-2 py-0.5 text-[11px]"
-                        )}
-                      >
-                        {t}
-                        <button
-                          type="button"
-                          onClick={() => removeTask(idx, ti)}
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    ))}
-                    <input
-                      type="text"
-                      placeholder="+ 默认任务（回车添加）"
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addTask(idx, (e.target as HTMLInputElement).value);
-                          (e.target as HTMLInputElement).value = "";
-                        }
-                      }}
-                      className="flex-1 min-w-32 border-0 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-                    />
-                  </div>
                 </div>
               </li>
             ))}

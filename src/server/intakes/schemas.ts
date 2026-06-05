@@ -15,7 +15,9 @@ export const clientTypeSchema = z.enum(["INDIVIDUAL", "COMPANY", "ORGANIZATION"]
 
 export const litigationStandingSchema = z.enum([
   "PLAINTIFF",
+  "JOINT_PLAINTIFF",
   "DEFENDANT",
+  "JOINT_DEFENDANT",
   "THIRD_PARTY",
   "COUNTERCLAIM_PLAINTIFF",
   "COUNTERCLAIM_DEFENDANT",
@@ -104,7 +106,13 @@ export const intakeUpdateSchema = intakeCreateSchema.extend({
 
 export const intakeListQuerySchema = z.object({
   search: z.string().optional(),
+  category: matterCategorySchema.optional(),
   status: intakeStatusSchema.optional(),
+  statusIn: z.array(intakeStatusSchema).optional(),
+  receivedAtFrom: z.coerce.date().optional(),
+  receivedAtTo: z.coerce.date().optional(),
+  sortBy: z.enum(["intakeDate", "claimAmount"]).default("intakeDate"),
+  sortDir: z.enum(["asc", "desc"]).default("desc"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20)
 });

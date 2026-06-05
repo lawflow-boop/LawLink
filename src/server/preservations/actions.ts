@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { assertMatterWritable } from "@/lib/archive/guard";
-import { assertCanAccessMatter } from "@/lib/permissions";
+import { assertCanAssociateMatter, matterAssociationFilter } from "@/lib/permissions";
 import {
   preservationCreateSchema,
   preservationUpdateSchema,
@@ -20,19 +20,30 @@ import {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 export async function listPreservations(input?: z.input<typeof preservationListFilterSchema>) {
-  await requireSession();
+  const session = await requireSession();
   const filter = preservationListFilterSchema.parse(input ?? {});
 
-  const where: Prisma.PreservationWhereInput = {};
+  const accessWhere: Prisma.PreservationWhereInput = {
+    OR: [
+      { matter: { deletedAt: null, ...matterAssociationFilter(session.user.id) } },
+      { matterId: null, ownerId: session.user.id }
+    ]
+  };
+  const where: Prisma.PreservationWhereInput = { AND: [accessWhere] };
   if (filter.status !== "ALL") where.status = filter.status;
   if (filter.matterId) where.matterId = filter.matterId;
   if (filter.search) {
-    where.OR = [
-      { respondent: { contains: filter.search, mode: "insensitive" } },
-      { propertyDetail: { contains: filter.search, mode: "insensitive" } },
-      { rulingNumber: { contains: filter.search, mode: "insensitive" } },
-      { matter: { title: { contains: filter.search, mode: "insensitive" } } },
-      { matter: { internalCode: { contains: filter.search, mode: "insensitive" } } }
+    where.AND = [
+      accessWhere,
+      {
+        OR: [
+          { respondent: { contains: filter.search, mode: "insensitive" } },
+          { propertyDetail: { contains: filter.search, mode: "insensitive" } },
+          { rulingNumber: { contains: filter.search, mode: "insensitive" } },
+          { matter: { title: { contains: filter.search, mode: "insensitive" } } },
+          { matter: { internalCode: { contains: filter.search, mode: "insensitive" } } }
+        ]
+      }
     ];
   }
 
@@ -48,7 +59,8 @@ export async function listPreservations(input?: z.input<typeof preservationListF
 }
 
 export async function getPreservation(id: string) {
-  await requireSession();
+  const session = await requireSession();
+  await assertCanAccessPreservation(session.user.id, id);
   return prisma.preservation.findUnique({
     where: { id },
     include: {
@@ -62,9 +74,33 @@ export async function getPreservation(id: string) {
   });
 }
 
+type PreservationAccess = {
+  id: string;
+  matterId: string | null;
+  ownerId: string | null;
+};
+
+async function assertCanAccessPreservationRecord(userId: string, record: PreservationAccess) {
+  if (record.matterId) {
+    await assertCanAssociateMatter(userId, record.matterId);
+    return;
+  }
+  if (record.ownerId !== userId) throw new Error("无权操作此保全记录");
+}
+
+async function assertCanAccessPreservation(userId: string, id: string) {
+  const record = await prisma.preservation.findUnique({
+    where: { id },
+    select: { id: true, matterId: true, ownerId: true }
+  });
+  if (!record) throw new Error("保全记录不存在");
+  await assertCanAccessPreservationRecord(userId, record);
+  return record;
+}
+
 // 用于 dashboard 预警
 export async function listExpiringPreservations(daysAhead = 60) {
-  await requireSession();
+  const session = await requireSession();
   const now = new Date();
   const end = new Date();
   end.setDate(end.getDate() + daysAhead);
@@ -72,7 +108,11 @@ export async function listExpiringPreservations(daysAhead = 60) {
   return prisma.preservation.findMany({
     where: {
       status: { in: ["ACTIVE", "RENEWED"] },
-      expiryDate: { lte: end }
+      expiryDate: { lte: end },
+      OR: [
+        { matter: { deletedAt: null, ...matterAssociationFilter(session.user.id) } },
+        { matterId: null, ownerId: session.user.id }
+      ]
     },
     orderBy: { expiryDate: "asc" },
     include: {
@@ -96,7 +136,7 @@ export async function createPreservation(input: z.infer<typeof preservationCreat
       select: { id: true }
     });
     if (!m) throw new Error("关联案件不存在");
-    await assertCanAccessMatter(session.user.id, session.user.role, data.matterId);
+    await assertCanAssociateMatter(session.user.id, data.matterId);
     await assertMatterWritable(data.matterId);
   }
 
@@ -147,12 +187,12 @@ export async function updatePreservation(input: z.infer<typeof preservationUpdat
   });
   if (!existing) throw new Error("保全记录不存在");
   if (existing.matterId) {
-    await assertCanAccessMatter(session.user.id, session.user.role, existing.matterId);
+    await assertCanAssociateMatter(session.user.id, existing.matterId);
     await assertMatterWritable(existing.matterId);
   }
   if (matterId !== undefined && matterId !== existing.matterId) {
     if (matterId) {
-      await assertCanAccessMatter(session.user.id, session.user.role, matterId);
+      await assertCanAssociateMatter(session.user.id, matterId);
       await assertMatterWritable(matterId);
     }
   }
@@ -195,12 +235,12 @@ export async function renewPreservation(input: z.infer<typeof preservationRenewS
 
   const pres = await prisma.preservation.findUnique({
     where: { id: data.id },
-    select: { id: true, expiryDate: true, matterId: true, status: true }
+    select: { id: true, expiryDate: true, matterId: true, ownerId: true, status: true }
   });
   if (!pres) throw new Error("保全记录不存在");
+  await assertCanAccessPreservationRecord(session.user.id, pres);
   if (pres.status === "LIFTED") throw new Error("已解除的保全不可续保");
   if (pres.matterId) {
-    await assertCanAccessMatter(session.user.id, session.user.role, pres.matterId);
     await assertMatterWritable(pres.matterId);
   }
   if (data.newExpiryDate <= pres.expiryDate) {
@@ -247,11 +287,11 @@ export async function liftPreservation(input: z.infer<typeof preservationLiftSch
 
   const pres = await prisma.preservation.findUnique({
     where: { id: data.id },
-    select: { id: true, matterId: true, note: true }
+    select: { id: true, matterId: true, ownerId: true, note: true }
   });
   if (!pres) throw new Error("保全记录不存在");
+  await assertCanAccessPreservationRecord(session.user.id, pres);
   if (pres.matterId) {
-    await assertCanAccessMatter(session.user.id, session.user.role, pres.matterId);
     await assertMatterWritable(pres.matterId);
   }
 
@@ -285,11 +325,11 @@ export async function deletePreservation(input: z.infer<typeof preservationIdSch
 
   const pres = await prisma.preservation.findUnique({
     where: { id: data.id },
-    select: { id: true, matterId: true }
+    select: { id: true, matterId: true, ownerId: true }
   });
   if (!pres) throw new Error("保全记录不存在");
+  await assertCanAccessPreservationRecord(session.user.id, pres);
   if (pres.matterId) {
-    await assertCanAccessMatter(session.user.id, session.user.role, pres.matterId);
     await assertMatterWritable(pres.matterId);
   }
 

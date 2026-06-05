@@ -92,11 +92,6 @@ export default async function SettingsLayout({
               </>
             )}
           </ul>
-          {!isAdmin && (
-            <p className="mt-3 px-2 text-[11px] text-muted-foreground">
-              用户管理、模板和审计日志仅 ADMIN 可见
-            </p>
-          )}
         </nav>
 
         <div className="lg:col-span-4">{children}</div>

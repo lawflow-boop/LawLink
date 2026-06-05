@@ -1,4 +1,4 @@
-import { Briefcase, CheckCircle2, Archive, Wallet, ListTodo } from "lucide-react";
+import { Briefcase, CheckCircle2, Archive, Wallet } from "lucide-react";
 import type { LawyerWeeklyDigest } from "@/server/reports/weekly";
 
 export function MyWeeklyCard({ digest }: { digest: LawyerWeeklyDigest }) {
@@ -14,12 +14,6 @@ export function MyWeeklyCard({ digest }: { digest: LawyerWeeklyDigest }) {
       }),
       color: "#F5A742",
       Icon: Wallet
-    },
-    {
-      label: "本周到期任务",
-      value: digest.tasksDueThisWeek,
-      color: "#E94B5C",
-      Icon: ListTodo
     }
   ];
 
@@ -29,7 +23,7 @@ export function MyWeeklyCard({ digest }: { digest: LawyerWeeklyDigest }) {
         <h3 className="text-sm font-medium">{digest.userName} · 本周摘要</h3>
         <span className="font-mono text-[10px] text-muted-foreground">{digest.period.label}</span>
       </header>
-      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {items.map(({ label, value, color, Icon }) => (
           <div key={label} className="rounded border border-border bg-background px-2 py-2">
             <div className="flex items-center gap-1 text-[10px] text-muted-foreground">

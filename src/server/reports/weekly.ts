@@ -29,7 +29,6 @@ export type LawyerWeeklyDigest = {
   closed: number;
   archived: number;
   receivedAmount: number;
-  tasksDueThisWeek: number;
 };
 
 /**
@@ -42,7 +41,7 @@ export async function getLawyerWeeklyDigest(input: {
 }): Promise<LawyerWeeklyDigest> {
   const period = input.period ?? weekPeriod();
 
-  const [newIntake, closed, archived, fees, tasks] = await Promise.all([
+  const [newIntake, closed, archived, fees] = await Promise.all([
     prisma.matter.count({
       where: {
         ownerId: input.userId,
@@ -71,13 +70,6 @@ export async function getLawyerWeeklyDigest(input: {
         matter: { ownerId: input.userId }
       },
       _sum: { amount: true }
-    }),
-    prisma.task.count({
-      where: {
-        completed: false,
-        dueAt: { gte: period.start, lt: period.end },
-        matter: { ownerId: input.userId, deletedAt: null }
-      }
     })
   ]);
 
@@ -88,8 +80,7 @@ export async function getLawyerWeeklyDigest(input: {
     newIntake,
     closed,
     archived,
-    receivedAmount: fees._sum.amount ? Number(fees._sum.amount) : 0,
-    tasksDueThisWeek: tasks
+    receivedAmount: fees._sum.amount ? Number(fees._sum.amount) : 0
   };
 }
 
@@ -98,8 +89,7 @@ export function formatWeeklyDigestContent(d: LawyerWeeklyDigest): string {
     `新收 ${d.newIntake} 件`,
     `已结 ${d.closed} 件`,
     `已归档 ${d.archived} 件`,
-    `收款 ${d.receivedAmount.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 元`,
-    `本周到期任务 ${d.tasksDueThisWeek} 项`
+    `收款 ${d.receivedAmount.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 元`
   ];
   return parts.join(" · ");
 }

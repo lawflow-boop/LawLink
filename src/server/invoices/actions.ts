@@ -7,7 +7,12 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
 import { assertMatterWritable } from "@/lib/archive/guard";
-import { assertCanAccessMatter, assertManagerOrRole } from "@/lib/permissions";
+import {
+  assertCanAccessMatter,
+  assertCanAssociateMatter,
+  isManager,
+  matterVisibilityFilter
+} from "@/lib/permissions";
 import { storage } from "@/lib/storage";
 import { validateUploadedFile } from "@/lib/storage/file-validator";
 import { encryptBuffer, sha256 } from "@/lib/storage/crypto";
@@ -18,6 +23,28 @@ function requireFinanceOrApprover(role: string) {
   if (role !== "FINANCE" && role !== "ADMIN" && role !== "PRINCIPAL_LAWYER") {
     throw new Error("仅财务 / 管理员 / 主任律师可处理开票");
   }
+}
+
+function canReviewInvoiceRequests(role: string) {
+  return isManager(role) || role === "FINANCE";
+}
+
+function invoiceRequestVisibilityWhere(
+  userId: string,
+  role: string
+): Prisma.InvoiceRequestWhereInput {
+  if (canReviewInvoiceRequests(role)) return {};
+  return {
+    OR: [
+      { requestedById: userId },
+      {
+        matter: {
+          deletedAt: null,
+          ...matterVisibilityFilter(userId, role)
+        }
+      }
+    ]
+  };
 }
 
 /** 律师在案件详情提交开票申请 */
@@ -31,6 +58,7 @@ const createSchema = z.object({
 export async function createInvoiceRequest(input: z.infer<typeof createSchema>) {
   const session = await requireSession();
   const data = createSchema.parse(input);
+  await assertCanAssociateMatter(session.user.id, data.matterId);
   await assertMatterWritable(data.matterId);
 
   // 申请权限：LEAD / CO_LEAD / ADMIN / PRINCIPAL_LAWYER
@@ -72,12 +100,11 @@ export async function createInvoiceRequest(input: z.infer<typeof createSchema>) 
 
 export async function listInvoiceRequests(filter?: { status?: "PENDING" | "ISSUED" | "REJECTED" | "APPROVED" }) {
   const session = await requireSession();
-  // 全所开票队列：仅财务 / 管理员 / 主任律师可见
-  assertManagerOrRole(session.user.role, "FINANCE");
-  const where: Prisma.InvoiceRequestWhereInput = filter?.status
-    ? { status: filter.status }
-    : {};
-  return prisma.invoiceRequest.findMany({
+  const where: Prisma.InvoiceRequestWhereInput = {
+    ...invoiceRequestVisibilityWhere(session.user.id, session.user.role),
+    ...(filter?.status ? { status: filter.status } : {})
+  };
+  const rows = await prisma.invoiceRequest.findMany({
     where,
     orderBy: [{ status: "asc" }, { requestedAt: "desc" }],
     include: {
@@ -88,6 +115,23 @@ export async function listInvoiceRequests(filter?: { status?: "PENDING" | "ISSUE
       invoiceFile: { select: { id: true, name: true } }
     }
   });
+
+  const evidenceIds = Array.from(new Set(rows.flatMap((row) => row.evidenceDocIds)));
+  const docs = evidenceIds.length
+    ? await prisma.document.findMany({
+        where: { id: { in: evidenceIds }, deletedAt: null },
+        select: { id: true, name: true, size: true, mimeType: true, createdAt: true }
+      })
+    : [];
+  const docMap = new Map(docs.map((doc) => [doc.id, doc]));
+
+  return rows.map((row) => ({
+    ...row,
+    amount: Number(row.amount),
+    evidenceDocs: row.evidenceDocIds
+      .map((id) => docMap.get(id))
+      .filter((doc): doc is (typeof docs)[number] => Boolean(doc))
+  }));
 }
 
 export async function listInvoiceRequestsByMatter(matterId: string) {
@@ -106,10 +150,12 @@ export async function listInvoiceRequestsByMatter(matterId: string) {
 }
 
 /**
- * 财务批准 + 上传扫描件合同 + 上传电子发票。FormData：
+ * 财务批准 + 上传电子发票。FormData：
  *   requestId, processNote?, contractScan(File?), invoiceFile(File?)
- * - 仅 contractScan：状态 APPROVED
- * - contractScan + invoiceFile 都有：状态 ISSUED
+ * - 不传 invoiceFile：状态 APPROVED
+ * - 传 invoiceFile：状态 ISSUED
+ *
+ * contractScan 仅保留兼容旧数据流；申请依据应由申请人上传到 evidenceDocIds。
  */
 export async function approveInvoiceRequest(formData: FormData) {
   const session = await requireSession();
@@ -135,12 +181,12 @@ export async function approveInvoiceRequest(formData: FormData) {
   let contractScanDocId: string | undefined;
   let invoiceFileDocId: string | undefined;
 
-  // 上传扫描件合同
+  // 兼容旧流程：历史上允许财务补传扫描件合同；新流程由申请人上传 evidenceDocIds。
   if (contractScan instanceof File && contractScan.size > 0) {
     validateUploadedFile(contractScan, { purpose: "invoice", maxBytes: MAX_FILE_SIZE });
     const raw = Buffer.from(await contractScan.arrayBuffer());
     const enc = encryptBuffer(raw);
-    const path = await storage.writeFile(`m_${existing.matterId}`, enc.ciphertext);
+    const path = await storage.writeFile(storageScope(existing.matterId, requestId), enc.ciphertext);
     const doc = await prisma.document.create({
       data: {
         matterId: existing.matterId,
@@ -166,7 +212,7 @@ export async function approveInvoiceRequest(formData: FormData) {
     validateUploadedFile(invoiceFile, { purpose: "invoice", maxBytes: MAX_FILE_SIZE });
     const raw = Buffer.from(await invoiceFile.arrayBuffer());
     const enc = encryptBuffer(raw);
-    const path = await storage.writeFile(`m_${existing.matterId}`, enc.ciphertext);
+    const path = await storage.writeFile(storageScope(existing.matterId, requestId), enc.ciphertext);
     const doc = await prisma.document.create({
       data: {
         matterId: existing.matterId,
@@ -224,9 +270,13 @@ export async function approveInvoiceRequest(formData: FormData) {
     }
   });
 
-  revalidatePath(`/matters/${existing.matterId}`);
+  if (existing.matterId) revalidatePath(`/matters/${existing.matterId}`);
   revalidatePath("/finance");
   return { ok: true, status: finalStatus };
+}
+
+function storageScope(matterId: string | null, requestId: string) {
+  return matterId ? `m_${matterId}` : `invoice_${requestId}`;
 }
 
 const rejectSchema = z.object({
@@ -264,23 +314,31 @@ export async function rejectInvoiceRequest(input: z.infer<typeof rejectSchema>) 
     detail: { matterId: existing.matterId, reason: data.reason }
   });
 
-  revalidatePath(`/matters/${existing.matterId}`);
+  if (existing.matterId) revalidatePath(`/matters/${existing.matterId}`);
   revalidatePath("/finance");
   return { ok: true };
 }
 
 /** 财务页 KPI：本月已开票合计 */
 export async function getInvoiceStats() {
-  await requireSession();
+  const session = await requireSession();
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const visibilityWhere = invoiceRequestVisibilityWhere(session.user.id, session.user.role);
   const issued = await prisma.invoiceRequest.aggregate({
-    where: { status: "ISSUED", processedAt: { gte: monthStart } },
+    where: {
+      ...visibilityWhere,
+      status: "ISSUED",
+      processedAt: { gte: monthStart }
+    },
     _sum: { amount: true },
     _count: true
   });
   const pendingCount = await prisma.invoiceRequest.count({
-    where: { status: "PENDING" }
+    where: {
+      ...visibilityWhere,
+      status: "PENDING"
+    }
   });
   return {
     monthlyIssued: Number(issued._sum.amount ?? 0),

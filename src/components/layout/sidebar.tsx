@@ -31,7 +31,7 @@ export function NavContent({ firm }: { firm: FirmBrand }) {
       <Link
         href="/"
         className="flex h-14 items-center gap-2.5 px-5 transition-colors hover:bg-muted/50"
-        aria-label="返回仪表盘"
+        aria-label="返回工作台"
       >
         {firm.logoDataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { AlertTriangle, Calendar, Clock, ArrowRight } from "lucide-react";
+import { AlertTriangle, Calendar, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ScheduleItem } from "@/server/dashboard/actions";
 
 const typeMeta = {
   deadline: { icon: AlertTriangle, color: "text-amber-600", label: "期限" },
-  hearing: { icon: Calendar, color: "text-primary", label: "开庭" },
-  task: { icon: Clock, color: "text-primary", label: "任务" }
+  hearing: { icon: Calendar, color: "text-primary", label: "开庭" }
 };
 
 export function ScheduleList({ data }: { data: ScheduleItem[] }) {
@@ -31,7 +30,7 @@ export function ScheduleList({ data }: { data: ScheduleItem[] }) {
         <div>
           <h2 className="text-lg font-medium tracking-tight">近期日程</h2>
           <p className="mt-0.5 text-[10.5px] text-muted-foreground">
-            未来 30 天 · 开庭 / 期限 / 任务 · 按时间排序
+            未来 30 天 · 开庭 / 期限 · 按时间排序
           </p>
         </div>
         <Link
@@ -74,6 +73,7 @@ export function ScheduleList({ data }: { data: ScheduleItem[] }) {
 function ScheduleRow({ item }: { item: ScheduleItem }) {
   const meta = typeMeta[item.type];
   const Icon = meta.icon;
+  const subject = item.clientName ?? item.matter;
   const countdown =
     item.daysUntil <= 0 ? "今天" : item.daysUntil === 1 ? "明天" : `${item.daysUntil}天后`;
   const urgent = item.daysUntil <= 3;
@@ -87,7 +87,7 @@ function ScheduleRow({ item }: { item: ScheduleItem }) {
       <div className="flex-1 overflow-hidden">
         <div className="truncate text-[13px] font-medium">{item.title}</div>
         <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-          {item.matter}
+          {subject}
           {item.procedure ? <span className="text-muted-subtle"> · {item.procedure}</span> : null}
         </div>
       </div>
