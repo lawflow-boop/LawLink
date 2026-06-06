@@ -15,7 +15,7 @@ LawLink 已具备公开仓库的基础材料：README、MIT License、`.env.exam
 ## GitHub 仓库建议填写内容
 
 - Repository name: `LawLink`
-- Description: `Open-source, self-hosted case and project management system for lawyers and small law firms.`
+- Description: `Open-source, self-hosted case and project management system for small and mid-sized law firms.`
 - Visibility: `Public`
 - License: `MIT`
 - Topics:
@@ -32,7 +32,7 @@ LawLink 已具备公开仓库的基础材料：README、MIT License、`.env.exam
 
 如果你希望中文描述，可以用：
 
-`开源、自部署的律师案件 / 项目管理系统，面向独立律师、小团队和小型律所。`
+`开源、自部署的律师案件 / 项目管理系统，主要面向中小律所。`
 
 ## 发布前本机检查
 
@@ -116,8 +116,8 @@ git push -u origin main
 
 短版：
 
-> LawLink 是一个开源、自部署的律师案件管理系统，面向独立律师、小团队和小型律所，覆盖收案登记、冲突检索、案件跟进、财务记录、结案归档和数据导出。
+> LawLink 是一个开源、自部署的律师案件 / 项目管理系统，主要面向中小律所，也适用于独立律师和小团队自部署使用，覆盖收案登记、冲突检索、案件跟进、财务记录、结案归档和数据导出。
 
 长版：
 
-> LawLink is an open-source, self-hosted case and project management system for lawyers and small law firms. It focuses on the everyday workflow from intake registration and conflict checks to matter management, finance records, archive review, and data export. The stack is Next.js, TypeScript, Prisma, PostgreSQL, shadcn/ui, and Docker Compose.
+> LawLink is an open-source, self-hosted case and project management system primarily for small and mid-sized law firms, while still fitting solo lawyers and small teams that want to self-host their own practice workspace. It focuses on the everyday workflow from intake registration and conflict checks to matter management, finance records, archive review, and data export. The stack is Next.js, TypeScript, Prisma, PostgreSQL, shadcn/ui, and Docker Compose.
