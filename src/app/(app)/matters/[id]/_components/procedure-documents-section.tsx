@@ -2,7 +2,7 @@
 
 /**
  * v0.27: 程序下"案件材料"区
- * v0.42: 分类切换 tab + 来源方 + 一行两列 + docx/xlsx 在线预览
+ * v0.42: 分类切换 tab + 来源方 + docx/xlsx 在线预览
  *
  * - 每个程序独立呈现自己关联的 Document
  * - 上传时必选 category；诉辩/证据类可标注来源方（取本案当事人）
@@ -310,7 +310,7 @@ export function ProcedureDocumentsSection({
           {filter ? "该分类下暂无材料" : "本程序还没有材料"}
         </p>
       ) : (
-        // 紧凑列表，无外框
+        // 单文件行列表，无外框
         <ul className="divide-y divide-border px-4">
           {filtered.map((d) => {
             const icon = iconFor(d);
@@ -318,10 +318,10 @@ export function ProcedureDocumentsSection({
             return (
               <li
                 key={d.id}
-                className="group flex items-center gap-2 py-1.5"
+                className="group flex items-center gap-2 py-2"
               >
                 <Image src={icon.src} alt={icon.alt} width={20} height={20} className="h-5 w-5 shrink-0" />
-                <div className="min-w-0 flex-1 flex items-center gap-2">
+                <div className="min-w-0 flex-1">
                   {pUrl ? (
                     <a
                       href={pUrl}
@@ -337,11 +337,11 @@ export function ProcedureDocumentsSection({
                       {d.name}
                     </span>
                   )}
-                  <span className="shrink-0 text-[10px] text-muted-foreground">
+                  <div className="mt-0.5 truncate text-[10px] text-muted-foreground">
                     {formatDate(d.createdAt)}
                     {d.size ? ` · ${(d.size / 1024).toFixed(0)}KB` : ""}
                     {d.sourceParty ? ` · ${d.sourceParty}` : ""}
-                  </span>
+                  </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                   {pUrl && (

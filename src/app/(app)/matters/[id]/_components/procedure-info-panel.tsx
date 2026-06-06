@@ -30,7 +30,7 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { litigationStandingLabel, partyTypeLabel, procedureToStandingOptions } from "@/lib/enums";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { updateProcedureInfo } from "@/server/matters/actions";
 import { InfoRow, Pair } from "./info-panel";
 import { JurisdictionSelect } from "@/app/(app)/intakes/_components/jurisdiction-select";
@@ -167,7 +167,7 @@ function normalizeStandingForUi(standing: LitigationStanding): LitigationStandin
   return standing;
 }
 
-// 按程序类型确定「主审法官 / 法官助理」的称谓
+// 按程序类型确定「主审法官」的称谓
 const ARBITRATION: ProcedureType[] = [
   "COMMERCIAL_ARBITRATION",
   "LABOR_ARBITRATION",
@@ -181,10 +181,14 @@ const EXECUTION: ProcedureType[] = [
   "CRIMINAL_ENFORCEMENT"
 ];
 
-function roleLabels(type: ProcedureType): { judge: string; assistant: string } {
-  if (ARBITRATION.includes(type)) return { judge: "首席仲裁员", assistant: "仲裁庭助理" };
-  if (EXECUTION.includes(type)) return { judge: "执行法官", assistant: "执行法官助理" };
-  return { judge: "主审法官", assistant: "法官助理" };
+function roleLabels(type: ProcedureType): { judge: string } {
+  if (ARBITRATION.includes(type)) return { judge: "首席仲裁员" };
+  if (EXECUTION.includes(type)) return { judge: "执行法官" };
+  return { judge: "主审法官" };
+}
+
+function requestLabel(type: ProcedureType) {
+  return ARBITRATION.includes(type) ? "仲裁请求" : "诉讼请求";
 }
 
 const dash = (v: string | null | undefined) => v?.trim() || "—";
@@ -283,11 +287,56 @@ function PartyNameWithClientBadge({ party }: { party: Pick<PartyLite, "name" | "
   );
 }
 
-function StandingName({ children }: { children: string }) {
+function standingTone(standing: LitigationStanding | null) {
+  if (!standing) return "border-border bg-muted/40 text-muted-foreground";
+  if (
+    [
+      "PLAINTIFF",
+      "APPELLANT",
+      "RETRIAL_APPLICANT",
+      "ENFORCEMENT_APPLICANT",
+      "ARBITRATION_CLAIMANT",
+      "ADMIN_RECONSIDERATION_APPLICANT",
+      "ADMIN_PLAINTIFF"
+    ].includes(standing)
+  ) {
+    return "border-blue-500/25 bg-blue-500/10 text-blue-700";
+  }
+  if (
+    [
+      "DEFENDANT",
+      "APPELLEE",
+      "RETRIAL_RESPONDENT",
+      "EXECUTED_PERSON",
+      "ARBITRATION_RESPONDENT",
+      "ADMIN_RECONSIDERATION_RESPONDENT",
+      "ADMIN_DEFENDANT"
+    ].includes(standing)
+  ) {
+    return "border-rose-500/25 bg-rose-500/10 text-rose-700";
+  }
+  if (standing === "THIRD_PARTY") {
+    return "border-violet-500/25 bg-violet-500/10 text-violet-700";
+  }
+  return "border-emerald-500/25 bg-emerald-500/10 text-emerald-700";
+}
+
+function StandingName({
+  standing,
+  children
+}: {
+  standing: LitigationStanding | null;
+  children: string;
+}) {
   const chars = Array.from(children);
   if (chars.length === 2) {
     return (
-      <span className="flex w-[3em] justify-between whitespace-nowrap text-muted-foreground">
+      <span
+        className={cn(
+          "inline-flex h-5 w-[3.8em] items-center justify-between rounded border px-1 text-[11px] font-medium whitespace-nowrap",
+          standingTone(standing)
+        )}
+      >
         {chars.map((char, index) => (
           <span key={`${char}-${index}`}>{char}</span>
         ))}
@@ -295,7 +344,16 @@ function StandingName({ children }: { children: string }) {
     );
   }
 
-  return <span className="whitespace-nowrap text-muted-foreground">{children}</span>;
+  return (
+    <span
+      className={cn(
+        "inline-flex min-h-5 items-center rounded border px-1.5 text-[11px] font-medium leading-4 whitespace-nowrap",
+        standingTone(standing)
+      )}
+    >
+      {children}
+    </span>
+  );
 }
 
 function partyDetailItems(party: PartyLite) {
@@ -312,11 +370,13 @@ function partyDetailItems(party: PartyLite) {
 export function ProcedureInfoPanel({
   procedure: p,
   parties,
+  requestContent,
   editOpen,
   onEditOpenChange
 }: {
   procedure: Proc;
   parties: PartyLite[];
+  requestContent?: string | null;
   editOpen?: boolean;
   onEditOpenChange?: (o: boolean) => void;
 }) {
@@ -324,39 +384,38 @@ export function ProcedureInfoPanel({
   const [internalOpen, setInternalOpen] = useState(false);
   const open = editOpen ?? internalOpen;
   const setOpen = onEditOpenChange ?? setInternalOpen;
-  const { judge, assistant } = roleLabels(p.type);
+  const { judge } = roleLabels(p.type);
+  const requestText = dash(requestContent);
   const standingOptions = procedureToStandingOptions(p.type, "ours");
-  // v0.45: 动态标题，如"一审信息"、"二审信息"
-  const infoTitle = PROC_INFO_LABEL[p.type] ?? "程序信息";
-
   return (
     <section className="rounded-lg border border-border bg-card">
       <div className="overflow-hidden rounded-lg">
         <InfoRow>
           <Pair label="立案时间">{p.acceptedAt ? formatDate(p.acceptedAt) : "—"}</Pair>
-          <Pair label="管辖地">{dash(p.jurisdiction)}</Pair>
-          <Pair label="管辖机构">{dash(p.handlingAgency)}</Pair>
           <Pair label="案号">
             <span className="font-mono tabular">{dash(p.caseNumber)}</span>
           </Pair>
+        </InfoRow>
+        <InfoRow>
+          <Pair label="管辖地">{dash(p.jurisdiction)}</Pair>
+          <Pair label="管辖机构">{dash(p.handlingAgency)}</Pair>
         </InfoRow>
         <InfoRow>
           <Pair label={judge}>{dash(p.presidingJudge)}</Pair>
           <Pair label="联系方式">
             <span className="font-mono tabular">{dash(p.presidingJudgeContact)}</span>
           </Pair>
-          <Pair label={assistant}>{dash(p.judgeAssistant)}</Pair>
-          <Pair label="联系方式">
-            <span className="font-mono tabular">{dash(p.judgeAssistantContact)}</span>
-          </Pair>
         </InfoRow>
         <ProcedurePartiesSummary type={p.type} rows={p.procedureParties} parties={parties} />
-        <div className="border-t border-border" style={{ borderTop: "1px solid hsl(var(--border))" }}>
-          <InfoRow>
-            <Pair label="裁决时间">{p.concludedAt ? formatDate(p.concludedAt) : "—"}</Pair>
-            <Pair label="裁决结果" wide>{outcomeText(p)}</Pair>
-          </InfoRow>
-        </div>
+        <InfoRow className="border-t border-border">
+          <Pair label={requestLabel(p.type)} grow>
+            <span className="block whitespace-pre-wrap break-words">{requestText}</span>
+          </Pair>
+        </InfoRow>
+        <InfoRow>
+          <Pair label="裁决时间">{p.concludedAt ? formatDate(p.concludedAt) : "—"}</Pair>
+          <Pair label="裁决结果">{outcomeText(p)}</Pair>
+        </InfoRow>
       </div>
 
       <EditDialog
@@ -366,7 +425,6 @@ export function ProcedureInfoPanel({
         proc={p}
         parties={parties}
         judge={judge}
-        assistant={assistant}
         standingOptions={standingOptions}
         onSaved={() => {
           setOpen(false);
@@ -428,7 +486,7 @@ function ProcedurePartiesSummary({
   });
 
   return (
-    <div className="border-t border-border bg-card">
+    <div className="bg-card">
       {partyRows.length === 0 ? (
         <div className="px-2.5 py-2 text-xs text-muted-foreground">暂无案件当事人</div>
       ) : (
@@ -438,18 +496,27 @@ function ProcedurePartiesSummary({
             return (
               <div
                 key={party.id}
-                className="grid h-8 grid-cols-[68px_minmax(0,280px)_minmax(120px,1fr)] items-center gap-x-2 overflow-hidden px-2.5 py-2 text-xs"
+                className="grid min-h-8 grid-cols-1 gap-x-2 gap-y-1 px-2.5 py-2 text-xs sm:grid-cols-2 sm:items-start"
               >
-                <StandingName>{primaryStanding ? litigationStandingLabel[primaryStanding] : "未设置地位"}</StandingName>
-                <div className="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap">
-                  <PartyNameWithClientBadge party={party} />
-                  {otherStandings.length > 0 && (
-                    <span className="min-w-0 truncate text-[11px] text-muted-foreground">
-                      （{otherStandings.map((standing) => litigationStandingLabel[standing]).join("、")}）
-                    </span>
-                  )}
+                <div className="flex min-w-0 items-start gap-2">
+                  <span className="shrink-0">
+                    <StandingName standing={primaryStanding}>
+                      {primaryStanding ? litigationStandingLabel[primaryStanding] : "未设置地位"}
+                    </StandingName>
+                  </span>
+                  <div className="flex min-w-0 items-center gap-1 overflow-hidden whitespace-nowrap">
+                    <PartyNameWithClientBadge party={party} />
+                    {otherStandings.length > 0 && (
+                      <span className="min-w-0 truncate text-[11px] text-muted-foreground">
+                        （{otherStandings.map((standing) => litigationStandingLabel[standing]).join("、")}）
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="min-w-0 truncate text-[11px] text-muted-foreground" title={details.join(" · ")}>
+                <div
+                  className="min-w-0 break-words text-left text-[11px] leading-4 text-muted-foreground"
+                  title={details.join(" · ")}
+                >
                   {details.length > 0 ? details.join(" · ") : "暂无联系方式及地址信息"}
                 </div>
               </div>
@@ -467,7 +534,6 @@ function EditDialog({
   proc,
   parties,
   judge,
-  assistant,
   standingOptions,
   onSaved
 }: {
@@ -476,7 +542,6 @@ function EditDialog({
   proc: Proc;
   parties: PartyLite[];
   judge: string;
-  assistant: string;
   standingOptions: LitigationStanding[];
   onSaved: () => void;
 }) {
@@ -487,8 +552,6 @@ function EditDialog({
     caseNumber: proc.caseNumber ?? "",
     presidingJudge: proc.presidingJudge ?? "",
     presidingJudgeContact: proc.presidingJudgeContact ?? "",
-    judgeAssistant: proc.judgeAssistant ?? "",
-    judgeAssistantContact: proc.judgeAssistantContact ?? "",
     ourStanding: (proc.ourStanding ?? "") as string,
     acceptedAt: toInput(proc.acceptedAt),
     concludedAt: toInput(proc.concludedAt)
@@ -689,12 +752,6 @@ function EditDialog({
           </FieldRow>
           <FieldRow label={`${judge}联系方式`}>
             <Input value={form.presidingJudgeContact} onChange={(e) => set("presidingJudgeContact", e.target.value)} className="font-mono" />
-          </FieldRow>
-          <FieldRow label={assistant}>
-            <Input value={form.judgeAssistant} onChange={(e) => set("judgeAssistant", e.target.value)} />
-          </FieldRow>
-          <FieldRow label={`${assistant}联系方式`}>
-            <Input value={form.judgeAssistantContact} onChange={(e) => set("judgeAssistantContact", e.target.value)} className="font-mono" />
           </FieldRow>
           <FieldRow label="立案时间">
             <Input type="date" value={form.acceptedAt} onChange={(e) => set("acceptedAt", e.target.value)} />

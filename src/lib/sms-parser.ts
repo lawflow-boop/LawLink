@@ -343,7 +343,7 @@ const CN_DIGIT: Record<string, number> = {
 
 export function toDate(s: string): Date | null {
   // YYYY-MM-DD HH:MM
-  let m = s.match(/(\d{4})[-/年](\d{1,2})[-/月](\d{1,2})日?\s*(?:上午|下午)?\s*(\d{1,2})?[:：时]?(\d{0,2})?/);
+  const m = s.match(/(\d{4})[-/年](\d{1,2})[-/月](\d{1,2})日?\s*(?:上午|下午)?\s*(\d{1,2})?[:：时]?(\d{0,2})?/);
   if (m) {
     const y = parseInt(m[1]);
     const mo = parseInt(m[2]) - 1;

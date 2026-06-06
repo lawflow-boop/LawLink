@@ -32,9 +32,8 @@ export function FinancePanel({
   const { stats } = finance;
   const outstanding = Math.max(stats.receivable - stats.received, 0);
 
-  const cards: { label: string; value: number; tone: StatTone }[] = [
-    { label: "合同额", value: stats.contractAmount, tone: "neutral" },
-    { label: "应收", value: stats.receivable, tone: "neutral" },
+  const cards: { label: string; value: number; tone: StatTone; className?: string }[] = [
+    { label: "合同额", value: stats.contractAmount, tone: "neutral", className: "col-span-2" },
     { label: "已收", value: stats.received, tone: "emerald" },
     { label: "待收", value: outstanding, tone: "amber" },
     { label: "支出", value: stats.cost, tone: "red" },
@@ -53,9 +52,9 @@ export function FinancePanel({
             <Button
               size="sm"
               onClick={() => setInvoiceOpen(true)}
-              className="h-7 gap-1"
+              className="h-6 gap-0.5 px-2 text-[11px]"
             >
-              <Receipt className="h-3 w-3" />
+              <Receipt className="h-2.5 w-2.5" />
               申请开票
             </Button>
           )}
@@ -65,7 +64,13 @@ export function FinancePanel({
       {/* 紧凑指标卡（对照案件云"财务概览"指标看板） */}
       <div className="grid grid-cols-3 gap-px border-b border-border bg-border sm:grid-cols-6">
         {cards.map((c) => (
-          <StatCard key={c.label} label={c.label} value={c.value} tone={c.tone} />
+          <StatCard
+            key={c.label}
+            label={c.label}
+            value={c.value}
+            tone={c.tone}
+            className={c.className}
+          />
         ))}
       </div>
 
@@ -116,11 +121,13 @@ type StatTone = "emerald" | "neutral" | "amber" | "red";
 function StatCard({
   label,
   value,
-  tone
+  tone,
+  className
 }: {
   label: string;
   value: number;
   tone: StatTone;
+  className?: string;
 }) {
   const cls =
     tone === "emerald"
@@ -131,7 +138,7 @@ function StatCard({
           ? "text-red-600"
           : "text-foreground";
   return (
-    <div className="bg-card px-3 py-2.5">
+    <div className={`bg-card px-3 py-2.5 text-center ${className ?? ""}`}>
       <div className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
         {label}
       </div>

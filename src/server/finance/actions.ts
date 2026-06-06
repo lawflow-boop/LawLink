@@ -11,7 +11,6 @@ import {
   assertCanAssociateMatter,
   assertCanLeadMatter,
   isManager,
-  matterAssociationFilter,
   matterVisibilityFilter
 } from "@/lib/permissions";
 import {
@@ -23,6 +22,10 @@ import {
   type CommissionPlanSetInput
 } from "./schemas";
 import { notifyRoleApprovers } from "@/server/notifications/approval";
+import {
+  invoiceMatterSearchLimit,
+  invoiceMatterSearchWhere
+} from "./invoice-matter-search";
 
 // ============ Billing ============
 
@@ -490,27 +493,13 @@ export async function createInvoiceRequest(input: {
 }
 
 /** v0.43 项5：财务页开票弹窗用——搜索当前用户可关联案件（轻量，返回编号+标题） */
-export async function searchMattersForInvoice(q: string) {
+export async function searchMattersForInvoice(q?: string) {
   const session = await requireSession();
-  const query = q.trim();
-  if (!query) return [];
   return prisma.matter.findMany({
-    where: {
-      deletedAt: null,
-      ...matterAssociationFilter(session.user.id),
-      ...(query
-        ? {
-            OR: [
-              { title: { contains: query, mode: "insensitive" } },
-              { internalCode: { contains: query, mode: "insensitive" } },
-              { firmCaseNo: { contains: query, mode: "insensitive" } }
-            ]
-          }
-        : {})
-    },
+    where: invoiceMatterSearchWhere(session.user.id, q),
     select: { id: true, internalCode: true, title: true },
     orderBy: { createdAt: "desc" },
-    take: 10
+    take: invoiceMatterSearchLimit(q)
   });
 }
 

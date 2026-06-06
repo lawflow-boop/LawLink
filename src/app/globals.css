@@ -42,6 +42,8 @@
     --radius-lg: 0.5rem;
     --radius-xl: 0.75rem;
 
+    --font-mono: "SF Mono", "Cascadia Code", "Consolas", ui-monospace, monospace;
+
     --shadow-low: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
     --shadow-medium: 0 4px 12px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04);
     --shadow-high: 0 8px 24px rgba(15, 23, 42, 0.10), 0 4px 8px rgba(15, 23, 42, 0.05);

@@ -45,7 +45,7 @@ export function InfoPanel({
     others.length === 0
       ? "—"
       : others
-          .map((m) => `${m.user.name}（${m.role === "CO_LEAD" ? "协办" : "助理"}）`)
+          .map((m) => m.role === "CO_LEAD" ? m.user.name : `${m.user.name}（助理）`)
           .join("，");
   // 客户明细
   const client = matter.primaryClient;
@@ -100,12 +100,12 @@ export function InfoPanel({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="h-full">
       {/* —— 案件信息：全宽，明暗分栏表格，灵活每行多列 —— */}
-      <section className="rounded-lg border border-border bg-card">
+      <section className="h-full rounded-lg border border-border bg-card">
         <header className="flex items-center justify-between border-b border-border px-4 py-2">
           <span className="text-[13px] font-medium">
-            案件信息
+            基本信息
             <span className="ml-1.5 font-mono text-[11px] font-normal tabular text-muted-foreground/70">
               丨 {matter.firmCaseNo || matter.internalCode}
             </span>
@@ -266,9 +266,20 @@ function DelegationContracts({ contracts }: { contracts: { id: string; name: str
 }
 
 // 一行：移动端纵向堆叠（pair 间横线），md+ 横向排列（pair 间竖线）
-export function InfoRow({ children }: { children: React.ReactNode }) {
+export function InfoRow({
+  children,
+  className
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className="flex flex-col divide-y divide-border border-b border-border last:border-b-0 md:flex-row md:divide-x md:divide-y-0">
+    <div
+      className={cn(
+        "flex flex-col divide-y divide-border border-b border-border last:border-b-0 md:flex-row md:divide-x md:divide-y-0",
+        className
+      )}
+    >
       {children}
     </div>
   );

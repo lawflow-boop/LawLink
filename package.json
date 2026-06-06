@@ -3,12 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit",
+    "dev": "NEXT_DIST_DIR=.next-dev next dev",
+    "build": "NEXT_DIST_DIR=.next-build next build",
+    "start": "NEXT_DIST_DIR=.next-build next start",
+    "lint": "eslint .",
+    "typecheck": "NEXT_DIST_DIR=.next-dev next typegen && tsc --noEmit",
     "prisma:validate": "prisma validate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -48,14 +51,14 @@
     "framer-motion": "^11.11.17",
     "lucide-react": "^0.460.0",
     "mammoth": "^1.12.0",
-    "next": "14.2.18",
-    "next-auth": "^4.24.10",
+    "next": "^16.2.7",
+    "next-auth": "^4.24.14",
     "next-themes": "^0.4.6",
     "node-cron": "^4.2.1",
     "pizzip": "^3.2.0",
-    "react": "^18.3.1",
+    "react": "^19.2.7",
     "react-day-picker": "^10.0.1",
-    "react-dom": "^18.3.1",
+    "react-dom": "^19.2.7",
     "react-hook-form": "^7.76.0",
     "recharts": "^2.13.3",
     "sonner": "^1.7.4",
@@ -70,13 +73,13 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.10.1",
     "@types/node-cron": "^3.0.11",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.20",
-    "eslint": "^8.57.1",
-    "eslint-config-next": "14.2.18",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.7",
     "jsdom": "^29.1.1",
-    "postcss": "^8.4.49",
+    "postcss": "^8.5.15",
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.15",
     "tsx": "^4.19.2",
@@ -85,5 +88,9 @@
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "overrides": {
+    "postcss": "^8.5.15",
+    "uuid": "^11.1.1"
   }
 }

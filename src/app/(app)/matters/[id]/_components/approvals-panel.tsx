@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Loader2, Stamp, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SealRequestSheet } from "@/app/(app)/approvals/seals/_components/seal-request-sheet";
 import type { SealTypeConfigRow } from "@/app/(app)/approvals/seals/_components/seal-types";
@@ -96,19 +97,20 @@ export function ApprovalsPanel({
           </div>
         </div>
         {canRequest && (
-          <button
+          <Button
+            size="sm"
             type="button"
             onClick={handleOpenSheet}
             disabled={loadingConfigs}
-            className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-[12px] text-foreground transition-colors hover:bg-muted/50 disabled:opacity-60"
+            className="h-6 gap-0.5 px-2 text-[11px]"
           >
             {loadingConfigs ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
+              <Loader2 className="h-2.5 w-2.5 animate-spin" />
             ) : (
-              <Plus className="h-3 w-3" />
+              <Plus className="h-2.5 w-2.5" />
             )}
             发起审批
-          </button>
+          </Button>
         )}
       </header>
 

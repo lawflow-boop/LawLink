@@ -40,7 +40,15 @@ export const litigationStandingSchema = z.enum([
   "NON_LITIGATION_PARTY"
 ]);
 
-export const intakeCreateSchema = z.object({
+const litigationIntakeCategories = new Set([
+  "CIVIL_COMMERCIAL",
+  "LABOR_ARBITRATION",
+  "COMMERCIAL_ARBITRATION",
+  "CRIMINAL",
+  "ADMINISTRATIVE"
+]);
+
+const intakeCreateBaseSchema = z.object({
   // 基础
   // 案件名称去除所有空白字符（产品要求，避免列表/详情显示空格）
   title: z.preprocess(
@@ -100,9 +108,36 @@ export const intakeCreateSchema = z.object({
   parties: z.array(partyInputSchema).default([])
 });
 
-export const intakeUpdateSchema = intakeCreateSchema.extend({
+function requireLitigationStandings(
+  data: z.infer<typeof intakeCreateBaseSchema>,
+  ctx: z.RefinementCtx
+) {
+  if (!litigationIntakeCategories.has(data.category)) return;
+
+  if (!data.ourStanding) {
+    ctx.addIssue({
+      path: ["ourStanding"],
+      code: z.ZodIssueCode.custom,
+      message: "请选择委托方诉讼地位"
+    });
+  }
+
+  data.parties.forEach((party, index) => {
+    if (!party.standing) {
+      ctx.addIssue({
+        path: ["parties", index, "standing"],
+        code: z.ZodIssueCode.custom,
+        message: "请选择诉讼地位"
+      });
+    }
+  });
+}
+
+export const intakeCreateSchema = intakeCreateBaseSchema.superRefine(requireLitigationStandings);
+
+export const intakeUpdateSchema = intakeCreateBaseSchema.extend({
   id: z.string().cuid()
-});
+}).superRefine(requireLitigationStandings);
 
 export const intakeListQuerySchema = z.object({
   search: z.string().optional(),

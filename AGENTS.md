@@ -19,10 +19,11 @@
 
 | 层 | 选型 | 说明 |
 |---|---|---|
-| 框架 | Next.js 14 App Router + TypeScript | SSR + RSC，单仓单进程 |
+| 框架 | Next.js 16 App Router + TypeScript | SSR + RSC，单仓单进程 |
 | UI 组件 | **shadcn/ui** + Radix UI | 拷贝式组件，深度可定制 |
 | 样式 | **Tailwind CSS** | 暗色优先 |
 | 动效 | **Framer Motion** | 微交互、页面切换 |
+| React | React 19 | Next.js 16 配套 |
 | 图标 | lucide-react | |
 | 图表 | Recharts | 工作台、财务统计 |
 | 表单 | React Hook Form + Zod | |
@@ -121,13 +122,15 @@ LawLink/
 ### 七、验证命令（每次改完主动跑）
 
 ```bash
-npm run lint              # ESLint
+npm run lint              # ESLint CLI
 npm run typecheck         # tsc --noEmit
 npm run prisma:validate   # Prisma schema 校验
 npm run build             # 生产构建（最严的检查）
 ```
 
 UI 改动还要：在浏览器里把"金线"（典型工作流）走一遍，不只看类型/构建过。
+
+每次修改后还必须确认本地站点仍可访问：先核对端口监听进程属于 `/Users/yesen/Code/LawLink`，再打开 `http://localhost:3000/login` 或本次涉及页面。若服务已停止或端口不属于本仓库，先恢复/切换到正确 LawLink 服务并重新验证后再交付；不能只报告代码验证通过。
 
 ---
 

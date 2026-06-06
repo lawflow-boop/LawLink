@@ -3,7 +3,7 @@
 import { useState, useTransition, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Plus, Search, X, Clock, CheckCircle2, Archive, AlertCircle, FolderOpen } from "lucide-react";
+import { Plus, Search, X, Clock, CheckCircle2, Archive, AlertCircle, FolderOpen, Download } from "lucide-react";
 import type { MatterCategory, ClientType, UserRole } from "@prisma/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -197,6 +197,14 @@ export function MattersView({
     [tab, search, category, statusFilter, dateFrom, dateTo, sortBy, sortDir]
   );
 
+  const buildExportUrl = useCallback(() => {
+    const href = buildUrl({});
+    const query = href.includes("?") ? href.slice(href.indexOf("?") + 1) : "";
+    const params = new URLSearchParams(query);
+    params.set("tab", tab);
+    return `/api/matters/export?${params.toString()}`;
+  }, [buildUrl, tab]);
+
   function switchTab(next: Tab) {
     const nextSortBy = defaultSortByForTab(next);
     setSortBy(nextSortBy);
@@ -254,10 +262,18 @@ export function MattersView({
               共 <span className="font-mono tabular text-foreground">{total}</span> 件
             </p>
           </div>
-          <Button onClick={() => setSheetOpen(true)} className="h-9 gap-1.5 px-4 shadow-sm">
-            <Plus className="h-4 w-4" strokeWidth={2} />
-            新建收案
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" className="h-9 gap-1.5 bg-background px-3">
+              <a href={buildExportUrl()}>
+                <Download className="h-4 w-4" strokeWidth={2} />
+                导出
+              </a>
+            </Button>
+            <Button onClick={() => setSheetOpen(true)} className="h-9 gap-1.5 px-4 shadow-sm">
+              <Plus className="h-4 w-4" strokeWidth={2} />
+              新建收案
+            </Button>
+          </div>
         </div>
         <div className="ll-rule" />
       </header>

@@ -1,4 +1,6 @@
 .next
+.next-dev
+.next-build
 node_modules
 .npm-cache
 .env
@@ -9,6 +11,7 @@ storage/*
 coverage
 dist
 *.log
+.playwright-cli/
 
 # macOS
 .DS_Store
@@ -31,6 +34,13 @@ dist
 
 # Backup
 *.bak
+backups/
+backup*/
+*.backup
+*.dump
+*.sql.gz
+database.dump
+storage.tar.gz
 
 # TS incremental
 tsconfig.tsbuildinfo

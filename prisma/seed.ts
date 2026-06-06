@@ -5,6 +5,7 @@
  *   1. 默认 ADMIN 账号（从 SEED_ADMIN_* 环境变量读取）
  *   2. 案由库样本：民事 / 刑事 / 行政 各约 30 条最常用案由
  *      （V1 用样本即可工作；完整案由库 Stage 3 通过元典 MCP 抓取）
+ *   3. 阶段模板、系统设置、文书模板和用章配置
  *
  * 运行方式：
  *   npx prisma db seed
@@ -191,10 +192,6 @@ async function main() {
   const { seedV08Templates, seedV08SealConfigs } = await import("./seeds/v08-templates-and-seals");
   await seedV08SealConfigs(prisma);
   await seedV08Templates(prisma);
-
-  // v0.23: 三个演示案件（待审批 / 进行中 / 已归档）
-  const { seedV23DemoMatters } = await import("./seeds/v23-demo-matters");
-  await seedV23DemoMatters(prisma);
 
   console.log("\n✓ Seed 完成");
 }

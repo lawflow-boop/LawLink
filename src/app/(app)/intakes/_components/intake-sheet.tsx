@@ -696,7 +696,11 @@ export function IntakeSheet({
             <span>主体类型</span>
             <span>姓名 / 名称</span>
             <span>证件号 / 信用代码</span>
-            {showStanding && <span>诉讼地位</span>}
+            {showStanding && (
+              <span>
+                诉讼地位<span className="ml-0.5 text-destructive">*</span>
+              </span>
+            )}
             <span>联系人</span>
             <span>联系电话</span>
             <span className="text-right">操作</span>
@@ -749,46 +753,62 @@ export function IntakeSheet({
                 }
                 standingSlot={
                   !showStanding ? undefined : isClient ? (
-                    <Select
-                      value={ourStanding ?? ""}
-                      onValueChange={(v) =>
-                        setValue("ourStanding", v as LitigationStanding, { shouldDirty: true })
-                      }
-                    >
-                      <SelectTrigger className="h-9 w-full bg-background px-2.5 text-xs">
-                        <SelectValue placeholder="诉讼地位（可选）" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(ourStandingOptions.length
-                          ? ourStandingOptions
-                          : (Object.keys(litigationStandingLabel) as LitigationStanding[])
-                        ).map((s) => (
-                          <SelectItem key={s} value={s} className="text-xs">
-                            {litigationStandingLabel[s]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-1">
+                      <Select
+                        value={ourStanding ?? ""}
+                        onValueChange={(v) =>
+                          setValue("ourStanding", v as LitigationStanding, {
+                            shouldDirty: true,
+                            shouldValidate: true
+                          })
+                        }
+                      >
+                        <SelectTrigger className="h-9 w-full bg-background px-2.5 text-xs">
+                          <SelectValue placeholder="诉讼地位" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(ourStandingOptions.length
+                            ? ourStandingOptions
+                            : (Object.keys(litigationStandingLabel) as LitigationStanding[])
+                          ).map((s) => (
+                            <SelectItem key={s} value={s} className="text-xs">
+                              {litigationStandingLabel[s]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.ourStanding?.message && (
+                        <p className="text-[11px] text-destructive">{errors.ourStanding.message}</p>
+                      )}
+                    </div>
                   ) : (
-                    <Select
-                      value={watch(`parties.${idx}.standing`) ?? ""}
-                      onValueChange={(v) =>
-                        setValue(`parties.${idx}.standing`, v as LitigationStanding, {
-                          shouldDirty: true
-                        })
-                      }
-                    >
-                      <SelectTrigger className="h-9 w-full bg-background px-2.5 text-xs">
-                        <SelectValue placeholder="诉讼地位" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {oppositeStandingOptions.map((s) => (
-                          <SelectItem key={s} value={s} className="text-xs">
-                            {litigationStandingLabel[s]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-1">
+                      <Select
+                        value={watch(`parties.${idx}.standing`) ?? ""}
+                        onValueChange={(v) =>
+                          setValue(`parties.${idx}.standing`, v as LitigationStanding, {
+                            shouldDirty: true,
+                            shouldValidate: true
+                          })
+                        }
+                      >
+                        <SelectTrigger className="h-9 w-full bg-background px-2.5 text-xs">
+                          <SelectValue placeholder="诉讼地位" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {oppositeStandingOptions.map((s) => (
+                            <SelectItem key={s} value={s} className="text-xs">
+                              {litigationStandingLabel[s]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {errors.parties?.[idx]?.standing?.message && (
+                        <p className="text-[11px] text-destructive">
+                          {errors.parties[idx]?.standing?.message}
+                        </p>
+                      )}
+                    </div>
                   )
                 }
                 nameSlot={

@@ -36,33 +36,34 @@ export async function listMatters(input: Partial<MatterListQuery> = {}) {
   const session = await requireSession();
   const query = matterListQuerySchema.parse(input);
 
-  const where: Prisma.MatterWhereInput = {
-    ...matterVisibilityFilter(session.user.id, session.user.role),
-    deletedAt: null,
-    ...(query.category ? { category: query.category } : {}),
-    ...(query.status ? { status: query.status } : {}),
-    ...(query.statusIn ? { status: { in: query.statusIn } } : {}),
-    ...(query.statusNotIn ? { status: { notIn: query.statusNotIn } } : {}),
-    ...(query.ownerId ? { ownerId: query.ownerId } : {}),
-    ...(query.clientId ? { primaryClientId: query.clientId } : {}),
-    ...(query.intakeDateFrom || query.intakeDateTo
-      ? {
-          intakeDate: {
-            ...(query.intakeDateFrom ? { gte: query.intakeDateFrom } : {}),
-            ...(query.intakeDateTo ? { lte: query.intakeDateTo } : {})
-          }
-        }
-      : {}),
-    ...(query.search
-      ? {
-          OR: [
-            { title: { contains: query.search, mode: "insensitive" } },
-            { internalCode: { contains: query.search, mode: "insensitive" } },
-            { primaryClient: { name: { contains: query.search, mode: "insensitive" } } }
-          ]
-        }
-      : {})
-  };
+  const whereParts: Prisma.MatterWhereInput[] = [
+    matterVisibilityFilter(session.user.id, session.user.role),
+    { deletedAt: null }
+  ];
+  if (query.category) whereParts.push({ category: query.category });
+  if (query.status) whereParts.push({ status: query.status });
+  if (query.statusIn) whereParts.push({ status: { in: query.statusIn } });
+  if (query.statusNotIn) whereParts.push({ status: { notIn: query.statusNotIn } });
+  if (query.ownerId) whereParts.push({ ownerId: query.ownerId });
+  if (query.clientId) whereParts.push({ primaryClientId: query.clientId });
+  if (query.intakeDateFrom || query.intakeDateTo) {
+    whereParts.push({
+      intakeDate: {
+        ...(query.intakeDateFrom ? { gte: query.intakeDateFrom } : {}),
+        ...(query.intakeDateTo ? { lte: query.intakeDateTo } : {})
+      }
+    });
+  }
+  if (query.search) {
+    whereParts.push({
+      OR: [
+        { title: { contains: query.search, mode: "insensitive" } },
+        { internalCode: { contains: query.search, mode: "insensitive" } },
+        { primaryClient: { name: { contains: query.search, mode: "insensitive" } } }
+      ]
+    });
+  }
+  const where: Prisma.MatterWhereInput = { AND: whereParts };
 
   const compareNullable = <T>(
     a: T | null | undefined,
@@ -554,7 +555,7 @@ export async function getMatterById(id: string) {
       cause: true,
       parties: { orderBy: [{ role: "asc" }, { ordinal: "asc" }] },
       relatedEntities: { orderBy: { createdAt: "asc" } },
-      intake: { select: { counterclaim: true } },
+      intake: { select: { counterclaim: true, claimDescription: true } },
       linksFrom: {
         include: { relatedMatter: { select: { id: true, internalCode: true, title: true } } }
       },

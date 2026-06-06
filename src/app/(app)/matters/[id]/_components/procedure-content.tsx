@@ -219,10 +219,10 @@ function ImportantItemsCard({
 
   const total = hearings.length + deadlines.length + expresses.length + memos.length;
   const filters: { value: ImportantFilter; label: string; count: number }[] = [
-    { value: "hearing", label: "开庭安排", count: hearings.length },
-    { value: "deadline", label: "重要时限", count: deadlines.length },
-    { value: "express", label: "快递记录", count: expresses.length },
-    { value: "memo", label: "其他备忘", count: memos.length }
+    { value: "hearing", label: "开庭", count: hearings.length },
+    { value: "deadline", label: "时限", count: deadlines.length },
+    { value: "express", label: "快递", count: expresses.length },
+    { value: "memo", label: "备忘", count: memos.length }
   ];
 
   const currentCount = filters.find((f) => f.value === filter)?.count ?? 0;
@@ -234,8 +234,8 @@ function ImportantItemsCard({
   }
 
   return (
-    <section className="rounded-lg border border-border bg-card">
-      <header className="flex items-center justify-between border-b border-border px-4 py-2">
+    <section className="flex h-full flex-col rounded-lg border border-border bg-card">
+      <header className="flex shrink-0 items-center justify-between border-b border-border px-4 py-2">
         <div className="flex items-center gap-3">
           <span className="flex items-center gap-1.5 text-[13px] font-medium">
             <AlertTriangle className="h-3.5 w-3.5 text-[#FBBF24]" />
@@ -279,11 +279,11 @@ function ImportantItemsCard({
       </header>
 
       {currentCount === 0 ? (
-        <p className="px-4 py-6 text-center text-xs text-muted-foreground">
+        <p className="flex flex-1 items-center justify-center px-4 py-6 text-center text-xs text-muted-foreground">
           暂无{currentLabel}
         </p>
       ) : (
-        <ul className="divide-y divide-border px-4 py-2">
+        <ul className="min-h-0 flex-1 divide-y divide-border overflow-y-auto px-4 py-2">
           {filter === "hearing" &&
             hearings.map((h) => (
               <HearingRow
@@ -620,10 +620,10 @@ const deadlineCategoryLabel: Record<DeadlineCreateInput["category"], string> = {
 };
 
 const importantTypeMeta: Record<ImportantFilter, { label: string; icon: React.ElementType }> = {
-  hearing: { label: "开庭安排", icon: Gavel },
-  deadline: { label: "重要时限", icon: AlertTriangle },
-  express: { label: "快递记录", icon: Package },
-  memo: { label: "其他备忘", icon: StickyNote }
+  hearing: { label: "开庭", icon: Gavel },
+  deadline: { label: "时限", icon: AlertTriangle },
+  express: { label: "快递", icon: Package },
+  memo: { label: "备忘", icon: StickyNote }
 };
 
 const CN_NUM: Record<number, string> = {

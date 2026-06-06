@@ -604,7 +604,7 @@ function FileSlot({
   label: string;
   file: File | null;
   existing: { id: string; name: string } | null;
-  inputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLInputElement | null>;
   accept?: string;
   onPick: (f: File | null) => void;
 }) {

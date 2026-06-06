@@ -29,9 +29,6 @@ export function AppShell({
         <Topbar onMobileMenuToggle={() => setMobileNavOpen(true)} userAvatar={userAvatar ?? null} />
         {banner}
         <main className="mx-auto max-w-[1440px] px-4 py-4 sm:px-6">{children}</main>
-        <footer className="border-t border-border/40 pb-6 pt-8 text-center text-[11px] text-muted-foreground/50">
-          联系作者：your-email@example.com · 微信 YourWeChatId
-        </footer>
       </div>
     </div>
   );

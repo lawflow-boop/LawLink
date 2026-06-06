@@ -41,7 +41,7 @@ type MatterPayload = Prisma.MatterGetPayload<{
     cause: true;
     parties: true;
     relatedEntities: true;
-    intake: { select: { counterclaim: true } };
+    intake: { select: { counterclaim: true; claimDescription: true } };
     linksFrom: {
       include: { relatedMatter: { select: { id: true; internalCode: true; title: true } } };
     };
@@ -219,6 +219,13 @@ export function MatterDetailTabs({
         }))
     : [];
   const procedureParties = buildProcedurePartyOptions(matter);
+  const customValues =
+    matter.customValues &&
+    typeof matter.customValues === "object" &&
+    !Array.isArray(matter.customValues)
+      ? (matter.customValues as Record<string, string>)
+      : {};
+  const hasCustomFields = customFieldDefs.length > 0;
 
   return (
     <div className="space-y-4">
@@ -267,10 +274,9 @@ export function MatterDetailTabs({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.05 }}
-        className="space-y-4"
+        className="grid grid-cols-1 gap-4 xl:grid-cols-5"
       >
-        {/* 1. 案件信息 + 重要事项：左右两列 */}
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div className="h-full xl:col-span-3">
           <InfoPanel
             matter={matter}
             userOptions={userOptions}
@@ -279,6 +285,9 @@ export function MatterDetailTabs({
             canEditMatter={canOwnThisMatter}
             canManageRelatedMatters={canAssociateThisMatter}
           />
+        </div>
+
+        <div className="h-full xl:col-span-2">
           <ProcedureRemindersAndMemos
             matterId={matter.id}
             procedures={engagedProcedures}
@@ -287,23 +296,10 @@ export function MatterDetailTabs({
             canManage={canAssociateThisMatter}
           />
         </div>
-        <CustomFieldsPanel
-          matterId={matter.id}
-          defs={customFieldDefs}
-          values={
-            (matter.customValues &&
-            typeof matter.customValues === "object" &&
-            !Array.isArray(matter.customValues)
-              ? (matter.customValues as Record<string, string>)
-              : {})
-          }
-          canEdit={canLeadThisMatter}
-        />
 
-        {/* 2. 案件程序（新容器）：程序切换 + 程序基本信息 + 案件材料|快递 */}
-        <section className="rounded-xl border border-border bg-card p-5">
+        <section className="h-full rounded-lg border border-border bg-card xl:col-span-3">
           {/* 程序切换标签 */}
-          <header className="mb-4 flex flex-wrap items-center gap-2 border-b border-border pb-3">
+          <header className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
             <span className="text-[13px] font-medium">案件程序</span>
             {engagedProcedures.length === 0 ? (
               <span className="text-xs text-muted-foreground">暂无在办程序</span>
@@ -380,10 +376,11 @@ export function MatterDetailTabs({
 
           {/* 当前程序内容：基本信息 + 案件材料 */}
           {currentProcedure ? (
-            <div className="space-y-4">
+            <div className="space-y-4 p-4">
               <ProcedureInfoPanel
                 procedure={currentProcedure}
                 parties={procedureParties}
+                requestContent={matter.intake?.claimDescription ?? null}
                 editOpen={procEditOpen}
                 onEditOpenChange={setProcEditOpen}
               />
@@ -396,14 +393,13 @@ export function MatterDetailTabs({
               />
             </div>
           ) : (
-            <p className="py-8 text-center text-xs text-muted-foreground">
+            <p className="px-4 py-8 text-center text-xs text-muted-foreground">
               请先添加程序以管理开庭、期限和案件材料
             </p>
           )}
         </section>
 
-        {/* 5. 页面底部：用印审批 + 财务费用 */}
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div className="flex h-full flex-col gap-4 xl:col-span-2 [&>section]:min-h-0 [&>section]:flex-1">
           <ApprovalsPanel
             matterId={matter.id}
             matterTitle={matter.title}
@@ -417,6 +413,17 @@ export function MatterDetailTabs({
             canRequestInvoice={canAssociateThisMatter}
           />
         </div>
+
+        {hasCustomFields && (
+          <div className="xl:col-span-3">
+            <CustomFieldsPanel
+              matterId={matter.id}
+              defs={customFieldDefs}
+              values={customValues}
+              canEdit={canLeadThisMatter}
+            />
+          </div>
+        )}
 
       </motion.div>
 

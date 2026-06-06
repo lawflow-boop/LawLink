@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { Prisma } from "@prisma/client";
+import { Prisma, type ClientType, type LitigationStanding, type PartyType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/auth/session";
 import { audit } from "@/server/audit";
@@ -44,6 +44,12 @@ function generateTitle(
   return `${left}与${right}${cause}`.replace(/\s+/g, "");
 }
 
+function clientTypeToPartyType(type: ClientType): PartyType {
+  if (type === "INDIVIDUAL") return "NATURAL_PERSON";
+  if (type === "COMPANY") return "COMPANY";
+  return "OTHER_ORG";
+}
+
 export async function listIntakes(input: Partial<IntakeListQuery> = {}) {
   const session = await requireSession();
   const query = intakeListQuerySchema.parse(input);
@@ -59,28 +65,29 @@ export async function listIntakes(input: Partial<IntakeListQuery> = {}) {
       ? [{ claimAmount: query.sortDir }, { receivedAt: "desc" }]
       : [{ receivedAt: query.sortDir }];
 
-  const where: Prisma.IntakeWhereInput = {
-    ...intakeVisibilityFilter(session.user.id, session.user.role),
-    ...statusWhere,
-    ...(query.category ? { category: query.category } : {}),
-    ...(query.receivedAtFrom || query.receivedAtTo
-      ? {
-          receivedAt: {
-            ...(query.receivedAtFrom ? { gte: query.receivedAtFrom } : {}),
-            ...(query.receivedAtTo ? { lte: query.receivedAtTo } : {})
-          }
-        }
-      : {}),
-    ...(query.search
-      ? {
-          OR: [
-            { title: { contains: query.search, mode: "insensitive" } },
-            { description: { contains: query.search, mode: "insensitive" } },
-            { client: { name: { contains: query.search, mode: "insensitive" } } }
-          ]
-        }
-      : {})
-  };
+  const whereParts: Prisma.IntakeWhereInput[] = [
+    intakeVisibilityFilter(session.user.id, session.user.role),
+    statusWhere
+  ];
+  if (query.category) whereParts.push({ category: query.category });
+  if (query.receivedAtFrom || query.receivedAtTo) {
+    whereParts.push({
+      receivedAt: {
+        ...(query.receivedAtFrom ? { gte: query.receivedAtFrom } : {}),
+        ...(query.receivedAtTo ? { lte: query.receivedAtTo } : {})
+      }
+    });
+  }
+  if (query.search) {
+    whereParts.push({
+      OR: [
+        { title: { contains: query.search, mode: "insensitive" } },
+        { description: { contains: query.search, mode: "insensitive" } },
+        { client: { name: { contains: query.search, mode: "insensitive" } } }
+      ]
+    });
+  }
+  const where: Prisma.IntakeWhereInput = { AND: whereParts };
 
   const [items, total] = await Promise.all([
     prisma.intake.findMany({
@@ -433,13 +440,14 @@ export async function resubmitIntake(id: string) {
   return { ok: true };
 }
 
-/** 转 Matter：把 intake 上的全部字段铺到 Matter / 首程序 / Billing / MatterMember / Document */
+/** 转 Matter：把 intake 上的全部字段铺到 Matter / 首程序 / 程序当事人 / Billing / MatterMember / Document */
 export async function convertIntakeToMatter(intakeId: string) {
   const session = await requireSession();
   requireApprover(session.user.role);
   const intake = await prisma.intake.findUnique({
     where: { id: intakeId },
     include: {
+      client: true,
       parties: true,
       documents: { select: { id: true } }
     }
@@ -504,37 +512,94 @@ export async function convertIntakeToMatter(intakeId: string) {
         clientLinks: intake.clientId
           ? { create: { clientId: intake.clientId, isPrimary: true, label: "主要委托方" } }
           : undefined,
-        parties: {
-          create: intake.parties.map((p) => ({
-            role: p.role,
-            standing: p.standing,
-            ordinal: p.ordinal,
-            name: p.name,
-            partyType: p.partyType,
-            idNumber: p.idNumber,
-            phone: p.phone,
-            address: p.address,
-            legalRep: p.legalRep,
-            contactName: p.contactName,
-            enterpriseSocialCode: p.enterpriseSocialCode,
-            enterpriseName: p.enterpriseName,
-            notes: p.notes
-          }))
-        },
-        procedures: {
-          create: {
-            type: firstProcedureType,
-            engagement: "ENGAGED",
-            order: 1,
-            status: "IN_PROGRESS",
-            handlingAgency: intake.firstAgency,
-            // 程序级信息从收案带入首程序（原先丢失）
-            jurisdiction: intake.jurisdiction,
-            ourStanding: intake.ourStanding
-          }
-        }
       }
     });
+
+    const procedurePartyRows: { partyId: string; standing: LitigationStanding; ordinal: number }[] = [];
+    let nextProcedurePartyOrdinal = 1;
+
+    if (intake.client && intake.ourStanding) {
+      const clientParty = await tx.party.create({
+        data: {
+          matterId: m.id,
+          role: "CLIENT_PARTY",
+          standing: intake.ourStanding,
+          ordinal: 1,
+          name: intake.client.name,
+          partyType: clientTypeToPartyType(intake.client.type),
+          idNumber: intake.client.type === "INDIVIDUAL" ? intake.client.idNumber : null,
+          phone: intake.client.phone,
+          address: intake.client.address,
+          legalRep: intake.client.legalRep,
+          contactName: intake.contactName,
+          enterpriseSocialCode: intake.client.type === "INDIVIDUAL" ? null : intake.client.idNumber,
+          enterpriseName: intake.client.type === "INDIVIDUAL" ? null : intake.client.name,
+          notes: "由收案委托方自动带入首程序"
+        },
+        select: { id: true }
+      });
+      procedurePartyRows.push({
+        partyId: clientParty.id,
+        standing: intake.ourStanding,
+        ordinal: nextProcedurePartyOrdinal++
+      });
+    }
+
+    for (const p of intake.parties) {
+      const party = await tx.party.create({
+        data: {
+          matterId: m.id,
+          role: p.role,
+          standing: p.standing,
+          ordinal: p.ordinal,
+          name: p.name,
+          partyType: p.partyType,
+          idNumber: p.idNumber,
+          phone: p.phone,
+          address: p.address,
+          legalRep: p.legalRep,
+          contactName: p.contactName,
+          enterpriseSocialCode: p.enterpriseSocialCode,
+          enterpriseName: p.enterpriseName,
+          notes: p.notes
+        },
+        select: { id: true }
+      });
+      if (p.standing) {
+        procedurePartyRows.push({
+          partyId: party.id,
+          standing: p.standing,
+          ordinal: nextProcedurePartyOrdinal++
+        });
+      }
+    }
+
+    const firstProcedure = await tx.matterProcedure.create({
+      data: {
+        matterId: m.id,
+        type: firstProcedureType,
+        engagement: "ENGAGED",
+        order: 1,
+        status: "IN_PROGRESS",
+        handlingAgency: intake.firstAgency,
+        // 程序级信息从收案带入首程序（原先丢失）
+        jurisdiction: intake.jurisdiction,
+        ourStanding: intake.ourStanding
+      },
+      select: { id: true }
+    });
+
+    if (procedurePartyRows.length > 0) {
+      await tx.procedureParty.createMany({
+        data: procedurePartyRows.map((row) => ({
+          procedureId: firstProcedure.id,
+          partyId: row.partyId,
+          standing: row.standing,
+          ordinal: row.ordinal
+        })),
+        skipDuplicates: true
+      });
+    }
 
     // 律师费 → Billing
     if (intake.feeAmount && intake.feeType) {

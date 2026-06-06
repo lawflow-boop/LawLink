@@ -62,7 +62,7 @@ export function InvoiceCreateDialog({
   const [matterQuery, setMatterQuery] = useState("");
   const [matterResults, setMatterResults] = useState<MatterRef[]>([]);
   const [selectedMatter, setSelectedMatter] = useState<MatterRef | null>(null);
-  const [searching, startSearch] = useTransition();
+  const [matterLoading, setMatterLoading] = useState(false);
   const [clientOptions, setClientOptions] = useState<ClientOption[]>([]);
 
   // 开票字段
@@ -78,13 +78,16 @@ export function InvoiceCreateDialog({
   const [requestNote, setRequestNote] = useState("");
   const [evidenceFiles, setEvidenceFiles] = useState<File[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const matterSearchSeqRef = useRef(0);
 
   function reset() {
+    matterSearchSeqRef.current += 1;
     setNoMatter(false);
     setNoMatterReason("");
     setMatterQuery("");
     setMatterResults([]);
     setSelectedMatter(null);
+    setMatterLoading(false);
     setClientOptions([]);
     setAmount("");
     setInvoiceType(null);
@@ -102,23 +105,31 @@ export function InvoiceCreateDialog({
   useEffect(() => {
     if (open) {
       reset();
+      loadMatterOptions("");
     }
   }, [open]);
 
+  function loadMatterOptions(q: string) {
+    const query = q.trim();
+    const seq = matterSearchSeqRef.current + 1;
+    matterSearchSeqRef.current = seq;
+    setMatterLoading(true);
+
+    searchMattersForInvoice(query)
+      .then((items) => {
+        if (matterSearchSeqRef.current === seq) setMatterResults(items);
+      })
+      .catch(() => {
+        if (matterSearchSeqRef.current === seq) setMatterResults([]);
+      })
+      .finally(() => {
+        if (matterSearchSeqRef.current === seq) setMatterLoading(false);
+      });
+  }
+
   function runSearch(q: string) {
     setMatterQuery(q);
-    const query = q.trim();
-    if (!query) {
-      setMatterResults([]);
-      return;
-    }
-    startSearch(async () => {
-      try {
-        setMatterResults(await searchMattersForInvoice(query));
-      } catch {
-        setMatterResults([]);
-      }
-    });
+    loadMatterOptions(q);
   }
 
   function pickMatter(m: MatterRef) {
@@ -240,7 +251,11 @@ export function InvoiceCreateDialog({
                     checked={noMatter}
                     onChange={(e) => {
                       setNoMatter(e.target.checked);
-                      if (e.target.checked) setSelectedMatter(null);
+                      if (e.target.checked) {
+                        setSelectedMatter(null);
+                      } else {
+                        loadMatterOptions(matterQuery);
+                      }
                     }}
                   />
                   无关联案件（如所务、咨询等非案件收入）
@@ -281,16 +296,14 @@ export function InvoiceCreateDialog({
                     />
                   </div>
                   <div className="max-h-40 space-y-1 overflow-y-auto">
-                    {!matterQuery.trim() ? (
-                      <p className="rounded-md border border-dashed border-border bg-background py-4 text-center text-xs text-muted-foreground">
-                        输入关键词后显示匹配案件
-                      </p>
-                    ) : searching ? (
+                    {matterLoading ? (
                       <div className="flex justify-center py-4">
                         <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                       </div>
                     ) : matterResults.length === 0 ? (
-                      <p className="py-4 text-center text-xs text-muted-foreground">无匹配案件</p>
+                      <p className="rounded-md border border-dashed border-border bg-background py-4 text-center text-xs text-muted-foreground">
+                        {matterQuery.trim() ? "无匹配案件" : "暂无可关联案件"}
+                      </p>
                     ) : (
                       matterResults.map((m) => (
                         <button
