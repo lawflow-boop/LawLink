@@ -10,7 +10,7 @@ export function CategoryChart({ data }: { data: CategoryItem[] }) {
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 8 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.5 }}
       className="ll-surface flex h-full flex-col"
@@ -19,8 +19,8 @@ export function CategoryChart({ data }: { data: CategoryItem[] }) {
         <h2 className="text-lg font-medium tracking-tight">案件类型分布</h2>
       </header>
 
-      <div className="border-t border-border grid flex-1 grid-cols-5 items-center gap-3 p-4">
-        <div className="relative col-span-2 h-[180px]">
+      <div className="grid flex-1 grid-cols-1 items-center gap-3 border-t border-border p-4 sm:grid-cols-5">
+        <div className="relative h-[180px] sm:col-span-2">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -48,9 +48,9 @@ export function CategoryChart({ data }: { data: CategoryItem[] }) {
           </div>
         </div>
 
-        <ul className="col-span-3 space-y-0">
+        <ul className="space-y-0 sm:col-span-3">
           {data.map((cat) => {
-            const pct = Math.round((cat.value / total) * 100);
+            const pct = total > 0 ? Math.round((cat.value / total) * 100) : 0;
             return (
               <li
                 key={cat.code}

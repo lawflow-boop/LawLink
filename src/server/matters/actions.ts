@@ -575,7 +575,8 @@ export async function getMatterById(id: string) {
           memos: { orderBy: [{ done: "asc" }, { createdAt: "desc" }] }
         }
       },
-      timelineEvents: { orderBy: { occurredAt: "desc" }, take: 50 }
+      timelineEvents: { orderBy: { occurredAt: "desc" }, take: 50 },
+      _count: { select: { tasks: true, notes: true } }
     }
   });
 

@@ -84,5 +84,11 @@ export const hearingCreateSchema = z.object({
 
 export type ProcedureCreateInput = z.infer<typeof procedureCreateSchema>;
 export type ProcedureUpdateInput = z.infer<typeof procedureUpdateSchema>;
-export type DeadlineCreateInput = z.infer<typeof deadlineCreateSchema>;
-export type HearingCreateInput = z.infer<typeof hearingCreateSchema>;
+export type DeadlineCategory = z.infer<typeof deadlineCategorySchema>;
+export type DeadlineCreateInput = Omit<z.infer<typeof deadlineCreateSchema>, "dueAt"> & {
+  dueAt: Date | string | number;
+};
+export type HearingCreateInput = Omit<z.infer<typeof hearingCreateSchema>, "startsAt" | "endsAt"> & {
+  startsAt: Date | string | number;
+  endsAt?: Date | string | number;
+};

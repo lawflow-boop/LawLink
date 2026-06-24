@@ -14,7 +14,7 @@ import {
 export function RevenueChart({ data }: { data: { month: string; received: number; receivable: number }[] }) {
   return (
     <motion.section
-      initial={{ opacity: 0, y: 8 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.45 }}
       className="ll-surface flex h-full flex-col"

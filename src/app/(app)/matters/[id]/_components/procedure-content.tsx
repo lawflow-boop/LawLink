@@ -56,7 +56,7 @@ import {
   addProcedureMemo,
   deleteProcedureMemo
 } from "@/server/procedures/actions";
-import type { DeadlineCreateInput } from "@/server/procedures/schemas";
+import type { DeadlineCategory, DeadlineCreateInput } from "@/server/procedures/schemas";
 import { createExpress, deleteExpress } from "@/server/express/actions";
 import { parseExpressLabel } from "@/server/ai/parse-express";
 import { parseSummons } from "@/server/ai/parse-summons";
@@ -250,6 +250,7 @@ function ImportantItemsCard({
               <button
                 key={f.value}
                 type="button"
+                onPointerDown={() => setFilter(f.value)}
                 onClick={() => setFilter(f.value)}
                 className={cn(
                   "rounded px-2 py-0.5 text-[11px] transition-colors",
@@ -269,6 +270,7 @@ function ImportantItemsCard({
         {canManage && (
           <Button
             size="sm"
+            onPointerDown={openAddDialog}
             onClick={openAddDialog}
             className="h-6 gap-0.5 px-2 text-[11px]"
           >
@@ -607,7 +609,7 @@ function MemoRow({
 
 // ============ 统一添加重要事项 ============
 
-const deadlineCategoryLabel: Record<DeadlineCreateInput["category"], string> = {
+const deadlineCategoryLabel: Record<DeadlineCategory, string> = {
   LIMITATION: "诉讼时效",
   EVIDENCE: "举证期限",
   APPEAL: "上诉期",
@@ -816,7 +818,7 @@ function ImportantItemDialog({
         await addHearing({
           procedureId: hearingProcedureId,
           title: hearingTitle.trim(),
-          startsAt,
+          startsAt: startsAt.toISOString(),
           endsAt: undefined,
           room: hearingRoom.trim(),
           address: hearingAddress.trim(),

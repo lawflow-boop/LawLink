@@ -8,6 +8,7 @@
  */
 import { requireSession } from "@/lib/auth/session";
 import { aiVision, extractJson, AiNotConfiguredError } from "@/lib/ai/client";
+import { parseSummonsWithLocalOcr } from "./parse-summons-local";
 
 export type ParsedSummons = {
   hearingDate: string | null;   // YYYY-MM-DD
@@ -41,7 +42,7 @@ export async function parseSummons(form: FormData): Promise<ParsedSummons> {
   const file = form.get("file");
   if (!(file instanceof File)) throw new Error("缺少文件");
   if (!SUPPORTED.has(file.type)) {
-    throw new Error(`仅支持图片（JPG/PNG）格式，当前 ${file.type || "未知"}`);
+    throw new Error(`仅支持图片（JPG/PNG/WebP/HEIC）或 PDF 格式，当前 ${file.type || "未知"}`);
   }
   if (file.size > 10 * 1024 * 1024) throw new Error("文件超过 10MB");
 
@@ -64,7 +65,23 @@ export async function parseSummons(form: FormData): Promise<ParsedSummons> {
       parties: Array.isArray(parsed?.parties) ? parsed.parties.filter(Boolean) : null
     };
   } catch (err) {
-    if (err instanceof AiNotConfiguredError) throw err;
-    throw new Error(err instanceof Error ? err.message : "传票识别失败");
+    try {
+      const fallback = await parseSummonsWithLocalOcr(file);
+      return {
+        hearingDate: fallback.hearingDate,
+        hearingTime: fallback.hearingTime,
+        courtRoom: fallback.courtRoom,
+        caseNumber: fallback.caseNumber,
+        judge: fallback.judge,
+        parties: fallback.parties
+      };
+    } catch (fallbackErr) {
+      if (err instanceof AiNotConfiguredError) {
+        throw new Error(fallbackErr instanceof Error ? `AI 未配置，本地 OCR 也失败：${fallbackErr.message}` : "AI 未配置，本地 OCR 也失败");
+      }
+      const primary = err instanceof Error ? err.message : "AI 识别失败";
+      const fallbackMessage = fallbackErr instanceof Error ? fallbackErr.message : "本地 OCR 失败";
+      throw new Error(`${primary}；本地 OCR 也失败：${fallbackMessage}`);
+    }
   }
 }

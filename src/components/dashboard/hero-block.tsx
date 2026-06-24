@@ -29,7 +29,7 @@ export function HeroBlock({ data }: { data: HeroData }) {
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 12 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.2, 0.7, 0.3, 1] }}
       className="grid grid-cols-1 gap-3 lg:grid-cols-12"

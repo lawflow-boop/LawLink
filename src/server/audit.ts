@@ -29,5 +29,8 @@ export async function audit(params: {
     });
   } catch (err) {
     console.error("[audit] 写入失败：", err);
+    // 降级：打印到 stderr 以便外部日志采集（systemd/journald/launchd）
+    console.error(`[audit] 降级日志: action=${params.action} targetType=${params.targetType ?? "-"} targetId=${params.targetId ?? "-"}`);
+    // TODO: 后续接入指标打点（如 Prometheus counter）
   }
 }

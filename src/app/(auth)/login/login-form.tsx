@@ -1,57 +1,89 @@
 "use client";
 
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { cn } from "@/lib/utils";
-
-const schema = z.object({
-  email: z.string().email("请填写有效邮箱"),
-  password: z.string().min(1, "请填写密码")
-});
-
-type FormValues = z.infer<typeof schema>;
 
 export function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
   const [authError, setAuthError] = useState<string | null>(null);
+  const [csrfToken, setCsrfToken] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting }
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema)
-  });
+  async function loadCsrfToken() {
+    const res = await fetch("/api/auth/csrf", { cache: "no-store" });
+    const data = await res.json() as { csrfToken?: string };
+    const token = data.csrfToken ?? "";
+    if (token) setCsrfToken(token);
+    return token;
+  }
 
-  async function onSubmit(values: FormValues) {
-    setAuthError(null);
-    const res = await signIn("credentials", {
-      email: values.email,
-      password: values.password,
-      redirect: false
+  useEffect(() => {
+    loadCsrfToken().catch((err: unknown) => {
+      console.error("[auth] 获取 CSRF token 失败:", err);
     });
-    if (res?.ok) {
-      router.replace(callbackUrl);
-      router.refresh();
-    } else {
+  }, []);
+
+  async function doLogin(form: HTMLFormElement) {
+    setAuthError(null);
+    setIsSubmitting(true);
+
+    try {
+      const formData = new FormData(form);
+      const email = String(formData.get("email") ?? "").trim();
+      const password = String(formData.get("password") ?? "");
+
+      if (!email || !password) {
+        setAuthError("请填写邮箱和密码");
+        return;
+      }
+
+      const token = csrfToken || await loadCsrfToken();
+      const res = await fetch(`/api/auth/callback/credentials?callbackUrl=${encodeURIComponent(callbackUrl)}`, {
+        method: "POST",
+        redirect: "manual",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: new URLSearchParams({
+          csrfToken: token,
+          email,
+          password
+        })
+      });
+
+      if (res.ok || res.redirected || res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+        window.location.href = callbackUrl;
+        return;
+      }
+
       setAuthError("邮箱或密码错误");
+    } catch (err) {
+      console.error("[auth] 登录请求失败:", err);
+      setAuthError("登录请求失败，请稍后重试");
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+    <form
+      id="lawlink-login-form"
+      action={`/api/auth/callback/credentials?callbackUrl=${encodeURIComponent(callbackUrl)}`}
+      method="post"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void doLogin(event.currentTarget);
+      }}
+      className="space-y-4"
+      noValidate
+    >
+      <input type="hidden" name="csrfToken" value={csrfToken} />
       {authError ? (
         <Alert variant="destructive" className="border-destructive/40 bg-destructive/10">
           <AlertCircle className="h-4 w-4" />
@@ -63,16 +95,12 @@ export function LoginForm() {
         <Label htmlFor="email">邮箱</Label>
         <Input
           id="email"
+          name="email"
           type="email"
           autoComplete="email"
           placeholder="you@example.com"
-          aria-invalid={!!errors.email}
-          className={cn(errors.email && "border-destructive focus-visible:ring-destructive")}
-          {...register("email")}
+          required
         />
-        {errors.email && (
-          <p className="text-xs text-destructive">{errors.email.message}</p>
-        )}
       </div>
 
       <div className="space-y-1.5">
@@ -80,14 +108,11 @@ export function LoginForm() {
         <div className="relative">
           <Input
             id="password"
+            name="password"
             type={showPassword ? "text" : "password"}
             autoComplete="current-password"
-            aria-invalid={!!errors.password}
-            className={cn(
-              "pr-10",
-              errors.password && "border-destructive focus-visible:ring-destructive"
-            )}
-            {...register("password")}
+            required
+            className="pr-10"
           />
           <button
             type="button"
@@ -99,19 +124,21 @@ export function LoginForm() {
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
-        {errors.password && (
-          <p className="text-xs text-destructive">{errors.password.message}</p>
-        )}
       </div>
 
-      <Button
-        type="submit"
-        className="h-10 w-full gap-2 shadow-md"
+      <button
+        id="lawlink-login-button"
+        type="button"
+        onClick={(event) => {
+          const form = event.currentTarget.form;
+          if (form) void doLogin(form);
+        }}
         disabled={isSubmitting}
+        className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-md transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
       >
         {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
         {isSubmitting ? "登录中..." : "登录"}
-      </Button>
+      </button>
 
       <p className="text-center text-xs text-muted-foreground">
         忘记密码？联系系统管理员重置

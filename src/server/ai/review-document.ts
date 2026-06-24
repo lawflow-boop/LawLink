@@ -22,8 +22,6 @@ import { selectReviewPrompt, reviewPromptLabel } from "@/lib/ai/review-prompts";
 import { extractText, getDocumentProxy } from "unpdf";
 import mammoth from "mammoth";
 
-export type { ReviewItem, ReviewType, ReviewSeverity };
-
 export type ReviewResult = {
   documentName: string;
   textPreviewChars: number;

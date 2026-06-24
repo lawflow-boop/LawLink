@@ -46,7 +46,7 @@ export function MatterPreservationPanel({
   const totalProps = cases.flatMap((c) => c.targets.flatMap((t) => t.properties));
 
   return (
-    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+    <motion.div initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <div className="mb-4 flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-lg">
           <Shield className="h-4 w-4 text-primary" />

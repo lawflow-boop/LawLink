@@ -50,3 +50,14 @@ tsconfig.tsbuildinfo
 
 # Working scratch (outside of project scope)
 outputs/
+tmp/
+tmp_case_import_preview.json
+
+# Local PGG/LawLink import previews and scripts may contain real case paths/data.
+scripts/deep-sync-pgg-cases.js
+scripts/extract-pgg-case-details.js
+scripts/import-pgg-cases.js
+scripts/write-pgg-lawlink-manifests.js
+
+# Accidental mojibake scratch files from local notes/exports.
+u[0-9a-fA-F]*

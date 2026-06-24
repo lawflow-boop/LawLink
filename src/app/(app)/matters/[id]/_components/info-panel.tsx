@@ -114,6 +114,7 @@ export function InfoPanel({
             <Button
               variant="ghost"
               size="sm"
+              onPointerDown={() => setTeamEditorOpen(true)}
               onClick={() => setTeamEditorOpen(true)}
               className="h-6 gap-1 text-[11px] text-muted-foreground hover:text-primary"
             >

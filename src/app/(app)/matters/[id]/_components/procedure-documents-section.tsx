@@ -41,6 +41,7 @@ import {
 import { uploadDocument, deleteDocument } from "@/server/documents/actions";
 import { canPreview, officePreviewKind } from "@/lib/storage/mime-ext";
 import { cn, formatDate } from "@/lib/utils";
+import { getVisibleProcedureDocuments, PROCEDURE_DOCUMENT_COLLAPSED_LIMIT } from "@/lib/procedure-documents-display";
 import { litigationStandingLabel } from "@/lib/enums";
 
 // v0.42: 类别标签按律师习惯改名
@@ -177,6 +178,7 @@ export function ProcedureDocumentsSection({
   const [isPending, startTransition] = useTransition();
   // 当前分类筛选（全部 = null）
   const [filter, setFilter] = useState<DocumentCategory | null>(null);
+  const [documentsExpanded, setDocumentsExpanded] = useState(false);
 
   // 归属/来源选项：当前程序当事人（诉讼地位 + 名称）
   const sourceOptions = useMemo(
@@ -203,6 +205,12 @@ export function ProcedureDocumentsSection({
     () => (filter ? documents.filter((d) => d.category === filter) : documents),
     [documents, filter]
   );
+  const visibleDocuments = useMemo(
+    () => getVisibleProcedureDocuments(filtered, documentsExpanded),
+    [filtered, documentsExpanded]
+  );
+  const hiddenDocumentCount = Math.max(0, filtered.length - PROCEDURE_DOCUMENT_COLLAPSED_LIMIT);
+  const canToggleDocuments = filtered.length > PROCEDURE_DOCUMENT_COLLAPSED_LIMIT;
 
   // 各类别计数（给 tab 显示）
   const counts = useMemo(() => {
@@ -270,6 +278,7 @@ export function ProcedureDocumentsSection({
           <div className="flex items-center gap-0.5 rounded-md border border-border bg-background p-0.5">
             <button
               type="button"
+              onPointerDown={() => setFilter(null)}
               onClick={() => setFilter(null)}
               className={cn(
                 "rounded px-2 py-0.5 text-[11px] transition-colors",
@@ -284,6 +293,7 @@ export function ProcedureDocumentsSection({
               <button
                 key={c}
                 type="button"
+                onPointerDown={() => setFilter(filter === c ? null : c)}
                 onClick={() => setFilter(filter === c ? null : c)}
                 className={cn(
                   "rounded px-2 py-0.5 text-[11px] transition-colors",
@@ -298,7 +308,7 @@ export function ProcedureDocumentsSection({
           </div>
         </div>
         {canManage && (
-          <Button size="sm" onClick={() => setOpen(true)} className="h-6 gap-0.5 px-2 text-[11px] shrink-0">
+          <Button size="sm" onPointerDown={() => setOpen(true)} onClick={() => setOpen(true)} className="h-6 gap-0.5 px-2 text-[11px] shrink-0">
             <Plus className="h-2.5 w-2.5" />
             上传
           </Button>
@@ -310,9 +320,9 @@ export function ProcedureDocumentsSection({
           {filter ? "该分类下暂无材料" : "本程序还没有材料"}
         </p>
       ) : (
-        // 单文件行列表，无外框
-        <ul className="divide-y divide-border px-4">
-          {filtered.map((d) => {
+        <>
+          <ul className="divide-y divide-border px-4">
+          {visibleDocuments.map((d) => {
             const icon = iconFor(d);
             const pUrl = previewUrl(d);
             return (
@@ -378,7 +388,21 @@ export function ProcedureDocumentsSection({
               </li>
             );
           })}
-        </ul>
+          </ul>
+          {canToggleDocuments && (
+            <div className="border-t border-border px-4 py-2 text-center">
+              <button
+                type="button"
+                onClick={() => setDocumentsExpanded((value) => !value)}
+                className="rounded-md px-2 py-1 text-[11px] text-primary hover:bg-primary/10"
+              >
+                {documentsExpanded
+                  ? `收起材料（仅保留前 ${PROCEDURE_DOCUMENT_COLLAPSED_LIMIT} 行）`
+                  : `展开全部 ${filtered.length} 份材料（另有 ${hiddenDocumentCount} 份）`}
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {canManage && (

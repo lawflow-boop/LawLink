@@ -3,16 +3,20 @@
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import type { ClientType, Prisma } from "@prisma/client";
+import type { ClientType, DocumentCategory, Prisma } from "@prisma/client";
 import {
+  CheckCircle2,
+  CircleDashed,
   Info,
   Plus,
   Pencil,
+  ShieldAlert,
   X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { matterStatusLabel, procedureTypeLabel, matterCategoryKind } from "@/lib/enums";
+import { buildPggCaseworkGate, type PggCaseworkGateStatus } from "@/lib/pgg-casework-gate";
 import { cn } from "@/lib/utils";
 import { InfoPanel } from "./info-panel";
 import { FinancePanel } from "./finance-panel";
@@ -58,6 +62,7 @@ type MatterPayload = Prisma.MatterGetPayload<{
       };
     };
     timelineEvents: true;
+    _count: { select: { tasks: true; notes: true } };
   };
 }>;
 
@@ -107,6 +112,24 @@ export type FinancePayload = {
 
 type UserOption = { id: string; name: string; role: string };
 
+/** 案件详情页文档类型（附带 uploader 和 procedure 信息） */
+export type MatterDocument = {
+  id: string;
+  name: string;
+  category: DocumentCategory;
+  procedureId: string | null;
+  mimeType: string | null;
+  size: number | null;
+  path: string;
+  tags: string[];
+  createdAt: Date;
+  sourceParty: string | null;
+  uploadedBy: { id: string; name: string } | null;
+  procedure: { id: string; type: string; customLabel: string | null } | null;
+  folderId: string | null;
+  templateId: string | null;
+};
+
 export type NotePayload = {
   id: string;
   channel: "PHONE" | "WECHAT" | "EMAIL" | "MEETING" | "COURT" | "OTHER";
@@ -142,8 +165,8 @@ export function MatterDetailTabs({
   matter: MatterPayload;
   finance: FinancePayload;
   userOptions: UserOption[];
-  documents: any[];
-  intakeContracts: any[];
+  documents: MatterDocument[];
+  intakeContracts: MatterDocument[];
   folders: FolderPayload[];
   folderDocuments: FolderDocument[];
   templates: TemplateSummary[];
@@ -223,15 +246,22 @@ export function MatterDetailTabs({
     matter.customValues &&
     typeof matter.customValues === "object" &&
     !Array.isArray(matter.customValues)
-      ? (matter.customValues as Record<string, string>)
+      ? (matter.customValues as Record<string, unknown>)
       : {};
   const hasCustomFields = customFieldDefs.length > 0;
+  const hasPggIntegration = Boolean(customValues.pgg_source_path || customValues.pgg_deep_import);
+  const customStringValues = Object.fromEntries(
+    Object.entries(customValues).map(([key, value]) => [
+      key,
+      typeof value === "string" ? value : value == null ? "" : JSON.stringify(value)
+    ])
+  ) as Record<string, string>;
 
   return (
     <div className="space-y-4">
       {/* H1 头部 */}
       <motion.header
-        initial={{ opacity: 0, y: 4 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
         className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-2"
@@ -253,7 +283,7 @@ export function MatterDetailTabs({
       {/* 归档状态 banner */}
       {latestArchive && (
         <motion.div
-          initial={{ opacity: 0, y: 4 }}
+          initial={false}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.05 }}
         >
@@ -271,7 +301,7 @@ export function MatterDetailTabs({
 
       {/* 单页竖向布局 */}
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={false}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.05 }}
         className="grid grid-cols-1 gap-4 xl:grid-cols-5"
@@ -318,6 +348,7 @@ export function MatterDetailTabs({
                   >
                     <button
                       type="button"
+                      onPointerDown={() => setSelectedProcId(p.id)}
                       onClick={() => setSelectedProcId(p.id)}
                       className="flex items-center gap-1.5"
                     >
@@ -354,6 +385,7 @@ export function MatterDetailTabs({
             {canAssociateThisMatter && (
               <button
                 type="button"
+                onPointerDown={() => setAddProcOpen(true)}
                 onClick={() => setAddProcOpen(true)}
                 className="inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80"
               >
@@ -365,6 +397,7 @@ export function MatterDetailTabs({
               <Button
                 variant="ghost"
                 size="sm"
+                onPointerDown={() => setProcEditOpen(true)}
                 onClick={() => setProcEditOpen(true)}
                 className="ml-auto h-6 gap-1 text-[11px] text-muted-foreground hover:text-primary"
               >
@@ -414,12 +447,26 @@ export function MatterDetailTabs({
           />
         </div>
 
+        {hasPggIntegration && (
+          <div className="xl:col-span-5">
+            <PggIntegrationPanel
+              values={customValues}
+              documents={documents}
+              procedureCount={matter.procedures.length}
+              partyCount={matter.parties.length + matter.clientLinks.length + (matter.primaryClient ? 1 : 0)}
+              taskCount={matter._count.tasks}
+              noteCount={matter._count.notes}
+              timelineCount={matter.timelineEvents.length}
+            />
+          </div>
+        )}
+
         {hasCustomFields && (
           <div className="xl:col-span-3">
             <CustomFieldsPanel
               matterId={matter.id}
               defs={customFieldDefs}
-              values={customValues}
+              values={customStringValues}
               canEdit={canLeadThisMatter}
             />
           </div>
@@ -447,6 +494,155 @@ export function MatterDetailTabs({
       )}
     </div>
   );
+}
+
+function PggIntegrationPanel({
+  values,
+  documents,
+  procedureCount,
+  partyCount,
+  taskCount,
+  noteCount,
+  timelineCount
+}: {
+  values: Record<string, unknown>;
+  documents: MatterDocument[];
+  procedureCount: number;
+  partyCount: number;
+  taskCount: number;
+  noteCount: number;
+  timelineCount: number;
+}) {
+  const sourcePath = typeof values.pgg_source_path === "string" ? values.pgg_source_path : "";
+  const summary = typeof values.pgg_extraction_summary === "string" ? values.pgg_extraction_summary : "";
+  const stageName = typeof values.pgg_stage_name === "string" ? values.pgg_stage_name : "";
+  const amountFragments = typeof values.pgg_amount_fragments === "string" ? values.pgg_amount_fragments : "";
+  const dateFragments = typeof values.pgg_date_fragments === "string" ? values.pgg_date_fragments : "";
+  const deepImport =
+    values.pgg_deep_import && typeof values.pgg_deep_import === "object" && !Array.isArray(values.pgg_deep_import)
+      ? (values.pgg_deep_import as { taskHints?: string[]; factSnippets?: string[]; counts?: Record<string, number> })
+      : null;
+  const pggDocs = documents.filter((doc) => doc.tags?.includes("PGG深度导入") || doc.tags?.includes("PGG历史导入"));
+  const evidenceCount = pggDocs.filter((doc) => doc.category === "EVIDENCE").length;
+  const pleadingCount = pggDocs.filter((doc) => doc.category === "PLEADING" || doc.category === "CONTRACT").length;
+  const receiptCount = pggDocs.filter((doc) => doc.tags?.includes("receipt/审计")).length;
+  const fileHref = sourcePath ? `file://${sourcePath}` : undefined;
+  const gate = buildPggCaseworkGate({
+    values,
+    documents,
+    procedureCount,
+    partyCount,
+    taskCount: Math.max(taskCount, deepImport?.taskHints?.length ?? 0),
+    noteCount,
+    timelineCount
+  });
+
+  return (
+    <section className="rounded-lg border border-primary/20 bg-primary/5">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-primary/15 px-4 py-2">
+        <div className="flex items-center gap-2">
+          <Info className="h-3.5 w-3.5 text-primary" />
+          <span className="text-[13px] font-medium">PGG 办案系统嵌入</span>
+          <Badge variant="outline" className="border-primary/25 bg-background/60 text-[10px] text-primary">
+            深度同步
+          </Badge>
+          <Badge variant="outline" className={cn("text-[10px]", gate.deliveryStatus === "trusted_ready" ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700" : "border-amber-500/30 bg-amber-500/10 text-amber-700")}>
+            {gate.summary.satisfied}/{gate.summary.total} 六角色
+          </Badge>
+        </div>
+        {fileHref && (
+          <a
+            href={fileHref}
+            className="rounded-md border border-primary/20 bg-background/70 px-2 py-1 text-[11px] text-primary hover:bg-background"
+            title={sourcePath}
+          >
+            打开本机案卷
+          </a>
+        )}
+      </header>
+      <div className="grid gap-3 p-4 text-[12px] text-foreground/85 lg:grid-cols-4">
+        <div className="rounded-md border border-border/70 bg-background/60 p-3">
+          <div className="text-muted-foreground">来源案卷</div>
+          <div className="mt-1 break-all font-mono text-[11px] leading-relaxed">{sourcePath || "—"}</div>
+          {stageName && <div className="mt-2 text-muted-foreground">阶段：{stageName}</div>}
+        </div>
+        <div className="rounded-md border border-border/70 bg-background/60 p-3">
+          <div className="text-muted-foreground">同步材料</div>
+          <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+            <div><div className="text-lg font-semibold">{pggDocs.length}</div><div className="text-[10px] text-muted-foreground">全部</div></div>
+            <div><div className="text-lg font-semibold">{evidenceCount}</div><div className="text-[10px] text-muted-foreground">证据</div></div>
+            <div><div className="text-lg font-semibold">{receiptCount}</div><div className="text-[10px] text-muted-foreground">回执</div></div>
+          </div>
+          <div className="mt-2 text-muted-foreground">文书/合同：{pleadingCount} 份</div>
+        </div>
+        <div className="rounded-md border border-border/70 bg-background/60 p-3">
+          <div className="text-muted-foreground">金额 / 日期片段</div>
+          <p className="mt-1 line-clamp-3 leading-relaxed">{amountFragments || "未稳定识别金额"}</p>
+          <p className="mt-2 line-clamp-2 text-muted-foreground">{dateFragments || "未稳定识别日期"}</p>
+        </div>
+        <div className="rounded-md border border-border/70 bg-background/60 p-3">
+          <div className="text-muted-foreground">复核任务</div>
+          <ul className="mt-1 list-disc space-y-1 pl-4 leading-relaxed">
+            {(deepImport?.taskHints ?? []).slice(0, 4).map((task) => <li key={task}>{task}</li>)}
+            {(deepImport?.taskHints?.length ?? 0) === 0 && <li>暂无自动生成任务</li>}
+          </ul>
+        </div>
+      </div>
+      <div className="border-t border-primary/15 px-4 py-3">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <div className="text-[12px] font-medium text-foreground/80">六角色可信办案门禁</div>
+          <div className="text-[11px] text-muted-foreground">
+            已满足 {gate.summary.satisfied} · 部分 {gate.summary.partial} · 阻断 {gate.summary.blocked}
+          </div>
+        </div>
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {gate.roles.map((role) => (
+            <div key={role.key} className="rounded-md border border-border/70 bg-background/70 p-3 text-[11px]">
+              <div className="flex items-center gap-2">
+                <CaseworkGateIcon status={role.status} />
+                <span className="font-medium text-foreground/85">{role.label}</span>
+                <span className={cn("ml-auto rounded-full px-1.5 py-0.5 text-[10px]", caseworkStatusClass(role.status))}>
+                  {caseworkStatusLabel(role.status)}
+                </span>
+              </div>
+              <div className="mt-2 space-y-1 text-muted-foreground">
+                {(role.evidence.length ? role.evidence : role.missing).slice(0, 2).map((item) => (
+                  <div key={item} className="line-clamp-1">{item}</div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className={cn("mt-3 rounded-md border px-3 py-2 text-[11px] leading-relaxed", gate.deliveryStatus === "trusted_ready" ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-700" : "border-amber-500/20 bg-amber-500/10 text-amber-700")}>
+          {gate.boundary}
+        </div>
+      </div>
+      {summary && (
+        <div className="border-t border-primary/15 px-4 py-3 text-[12px] leading-relaxed text-muted-foreground">
+          <div className="mb-1 font-medium text-foreground/80">同步摘要</div>
+          <pre className="whitespace-pre-wrap font-sans">{summary}</pre>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function CaseworkGateIcon({ status }: { status: PggCaseworkGateStatus }) {
+  if (status === "satisfied") return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />;
+  if (status === "partial") return <CircleDashed className="h-3.5 w-3.5 text-amber-600" />;
+  return <ShieldAlert className="h-3.5 w-3.5 text-destructive" />;
+}
+
+function caseworkStatusLabel(status: PggCaseworkGateStatus) {
+  if (status === "satisfied") return "已满足";
+  if (status === "partial") return "部分";
+  return "阻断";
+}
+
+function caseworkStatusClass(status: PggCaseworkGateStatus) {
+  if (status === "satisfied") return "bg-emerald-500/10 text-emerald-700";
+  if (status === "partial") return "bg-amber-500/10 text-amber-700";
+  return "bg-destructive/10 text-destructive";
 }
 
 function MatterStatusPill({ status }: { status: MatterPayload["status"] }) {

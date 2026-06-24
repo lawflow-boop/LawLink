@@ -78,6 +78,7 @@ export function ApprovalsPanel({
               <button
                 key={f.value}
                 type="button"
+                onPointerDown={() => setFilter(f.value)}
                 onClick={() => setFilter(f.value)}
                 className={cn(
                   "rounded px-2 py-0.5 text-[11px] transition-colors",
@@ -100,6 +101,7 @@ export function ApprovalsPanel({
           <Button
             size="sm"
             type="button"
+            onPointerDown={handleOpenSheet}
             onClick={handleOpenSheet}
             disabled={loadingConfigs}
             className="h-6 gap-0.5 px-2 text-[11px]"

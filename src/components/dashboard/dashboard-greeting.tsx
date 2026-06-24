@@ -16,6 +16,12 @@ function getGreeting(hour: number) {
   return "晚上好";
 }
 
+const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"] as const;
+
+export function formatDashboardDateLabel(date: Date) {
+  return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 星期${WEEKDAY_LABELS[date.getDay()]}`;
+}
+
 const typeMeta = {
   deadline: { icon: AlertTriangle, color: "text-amber-600", label: "期限" },
   hearing: { icon: Calendar, color: "text-primary", label: "开庭" }
@@ -34,16 +40,11 @@ export function DashboardGreeting({
   const router = useRouter();
   const today = new Date();
   const greeting = getGreeting(today.getHours());
-  const dateLabel = today.toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    weekday: "long"
-  });
+  const dateLabel = formatDashboardDateLabel(today);
 
   return (
     <motion.section
-      initial={{ opacity: 0, y: 10 }}
+      initial={false}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.2, 0.7, 0.3, 1] }}
       className="grid grid-cols-1 gap-4 py-3 lg:grid-cols-5"

@@ -30,6 +30,7 @@ import {
   deadlineCreateSchema,
   hearingCreateSchema,
   type ProcedureCreateInput,
+  type DeadlineCategory,
   type DeadlineCreateInput,
   type HearingCreateInput
 } from "@/server/procedures/schemas";
@@ -272,7 +273,7 @@ export function AddProcedureSheet({
 // ============ AddDeadlineSheet ============
 
 const deadlineCategoryLabel: Record<
-  DeadlineCreateInput["category"],
+  DeadlineCategory,
   string
 > = {
   LIMITATION: "诉讼时效",
@@ -537,7 +538,11 @@ export function AddHearingDialog({
   function onSubmit(values: HearingCreateInput) {
     startTransition(async () => {
       try {
-        await addHearing(values);
+        await addHearing({
+          ...values,
+          startsAt: values.startsAt instanceof Date ? values.startsAt.toISOString() : values.startsAt,
+          endsAt: values.endsAt instanceof Date ? values.endsAt.toISOString() : values.endsAt
+        });
         toast.success("开庭已添加");
         reset();
         onOpenChange(false);
@@ -563,7 +568,7 @@ export function AddHearingDialog({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic"
+                accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
                 className="hidden"
                 onChange={handleSummonsUpload}
               />

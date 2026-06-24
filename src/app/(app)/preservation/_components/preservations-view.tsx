@@ -160,7 +160,7 @@ function CaseCard({ caseData: cs, expanded, onToggle, matters, users }: { caseDa
   const expiryInfo = worstExpiry !== null ? classifyExpiry(worstExpiry) : null;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-border bg-card">
+    <motion.div initial={false} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-border bg-card">
       <button type="button" onClick={onToggle} className="flex w-full items-center gap-3 px-4 py-3 text-left">
         {expanded ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
         <Shield className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.8} />

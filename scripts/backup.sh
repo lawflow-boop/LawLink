@@ -22,8 +22,7 @@ if [ -z "$DB_URL" ]; then
   exit 1
 fi
 
-# 从 DATABASE_URL 解析连接参数
-# 格式: postgresql://user:password@host:port/database
+# 从 DATABASE_URL 解析连接参数；不要把真实连接串写入仓库
 DB_HOST=$(echo "$DB_URL" | sed -E 's/.*@([^:]+):.*/\1/')
 DB_PORT=$(echo "$DB_URL" | sed -E 's/.*:([0-9]+)\/.*/\1/')
 DB_NAME=$(echo "$DB_URL" | sed -E 's/.*\/([^?]+).*/\1/')

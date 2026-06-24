@@ -37,8 +37,8 @@ export const authOptions: NextAuthOptions = {
         prisma.user.update({
           where: { id: user.id },
           data: { lastLoginAt: new Date() }
-        }).catch(() => {
-          // 忽略更新失败
+        }).catch((err: unknown) => {
+          console.error("[auth] lastLoginAt 更新失败:", err);
         });
 
         return {
