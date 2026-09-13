@@ -61,7 +61,7 @@
     "react-dom": "^19.2.7",
     "react-hook-form": "^7.76.0",
     "recharts": "^2.13.3",
-    "sonner": "^1.7.4",
+    "sonner": "^2.0.8",
     "tailwind-merge": "^2.5.4",
     "tailwindcss-animate": "^1.0.7",
     "unpdf": "^1.6.2",
