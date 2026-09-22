@@ -37,7 +37,7 @@
     "@radix-ui/react-switch": "^1.2.6",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "@tanstack/react-table": "^8.20.5",
+    "@tanstack/react-table": "^9.1.2",
     "bcryptjs": "^2.4.3",
     "china-division": "^2.7.0",
     "class-variance-authority": "^0.7.1",
